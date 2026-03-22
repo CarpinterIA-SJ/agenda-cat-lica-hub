@@ -1,10 +1,21 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, Navigate, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Bell, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const DashboardLayout = () => {
+  const role = localStorage.getItem("userRole") || "participant";
+  const location = useLocation();
+
+  if (role === "participant") {
+    // Only allow specific paths for participants
+    const allowedPaths = ["/events", "/support"];
+    if (!allowedPaths.includes(location.pathname)) {
+      return <Navigate to="/events" replace />;
+    }
+  }
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -13,7 +24,7 @@ const DashboardLayout = () => {
           <header className="h-14 flex items-center justify-between border-b bg-card px-4">
             <div className="flex items-center gap-2">
               <SidebarTrigger />
-              <span className="text-sm font-medium text-muted-foreground hidden sm:block">Sancton Panel</span>
+              <span className="text-sm font-medium text-muted-foreground hidden sm:block">Santo Painel</span>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" className="text-muted-foreground">

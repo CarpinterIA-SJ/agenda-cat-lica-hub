@@ -1,20 +1,66 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, Eye, EyeOff, Church } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Church, AlertCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import authBg from "@/assets/auth-bg.jpg";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { session } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (session) {
+      navigate("/role-select");
+    }
+  }, [session, navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/role-select");
+    setLoading(true);
+    setError("");
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    }
+  };
+
+  const handleSignUp = async () => {
+    if (!email || !password) {
+      setError("Preencha e-mail e senha para criar a conta.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+    
+    if (error) {
+      setError(error.message);
+    } else {
+      setError("Verifique seu e-mail para confirmar o cadastro.");
+    }
+    setLoading(false);
+  };
+
+  const handleGoogleLogin = async () => {
+    await supabase.auth.signInWithOAuth({ provider: "google" });
   };
 
   return (
@@ -33,6 +79,12 @@ const LoginPage = () => {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
+            {error && (
+              <div className="p-3 bg-destructive/15 text-destructive text-sm rounded-md flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                {error}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
               <div className="relative">
@@ -76,8 +128,8 @@ const LoginPage = () => {
               </button>
             </div>
 
-            <Button type="submit" className="w-full h-11 font-semibold">
-              Entrar
+            <Button type="submit" className="w-full h-11 font-semibold" disabled={loading}>
+              {loading ? "Entrando..." : "Entrar"}
             </Button>
 
             <div className="relative">
@@ -89,7 +141,7 @@ const LoginPage = () => {
               </div>
             </div>
 
-            <Button type="button" variant="outline" className="w-full h-11 gap-2">
+            <Button type="button" variant="outline" className="w-full h-11 gap-2" onClick={handleGoogleLogin}>
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -102,7 +154,7 @@ const LoginPage = () => {
 
           <p className="text-center text-sm text-muted-foreground">
             Não tem uma conta?{" "}
-            <button className="text-primary font-semibold hover:underline">Criar conta</button>
+            <button type="button" onClick={handleSignUp} className="text-primary font-semibold hover:underline" disabled={loading}>Criar conta</button>
           </p>
         </div>
       </div>

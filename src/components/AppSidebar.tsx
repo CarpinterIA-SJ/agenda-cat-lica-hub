@@ -15,18 +15,20 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Início", url: "/dashboard", icon: Home },
-  { title: "Guardião Eventos", url: "/events", icon: Calendar },
-  { title: "CRM", url: "/crm", icon: Users },
-  { title: "Doações", url: "/donations", icon: Heart },
-  { title: "Dízimo", url: "/tithe", icon: Church },
-  { title: "Suporte", url: "/support", icon: HelpCircle },
+  { title: "Início", url: "/dashboard", icon: Home, roles: ["organizer"] },
+  { title: "Guardião Eventos", url: "/events", icon: Calendar, roles: ["organizer", "participant"] },
+  { title: "CRM", url: "/crm", icon: Users, roles: ["organizer"] },
+  { title: "Doações", url: "/donations", icon: Heart, roles: ["organizer"] },
+  { title: "Dízimo", url: "/tithe", icon: Church, roles: ["organizer"] },
+  { title: "Suporte", url: "/support", icon: HelpCircle, roles: ["organizer", "participant"] },
 ];
 
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const role = localStorage.getItem("userRole") || "participant";
+  const filteredNavItems = navItems.filter((item) => item.roles.includes(role));
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -50,7 +52,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={item.title}>
                     <NavLink

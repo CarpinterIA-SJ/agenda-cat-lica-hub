@@ -21,7 +21,10 @@ const RoleSelectPage = () => {
         <div className="grid md:grid-cols-2 gap-6">
           {/* Participant Card */}
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => {
+              localStorage.setItem("userRole", "participant");
+              navigate("/events");
+            }}
             className="group bg-card border rounded-xl p-8 text-left shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
           >
             <div className="w-14 h-14 rounded-xl bg-info/10 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
@@ -39,7 +42,10 @@ const RoleSelectPage = () => {
 
           {/* Organizer Card */}
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => {
+              localStorage.setItem("userRole", "organizer");
+              navigate("/dashboard");
+            }}
             className="group bg-card border rounded-xl p-8 text-left shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
           >
             <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">

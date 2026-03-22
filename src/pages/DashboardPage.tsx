@@ -13,7 +13,7 @@ const DashboardPage = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Sancton Panel</h1>
+        <h1 className="text-2xl font-bold text-foreground">Santo Painel</h1>
         <p className="text-muted-foreground mt-1">Visão geral da sua organização</p>
       </div>
 
