@@ -1,4 +1,4 @@
-import { Home, Calendar, Users, Heart, Church, HelpCircle, ChevronLeft } from "lucide-react";
+import { Home, Calendar, Users, HelpCircle, ChevronLeft, Church } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -18,8 +18,6 @@ const navItems = [
   { title: "Início", url: "/dashboard", icon: Home, roles: ["organizer"] },
   { title: "Guardião Eventos", url: "/events", icon: Calendar, roles: ["organizer", "participant"] },
   { title: "CRM", url: "/crm", icon: Users, roles: ["organizer"] },
-  { title: "Doações", url: "/donations", icon: Heart, roles: ["organizer"] },
-  { title: "Dízimo", url: "/tithe", icon: Church, roles: ["organizer"] },
   { title: "Suporte", url: "/support", icon: HelpCircle, roles: ["organizer", "participant"] },
 ];
 
