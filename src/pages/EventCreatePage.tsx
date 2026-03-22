@@ -86,6 +86,11 @@ const EventCreatePage = () => {
     discount_value: 0,
     coupon_expiry: "",
     // Formulário
+    show_nome: true,
+    show_email: true,
+    show_cpf: true,
+    show_nascimento: true,
+    show_whatsapp: true,
     custom_fields: [] as FormField[],
     // Mensagens
     confirmation_msg: "",
@@ -698,12 +703,6 @@ const EventCreatePage = () => {
                       if (formData.boleto_enabled && !formData.boleto_deadline) {
                         toast.error("Informe o prazo de vencimento do Boleto");
                         return;
-                      }
-                      handleSaveAndNext();
-                    }}
-                   >
-                     Salvar
-                   </Button>
                 </div>
               </>
             )}
@@ -712,62 +711,104 @@ const EventCreatePage = () => {
 
         {/* --- ABA 5: FORMULÁRIO --- */}
         <TabsContent value="form" className="mt-0 space-y-8 animate-in slide-in-from-right duration-300">
-          <Card className="border-none shadow-sm rounded-xl overflow-hidden">
-            <CardHeader className="bg-muted/30 pb-4">
-              <CardTitle className="text-lg">Personalizar Formulário</CardTitle>
+          <Card className="border-none shadow-sm rounded-xl overflow-hidden bg-white">
+            <CardHeader className="pb-4">
+              <h3 className="text-xl font-bold text-foreground">Formulário de inscrição</h3>
+              <div className="w-12 h-1 bg-blue-600 mt-1 rounded-full" />
             </CardHeader>
             <CardContent className="p-6 space-y-6">
-              <div className="p-4 bg-muted/20 rounded-lg flex items-center gap-3 border border-border">
-                <Info className="w-5 h-5 text-muted-foreground" />
-                <p className="text-sm text-card-foreground font-medium">Os campos <span className="underline">Nome Completo</span>, <span className="underline">CPF</span>, <span className="underline">E-mail</span> e <span className="underline">Telefone</span> já são coletados obrigatoriamente por padrão.</p>
-              </div>
-              
-              {formData.custom_fields.map((field, index) => (
-                <div key={field.id} className="flex flex-col sm:flex-row gap-4 items-end p-5 border rounded-2xl bg-white shadow-sm hover:border-[#007600]/30 transition-colors">
-                  <div className="flex-1 w-full space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground">Pergunta / Rótulo</Label>
-                    <Input 
-                      placeholder="Ex: Qual sua pastoral?" 
-                      value={field.label}
-                      onChange={(e) => {
-                        const newFields = [...formData.custom_fields];
-                        newFields[index].label = e.target.value;
-                        handleInputChange("custom_fields", newFields);
-                      }}
-                      className="h-11 focus-visible:ring-[#007600]"
+              {/* Campos Padrão com Toggles */}
+              <div className="space-y-4">
+                {[
+                  { id: "show_nome", label: "Nome completo:", placeholder: "Digite o nome completo", icon: User },
+                  { id: "show_email", label: "E-mail:", placeholder: "exemplo@email.com", icon: Mail },
+                  { id: "show_cpf", label: "CPF:", placeholder: "___.___.___-__", icon: Fingerprint },
+                  { id: "show_nascimento", label: "Data de nascimento:", placeholder: "__/__/____", icon: Calendar },
+                  { id: "show_whatsapp", label: "Telefone (Whatsapp):", placeholder: "(__) _____-____", icon: Phone },
+                ].map((field) => (
+                  <div key={field.id} className="flex items-center justify-between p-4 bg-gray-50/50 border border-gray-100 rounded-xl hover:bg-white hover:shadow-sm transition-all group">
+                    <div className="flex-1 space-y-1.5 pr-8">
+                       <Label className="text-sm font-bold flex items-center gap-2 text-foreground/80">
+                         <span className="text-red-500">*</span> {field.label}
+                       </Label>
+                       <Input 
+                        disabled 
+                        placeholder={field.placeholder} 
+                        className="h-11 bg-white cursor-not-allowed border-gray-200" 
+                       />
+                    </div>
+                    <Switch 
+                      checked={(formData as any)[field.id]} 
+                      onCheckedChange={(v) => handleInputChange(field.id, v)}
+                      className="data-[state=checked]:bg-blue-600"
                     />
                   </div>
-                  <div className="w-full sm:w-48 space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground">Tipo de Resposta</Label>
-                    <Select 
-                      value={field.type}
-                      onValueChange={(v: any) => {
-                        const newFields = [...formData.custom_fields];
-                        newFields[index].type = v;
-                        handleInputChange("custom_fields", newFields);
-                      }}
-                    >
-                      <SelectTrigger className="h-11 focus:ring-[#007600]"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="text">Campo de Texto</SelectItem>
-                        <SelectItem value="email">E-mail</SelectItem>
-                        <SelectItem value="tel">Telefone (WhatsApp)</SelectItem>
-                        <SelectItem value="number">Número</SelectItem>
-                        <SelectItem value="date">Data</SelectItem>
-                        <SelectItem value="select">Lista de Seleção</SelectItem>
-                        <SelectItem value="checkbox">Caixa de Seleção</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleRemoveItem("custom_fields", field.id)} className="h-11 w-11 text-destructive hover:bg-destructive/10 rounded-xl">
-                    <Trash2 className="w-5 h-5" />
-                  </Button>
-                </div>
-              ))}
+                ))}
+              </div>
 
-              <Button variant="outline" className="w-full h-14 border-dashed border-[#007600]/30 text-[#007600] hover:bg-[#007600]/5 font-bold" onClick={handleAddField}>
-                <Plus className="w-5 h-5 mr-2" /> Adicionar Pergunta Personalizada
-              </Button>
+              {/* Campos Personalizados */}
+              {formData.custom_fields.length > 0 && (
+                <div className="pt-6 space-y-4 border-t border-gray-100">
+                  <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Perguntas Adicionais</h4>
+                  {formData.custom_fields.map((field, index) => (
+                    <div key={field.id} className="flex flex-col sm:flex-row gap-4 items-end p-5 border rounded-2xl bg-white shadow-sm hover:border-blue-600/30 transition-colors">
+                      <div className="flex-1 w-full space-y-2">
+                        <Label className="text-xs font-bold uppercase text-muted-foreground">Pergunta / Rótulo</Label>
+                        <Input 
+                          placeholder="Ex: Qual sua pastoral?" 
+                          value={field.label}
+                          onChange={(e) => {
+                            const newFields = [...formData.custom_fields];
+                            newFields[index].label = e.target.value;
+                            handleInputChange("custom_fields", newFields);
+                          }}
+                          className="h-11 focus-visible:ring-blue-600"
+                        />
+                      </div>
+                      <div className="w-full sm:w-48 space-y-2">
+                        <Label className="text-xs font-bold uppercase text-muted-foreground">Tipo</Label>
+                        <Select 
+                          value={field.type}
+                          onValueChange={(v: any) => {
+                            const newFields = [...formData.custom_fields];
+                            newFields[index].type = v;
+                            handleInputChange("custom_fields", newFields);
+                          }}
+                        >
+                          <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="text">Texto</SelectItem>
+                            <SelectItem value="select">Seleção</SelectItem>
+                            <SelectItem value="checkbox">Checkbox</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => handleRemoveItem("custom_fields", field.id)} className="h-11 w-11 text-destructive hover:bg-destructive/10 rounded-xl">
+                        <Trash2 className="w-5 h-5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <Button 
+                  variant="outline" 
+                  className="bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 h-12 px-6 font-bold rounded-xl gap-2 transition-all flex items-center justify-center sm:w-auto w-full" 
+                  onClick={handleAddField}
+                >
+                  <Plus className="w-5 h-5" /> Adicionar campo
+                </Button>
+              </div>
+
+              <div className="flex justify-end pt-8">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700 h-12 px-10 font-bold rounded-xl shadow-lg shadow-blue-600/20"
+                  onClick={handleSaveAndNext}
+                >
+                  Salvar campos customizados
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
