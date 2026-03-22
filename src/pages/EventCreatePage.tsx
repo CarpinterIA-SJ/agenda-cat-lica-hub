@@ -29,8 +29,10 @@ interface Ticket {
 interface FormField {
   id: string;
   label: string;
-  type: "text" | "select" | "checkbox";
+  type: "text" | "select" | "checkbox" | "email" | "tel" | "number" | "date";
   required: boolean;
+  options?: string[];
+  placeholder?: string;
 }
 
 const TAB_ORDER = ["general", "page", "tickets", "payment", "form", "messages"];
@@ -599,6 +601,10 @@ const EventCreatePage = () => {
                       <SelectTrigger className="h-11 focus:ring-[#007600]"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="text">Campo de Texto</SelectItem>
+                        <SelectItem value="email">E-mail</SelectItem>
+                        <SelectItem value="tel">Telefone (WhatsApp)</SelectItem>
+                        <SelectItem value="number">Número</SelectItem>
+                        <SelectItem value="date">Data</SelectItem>
                         <SelectItem value="select">Lista de Seleção</SelectItem>
                         <SelectItem value="checkbox">Caixa de Seleção</SelectItem>
                       </SelectContent>
@@ -643,15 +649,20 @@ const EventCreatePage = () => {
                        <Label className="text-sm font-bold text-foreground">
                         {field.label || "Pergunta sem rótulo"} {field.required && <span className="text-red-500">*</span>}
                       </Label>
-                      {field.type === "text" && <Input readOnly placeholder="A resposta do participante aparecerá aqui..." className="bg-muted/10" />}
+                      {field.type === "text" && <Input readOnly placeholder={field.placeholder || "Resposta em texto..."} className="bg-muted/10" />}
+                      {field.type === "email" && <Input readOnly type="email" placeholder="exemplo@email.com" className="bg-muted/10 cursor-not-allowed" />}
+                      {field.type === "tel" && <Input readOnly type="tel" placeholder="(00) 00000-0000" className="bg-muted/10 cursor-not-allowed" />}
+                      {field.type === "number" && <Input readOnly type="number" placeholder="0" className="bg-muted/10 cursor-not-allowed" />}
+                      {field.type === "date" && <Input readOnly type="date" className="bg-muted/10 cursor-not-allowed" />}
                       {field.type === "select" && (
                         <div className="w-full h-11 border rounded-md flex items-center justify-between px-3 text-muted-foreground bg-muted/10">
-                          Selecione uma opção... <ChevronDown className="w-4 h-4" />
+                          {field.placeholder || "Selecione uma opção..."} <ChevronDown className="w-4 h-4" />
                         </div>
                       )}
                       {field.type === "checkbox" && (
-                        <div className="flex items-center gap-2 p-2 rounded border border-dashed text-muted-foreground">
-                           <div className="w-4 h-4 border rounded" /> Opção de exemplo
+                        <div className="flex items-center gap-2 p-3 rounded-xl border border-dashed text-muted-foreground bg-muted/5">
+                           <div className="w-5 h-5 border-2 rounded shrink-0" /> 
+                           <span className="text-xs">O participante marcará esta caixa para concordar ou selecionar a opção.</span>
                         </div>
                       )}
                     </div>
