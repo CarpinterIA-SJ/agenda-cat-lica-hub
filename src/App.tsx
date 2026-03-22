@@ -9,6 +9,7 @@ import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
 import EventsPage from "./pages/EventsPage";
 import EventCreatePage from "./pages/EventCreatePage";
+import EventDashboardPage from "./pages/EventDashboardPage";
 import CRMPage from "./pages/CRMPage";
 import DonationsPage from "./pages/DonationsPage";
 import TithePage from "./pages/TithePage";
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/events" element={<EventsPage />} />
               <Route path="/events/new" element={<EventCreatePage />} />
+              <Route path="/events/dashboard" element={<EventDashboardPage />} />
               <Route path="/crm" element={<CRMPage />} />
               <Route path="/donations" element={<DonationsPage />} />
               <Route path="/tithe" element={<TithePage />} />
