@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowLeft, Save, Plus, Trash2, CheckCircle2, 
   Info, MessageCircle, Mail, Phone, Globe, Lock,
-  ChevronDown, Eye
+  ChevronDown, Eye, CreditCard, QrCode, FileText, Settings
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";

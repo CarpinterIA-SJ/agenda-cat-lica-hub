@@ -376,10 +376,10 @@ const EventsPage = () => {
                 <h4 className="font-bold flex items-center gap-2 text-foreground text-sm uppercase tracking-wider"><CreditCard className="w-4 h-4 text-[#007600]" /> 3. Escolha como Pagar</h4>
                 <RadioGroup value={selectedPaymentMethod || ""} onValueChange={setSelectedPaymentMethod} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
-                    { id: "pix", label: "PIX", icon: QrCode, desc: "Aprovação instantânea" },
-                    { id: "card", label: "Cartão de Crédito", icon: CreditCard, desc: "Até 12x sem juros" },
-                    { id: "boleto", label: "Boleto", icon: FileText, desc: "Vencimento em 3 dias" }
-                  ].map((method) => (
+                    { id: "pix", label: "PIX", icon: QrCode, desc: "Aprovação instantânea", enabled: selectedEvent?.pix_enabled },
+                    { id: "card", label: "Cartão de Crédito", icon: CreditCard, desc: "Até 12x sem juros", enabled: selectedEvent?.card_enabled },
+                    { id: "boleto", label: "Boleto", icon: FileText, desc: "Vencimento em 3 dias", enabled: selectedEvent?.boleto_enabled }
+                  ].filter(m => m.enabled !== false).map((method) => (
                     <Label key={method.id} htmlFor={method.id} className={`flex flex-col gap-2 p-4 border-2 rounded-2xl cursor-pointer transition-all hover:bg-muted/50 ${selectedPaymentMethod === method.id ? "border-[#007600] bg-[#007600]/5" : "border-border"}`}>
                       <div className="flex items-center justify-between">
                         <method.icon className={`w-5 h-5 ${selectedPaymentMethod === method.id ? "text-[#007600]" : "text-muted-foreground"}`} />
