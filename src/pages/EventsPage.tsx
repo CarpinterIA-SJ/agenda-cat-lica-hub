@@ -237,11 +237,20 @@ const EventsPage = () => {
                 </div>
               </div>
               
-              <div className="p-5 bg-muted/30 border-t mt-auto">
+              <div className="p-5 bg-muted/30 border-t mt-auto flex gap-2">
+                {userRole === "organizer" && (
+                  <Button 
+                    variant="outline"
+                    onClick={() => navigate(`/events/dashboard/${event.id}`)}
+                    className="flex-1 gap-2 font-semibold border-[#007600]/30 text-[#007600] hover:bg-[#007600]/5"
+                  >
+                    <ChevronRight className="w-4 h-4" /> Gerenciar
+                  </Button>
+                )}
                 <Button 
                   disabled={event.status !== "Ativo"}
                   onClick={() => handleOpenRegistration(event)}
-                  className={`w-full gap-2 font-semibold ${event.status === "Ativo" ? "bg-[#007600] hover:bg-[#006000] text-white" : "bg-muted text-muted-foreground"}`}
+                  className={`${userRole === "organizer" ? "flex-1" : "w-full"} gap-2 font-semibold ${event.status === "Ativo" ? "bg-[#007600] hover:bg-[#006000] text-white" : "bg-muted text-muted-foreground"}`}
                 >
                   <Ticket className="w-4 h-4" /> Inscrever-se
                 </Button>
