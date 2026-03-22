@@ -122,15 +122,11 @@ const EventsPage = () => {
     if (!selectedEvent) return false;
     const registrations = JSON.parse(localStorage.getItem("event_registrations") || "[]");
     
-    const currentEmail = formValues['fixed_email'];
-    const currentPhone = formValues['fixed_tel'];
     const currentCpf = formValues['fixed_cpf'];
 
     return registrations.some((reg: any) => 
       reg.eventId === selectedEvent.id && 
-      ((currentEmail && reg.email === currentEmail) || 
-       (currentPhone && reg.phone === currentPhone) ||
-       (currentCpf && reg.values?.fixed_cpf === currentCpf))
+       (currentCpf && reg.values?.fixed_cpf === currentCpf)
     );
   }, [formValues, selectedEvent]);
 
@@ -161,7 +157,7 @@ const EventsPage = () => {
 
   const handleRegister = () => {
     if (isDuplicate) {
-      toast.error("Você já possui uma inscrição para este evento.");
+      toast.error("Este CPF já possui uma inscrição para este evento.");
       return;
     }
 
@@ -269,7 +265,7 @@ const EventsPage = () => {
             {isDuplicate && (
               <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-700 animate-in fade-in zoom-in duration-300">
                 <AlertTriangle className="w-5 h-5 shrink-0" />
-                <p className="text-sm font-bold leading-tight">Já identificamos uma inscrição para este evento com suas credenciais (E-mail ou Telefone).</p>
+                <p className="text-sm font-bold leading-tight">Já identificamos uma inscrição para este evento com este CPF.</p>
               </div>
             )}
 
