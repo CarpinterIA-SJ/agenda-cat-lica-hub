@@ -1,12 +1,10 @@
-import { Calendar, Heart, Users, Ticket, HandCoins, TrendingUp, ArrowUpRight } from "lucide-react";
+import { Calendar, Users, Ticket, TrendingUp, ArrowUpRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const stats = [
   { label: "Total de Eventos", value: "24", icon: Calendar, change: "+3 este mês", color: "text-primary bg-primary/10" },
-  { label: "Campanhas de Doação", value: "8", icon: Heart, change: "+2 ativas", color: "text-destructive bg-destructive/10" },
   { label: "Contatos CRM", value: "1.247", icon: Users, change: "+48 novos", color: "text-info bg-info/10" },
   { label: "Inscrições em Eventos", value: "3.891", icon: Ticket, change: "+312 esta semana", color: "text-success bg-success/10" },
-  { label: "Doadores Ativos", value: "456", icon: HandCoins, change: "+15 este mês", color: "text-gold bg-gold/10" },
 ];
 
 const DashboardPage = () => {
@@ -17,7 +15,7 @@ const DashboardPage = () => {
         <p className="text-muted-foreground mt-1">Visão geral da sua organização</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {stats.map((stat) => (
           <Card key={stat.label} className="shadow-card hover:shadow-card-hover transition-shadow">
             <CardContent className="p-5">
