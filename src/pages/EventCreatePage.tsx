@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowLeft, Save, Plus, Trash2, CheckCircle2, 
   Info, MessageCircle, Mail, Phone, Globe, Lock,
-  ChevronDown
+  ChevronDown, Eye
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -149,12 +149,6 @@ const EventCreatePage = () => {
         return false;
       }
     }
-    if (tab === "messages") {
-      if (!formData.agreed_terms) {
-        toast.error("Você deve concordar com os termos de uso.");
-        return false;
-      }
-    }
     return true;
   };
 
@@ -176,10 +170,30 @@ const EventCreatePage = () => {
       toast.error("Você deve concordar com os termos de uso.");
       return;
     }
-    toast.success("Evento Criado com Sucesso!", {
-      description: "As configurações foram salvas e seu evento está pronto.",
-    });
-    setTimeout(() => navigate("/events"), 2000);
+
+    // Persistência em LocalStorage
+    try {
+      const existingEvents = JSON.parse(localStorage.getItem("custom_events") || "[]");
+      const newEvent = {
+        id: Date.now(),
+        name: formData.name,
+        date: new Date(formData.start_date).toLocaleDateString("pt-BR", { day: '2-digit', month: 'short', year: 'numeric' }),
+        location: formData.location || "Local não informado",
+        type: formData.is_free ? "Gratuito" : "Pago",
+        attendees: 0,
+        status: "Ativo",
+        ...formData
+      };
+      localStorage.setItem("custom_events", JSON.stringify([newEvent, ...existingEvents]));
+      
+      toast.success("Evento Criado e Salvo com Sucesso!", {
+        description: "As configurações foram salvas e o evento já aparece na sua lista.",
+      });
+      setTimeout(() => navigate("/events"), 1500);
+    } catch (error) {
+      console.error("Erro ao salvar evento:", error);
+      toast.error("Erro ao salvar evento localmente.");
+    }
   };
 
   return (
@@ -546,7 +560,7 @@ const EventCreatePage = () => {
         </TabsContent>
 
         {/* --- ABA 5: FORMULÁRIO --- */}
-        <TabsContent value="form" className="mt-0 space-y-4 animate-in slide-in-from-right duration-300">
+        <TabsContent value="form" className="mt-0 space-y-8 animate-in slide-in-from-right duration-300">
           <Card className="border-none shadow-sm rounded-xl overflow-hidden">
             <CardHeader className="bg-muted/30 pb-4">
               <CardTitle className="text-lg">Personalizar Formulário</CardTitle>
@@ -562,7 +576,7 @@ const EventCreatePage = () => {
                   <div className="flex-1 w-full space-y-2">
                     <Label className="text-xs font-bold uppercase text-muted-foreground">Pergunta / Rótulo</Label>
                     <Input 
-                      placeholder="Ex: Qual seu grupo de oração?" 
+                      placeholder="Ex: Qual sua pastoral?" 
                       value={field.label}
                       onChange={(e) => {
                         const newFields = [...formData.custom_fields];
@@ -599,6 +613,62 @@ const EventCreatePage = () => {
               <Button variant="outline" className="w-full h-14 border-dashed border-[#007600]/30 text-[#007600] hover:bg-[#007600]/5 font-bold" onClick={handleAddField}>
                 <Plus className="w-5 h-5 mr-2" /> Adicionar Pergunta Personalizada
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* PRÉ-VISUALIZAÇÃO DO FORMULÁRIO */}
+          <Card className="border-2 border-[#007600]/20 shadow-lg rounded-2xl overflow-hidden bg-white">
+            <CardHeader className="bg-[#007600]/5 border-b border-[#007600]/10 flex flex-row items-center justify-between p-4">
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-[#007600]">
+                <Eye className="w-4 h-4" /> PRÉ-VISUALIZAÇÃO DO FORMULÁRIO
+              </CardTitle>
+              <span className="text-[10px] bg-[#007600] text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Modo Visualização</span>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5 opacity-60">
+                  <Label className="text-xs font-semibold">Nome Completo</Label>
+                  <Input readOnly placeholder="Ex: Maria da Silva" className="bg-muted/30 cursor-not-allowed" />
+                </div>
+                <div className="space-y-1.5 opacity-60">
+                  <Label className="text-xs font-semibold">E-mail</Label>
+                  <Input readOnly placeholder="exemplo@email.com" className="bg-muted/30 cursor-not-allowed" />
+                </div>
+              </div>
+
+              {formData.custom_fields.length > 0 ? (
+                <div className="pt-4 border-t space-y-6">
+                   {formData.custom_fields.map((field) => (
+                    <div key={field.id} className="space-y-2">
+                       <Label className="text-sm font-bold text-foreground">
+                        {field.label || "Pergunta sem rótulo"} {field.required && <span className="text-red-500">*</span>}
+                      </Label>
+                      {field.type === "text" && <Input readOnly placeholder="A resposta do participante aparecerá aqui..." className="bg-muted/10" />}
+                      {field.type === "select" && (
+                        <div className="w-full h-11 border rounded-md flex items-center justify-between px-3 text-muted-foreground bg-muted/10">
+                          Selecione uma opção... <ChevronDown className="w-4 h-4" />
+                        </div>
+                      )}
+                      {field.type === "checkbox" && (
+                        <div className="flex items-center gap-2 p-2 rounded border border-dashed text-muted-foreground">
+                           <div className="w-4 h-4 border rounded" /> Opção de exemplo
+                        </div>
+                      )}
+                    </div>
+                   ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-muted-foreground italic text-sm">
+                  Nenhuma pergunta personalizada adicionada ainda.
+                </div>
+              )}
+
+              <div className="pt-6">
+                <Button disabled className="w-full bg-[#007600] opacity-50 font-bold uppercase h-12">
+                   {formData.ticket_nomenclature === "Ingresso" ? "Confirmar Ingresso" : "Finalizar Inscrição"}
+                </Button>
+                <p className="text-[10px] text-center text-muted-foreground mt-2 italic">Esta é apenas uma visão prévia de como o participante verá o formulário.</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
