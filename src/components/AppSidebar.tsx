@@ -16,7 +16,7 @@ import {
 
 const navItems = [
   { title: "Início", url: "/dashboard", icon: Home },
-  { title: "Agenda Católica", url: "/events", icon: Calendar },
+  { title: "Guardião Eventos", url: "/events", icon: Calendar },
   { title: "CRM", url: "/crm", icon: Users },
   { title: "Doações", url: "/donations", icon: Heart },
   { title: "Dízimo", url: "/tithe", icon: Church },
@@ -37,7 +37,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex items-center justify-between flex-1">
-              <span className="font-bold text-sidebar-foreground text-sm">Agenda Católica</span>
+              <span className="font-bold text-sidebar-foreground text-sm">Guardião Eventos</span>
               <button onClick={toggleSidebar} className="text-sidebar-foreground/60 hover:text-sidebar-foreground">
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -73,7 +73,7 @@ export function AppSidebar() {
       <SidebarFooter className="p-4">
         {!collapsed && (
           <div className="text-xs text-sidebar-foreground/40">
-            © 2026 Agenda Católica
+            © 2026 Guardião Eventos
           </div>
         )}
       </SidebarFooter>

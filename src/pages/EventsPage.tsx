@@ -21,7 +21,7 @@ const EventsPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Agenda Católica</h1>
+          <h1 className="text-2xl font-bold text-foreground">Guardião Eventos</h1>
           <p className="text-muted-foreground mt-1">Gerencie todos os seus eventos</p>
         </div>
         <Button onClick={() => navigate("/events/new")} className="gap-2">

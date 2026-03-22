@@ -12,7 +12,7 @@ const RoleSelectPage = () => {
             <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
               <Church className="w-6 h-6 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Agenda Católica</h1>
+            <h1 className="text-2xl font-bold text-foreground">Guardião Eventos</h1>
           </div>
           <h2 className="text-xl font-semibold text-foreground">Como deseja prosseguir?</h2>
           <p className="text-muted-foreground">Selecione o perfil que melhor se aplica a você</p>
