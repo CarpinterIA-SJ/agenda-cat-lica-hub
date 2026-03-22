@@ -162,7 +162,7 @@ const LoginPage = () => {
       {/* Right - Image */}
       <div className="hidden lg:block lg:w-1/2 relative">
         <img src={authBg} alt="Evento religioso" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-primary/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#007600]/90 to-[#007600]/40" />
         <div className="absolute bottom-12 left-12 right-12 text-primary-foreground">
           <h2 className="text-3xl font-bold mb-3">Gerencie seus eventos com excelência</h2>
           <p className="text-lg opacity-90">Plataforma completa para gestão de eventos, CRM e doações da sua comunidade católica.</p>

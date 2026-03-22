@@ -27,14 +27,14 @@ const RoleSelectPage = () => {
             }}
             className="group bg-card border rounded-xl p-8 text-left shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
           >
-            <div className="w-14 h-14 rounded-xl bg-info/10 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-              <Ticket className="w-7 h-7 text-info" />
+            <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+              <Ticket className="w-7 h-7 text-primary" />
             </div>
             <h3 className="text-lg font-semibold text-card-foreground mb-2">Sou Participante</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Visualize seus ingressos, acompanhe cancelamentos e descubra novos eventos na sua comunidade.
             </p>
-            <div className="mt-4 flex items-center gap-2 text-sm font-medium text-info">
+            <div className="mt-4 flex items-center gap-2 text-sm font-medium text-primary">
               <span>Acessar como participante</span>
               <span className="group-hover:translate-x-1 transition-transform">→</span>
             </div>

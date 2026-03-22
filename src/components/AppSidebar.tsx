@@ -32,8 +32,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg gradient-gold flex items-center justify-center shrink-0">
-            <Church className="w-5 h-5 text-accent-foreground" />
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+            <Church className="w-5 h-5 text-primary-foreground" />
           </div>
           {!collapsed && (
             <div className="flex items-center justify-between flex-1">
