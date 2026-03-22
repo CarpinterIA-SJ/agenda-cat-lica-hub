@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowLeft, Save, Plus, Trash2, CheckCircle2, 
   Info, MessageCircle, Mail, Phone, Globe, Lock,
-  ChevronDown, Eye, CreditCard, QrCode, FileText, Settings
+  ChevronDown, Eye, CreditCard, QrCode, FileText, Settings, User, Fingerprint, Calendar, Ticket
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -238,9 +238,15 @@ const EventCreatePage = () => {
             <TabsTrigger 
               key={tab} 
               value={tab} 
-              className="data-[state=active]:bg-[#007600] data-[state=active]:text-white transition-all capitalize"
+              className="data-[state=active]:bg-[#007600] data-[state=active]:text-white transition-all capitalize flex items-center gap-2 px-4 py-2"
             >
-              {i + 1}. {tab === "general" ? "Geral" : tab === "page" ? "Página" : tab === "tickets" ? "Ingressos" : tab === "payment" ? "Pagamento" : tab === "form" ? "Formulário" : "Mensagens"}
+              <span className="opacity-50 text-[10px] font-bold">{i + 1}</span>
+              {tab === "general" && <><Info className="w-4 h-4" /> Geral</>}
+              {tab === "page" && <><Globe className="w-4 h-4" /> Página</>}
+              {tab === "tickets" && <><Ticket className="w-4 h-4" /> Ingressos</>}
+              {tab === "payment" && <><CreditCard className="w-4 h-4" /> Pagamento</>}
+              {tab === "form" && <><Fingerprint className="w-4 h-4" /> Formulário</>}
+              {tab === "messages" && <><Mail className="w-4 h-4" /> Mensagens</>}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -696,25 +702,26 @@ const EventCreatePage = () => {
                     variant="default"
                     className="bg-blue-600 hover:bg-blue-700 px-10 h-11 font-bold shadow-lg shadow-blue-600/20"
                     onClick={() => {
-                      if (formData.pix_enabled && !formData.pix_deadline) {
-                        toast.error("Informe o prazo de pagamento do Pix");
-                        return;
-                      }
                       if (formData.boleto_enabled && !formData.boleto_deadline) {
                         toast.error("Informe o prazo de vencimento do Boleto");
                         return;
+                      }
+                      handleSaveAndNext();
+                    }}
+                   >
+                     Salvar
+                   </Button>
                 </div>
               </>
             )}
           </div>
         </TabsContent>
 
-        {/* --- ABA 5: FORMULÁRIO --- */}
         <TabsContent value="form" className="mt-0 space-y-8 animate-in slide-in-from-right duration-300">
           <Card className="border-none shadow-sm rounded-xl overflow-hidden bg-white">
             <CardHeader className="pb-4">
               <h3 className="text-xl font-bold text-foreground">Formulário de inscrição</h3>
-              <div className="w-12 h-1 bg-blue-600 mt-1 rounded-full" />
+              <div className="w-12 h-1 bg-[#007600] mt-1 rounded-full" />
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               {/* Campos Padrão com Toggles */}
@@ -740,7 +747,7 @@ const EventCreatePage = () => {
                     <Switch 
                       checked={(formData as any)[field.id]} 
                       onCheckedChange={(v) => handleInputChange(field.id, v)}
-                      className="data-[state=checked]:bg-blue-600"
+                      className="data-[state=checked]:bg-[#007600]"
                     />
                   </div>
                 ))}
@@ -751,7 +758,7 @@ const EventCreatePage = () => {
                 <div className="pt-6 space-y-4 border-t border-gray-100">
                   <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Perguntas Adicionais</h4>
                   {formData.custom_fields.map((field, index) => (
-                    <div key={field.id} className="flex flex-col sm:flex-row gap-4 items-end p-5 border rounded-2xl bg-white shadow-sm hover:border-blue-600/30 transition-colors">
+                    <div key={field.id} className="flex flex-col sm:flex-row gap-4 items-end p-5 border rounded-2xl bg-white shadow-sm hover:border-[#007600]/30 transition-colors">
                       <div className="flex-1 w-full space-y-2">
                         <Label className="text-xs font-bold uppercase text-muted-foreground">Pergunta / Rótulo</Label>
                         <Input 
@@ -762,7 +769,7 @@ const EventCreatePage = () => {
                             newFields[index].label = e.target.value;
                             handleInputChange("custom_fields", newFields);
                           }}
-                          className="h-11 focus-visible:ring-blue-600"
+                          className="h-11 focus-visible:ring-[#007600]"
                         />
                       </div>
                       <div className="w-full sm:w-48 space-y-2">
@@ -794,7 +801,7 @@ const EventCreatePage = () => {
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Button 
                   variant="outline" 
-                  className="bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 h-12 px-6 font-bold rounded-xl gap-2 transition-all flex items-center justify-center sm:w-auto w-full" 
+                  className="bg-[#007600]/10 text-[#007600] border-[#007600]/20 hover:bg-[#007600]/20 h-12 px-6 font-bold rounded-xl gap-2 transition-all flex items-center justify-center sm:w-auto w-full" 
                   onClick={handleAddField}
                 >
                   <Plus className="w-5 h-5" /> Adicionar campo
@@ -803,7 +810,7 @@ const EventCreatePage = () => {
 
               <div className="flex justify-end pt-8">
                 <Button 
-                  className="bg-blue-600 hover:bg-blue-700 h-12 px-10 font-bold rounded-xl shadow-lg shadow-blue-600/20"
+                  className="bg-[#007600] hover:bg-[#006000] h-12 px-10 font-bold rounded-xl shadow-lg shadow-[#007600]/20"
                   onClick={handleSaveAndNext}
                 >
                   Salvar campos customizados

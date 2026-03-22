@@ -101,7 +101,8 @@ const EventsPage = () => {
       'fixed_nome': user?.user_metadata?.full_name || "",
       'fixed_cpf': "",
       'fixed_tel': "",
-      'fixed_email': user?.email || ""
+      'fixed_email': user?.email || "",
+      'fixed_nascimento': ""
     };
     
     const fields = event.custom_fields || event.details?.formFields || [];
@@ -137,13 +138,12 @@ const EventsPage = () => {
     const isPaid = selectedEvent?.type === "Pago" || selectedEvent?.is_free === false;
     if (isPaid && !selectedPaymentMethod) return false;
 
-    // Validar campos fixos obrigatórios
-    if (!formValues['fixed_nome']?.trim() || 
-        !formValues['fixed_cpf']?.trim() || 
-        !formValues['fixed_tel']?.trim() || 
-        !formValues['fixed_email']?.trim()) {
-      return false;
-    }
+    // Validar campos fixos obrigatórios (apenas se estiverem ativos)
+    if (selectedEvent?.show_nome !== false && !formValues['fixed_nome']?.trim()) return false;
+    if (selectedEvent?.show_cpf !== false && !formValues['fixed_cpf']?.trim()) return false;
+    if (selectedEvent?.show_whatsapp !== false && !formValues['fixed_tel']?.trim()) return false;
+    if (selectedEvent?.show_email !== false && !formValues['fixed_email']?.trim()) return false;
+    if (selectedEvent?.show_nascimento !== false && !formValues['fixed_nascimento']?.trim()) return false;
 
     const fields = selectedEvent?.custom_fields || selectedEvent?.details?.formFields || [];
     
@@ -290,8 +290,8 @@ const EventsPage = () => {
             <div className="space-y-4 pt-6 border-t font-sans">
               <h4 className="font-bold flex items-center gap-2 text-foreground text-sm uppercase tracking-wider"><User className="w-4 h-4 text-[#007600]" /> 2. Suas Informações</h4>
               <div className="grid gap-5">
-                {/* Campos Padrão e Obrigatórios para todos */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Nome Completo */}
+                {selectedEvent?.show_nome !== false && (
                   <div className="space-y-2">
                     <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
                        <User className="w-3 h-3" /> Nome Completo *
@@ -303,53 +303,80 @@ const EventsPage = () => {
                       onChange={(e) => handleFieldChange('fixed_nome', e.target.value)} 
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
-                       <Fingerprint className="w-3 h-3" /> CPF *
-                    </Label>
-                    <Input 
-                      placeholder="000.000.000-00" 
-                      className="h-11 focus-visible:ring-[#007600]" 
-                      value={formValues['fixed_cpf'] || ""} 
-                      onChange={(e) => handleFieldChange('fixed_cpf', e.target.value)} 
-                    />
-                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* CPF */}
+                  {selectedEvent?.show_cpf !== false && (
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
+                         <Fingerprint className="w-3 h-3" /> CPF *
+                      </Label>
+                      <Input 
+                        placeholder="000.000.000-00" 
+                        className="h-11 focus-visible:ring-[#007600]" 
+                        value={formValues['fixed_cpf'] || ""} 
+                        onChange={(e) => handleFieldChange('fixed_cpf', e.target.value)} 
+                      />
+                    </div>
+                  )}
+
+                  {/* Data de Nascimento */}
+                  {selectedEvent?.show_nascimento !== false && (
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
+                         <Calendar className="w-3 h-3" /> Data de Nascimento *
+                      </Label>
+                      <Input 
+                        type="date"
+                        className="h-11 focus-visible:ring-[#007600]" 
+                        value={formValues['fixed_nascimento'] || ""} 
+                        onChange={(e) => handleFieldChange('fixed_nascimento', e.target.value)} 
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
-                       <Phone className="w-3 h-3" /> Telefone (WhatsApp) *
-                    </Label>
-                    <Input 
-                      type="tel"
-                      placeholder="(00) 00000-0000" 
-                      className="h-11 focus-visible:ring-[#007600]" 
-                      value={formValues['fixed_tel'] || ""} 
-                      onChange={(e) => handleFieldChange('fixed_tel', e.target.value)} 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
-                       <Mail className="w-3 h-3" /> E-mail *
-                    </Label>
-                    <Input 
-                      type="email" 
-                      readOnly
-                      placeholder="seu@email.com" 
-                      className="h-11 bg-muted/30 cursor-not-allowed focus-visible:ring-[#007600]" 
-                      value={formValues['fixed_email'] || ""} 
-                    />
-                    <p className="text-[10px] text-muted-foreground italic">Este é o e-mail da sua conta Guardião.</p>
-                  </div>
+                  {/* Telefone */}
+                  {selectedEvent?.show_whatsapp !== false && (
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
+                         <Phone className="w-3 h-3" /> Telefone (WhatsApp) *
+                      </Label>
+                      <Input 
+                        type="tel"
+                        placeholder="(00) 00000-0000" 
+                        className="h-11 focus-visible:ring-[#007600]" 
+                        value={formValues['fixed_tel'] || ""} 
+                        onChange={(e) => handleFieldChange('fixed_tel', e.target.value)} 
+                      />
+                    </div>
+                  )}
+
+                  {/* E-mail */}
+                  {selectedEvent?.show_email !== false && (
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
+                         <Mail className="w-3 h-3" /> E-mail *
+                      </Label>
+                      <Input 
+                        type="email" 
+                        readOnly
+                        placeholder="seu@email.com" 
+                        className="h-11 bg-muted/30 cursor-not-allowed focus-visible:ring-[#007600]" 
+                        value={formValues['fixed_email'] || ""} 
+                      />
+                      <p className="text-[10px] text-muted-foreground italic">E-mail da sua conta Guardião.</p>
+                    </div>
+                  )}
                 </div>
 
-                {/* Renderização de Campos Personalizados do Organizador */}
-                {(selectedEvent?.custom_fields || selectedEvent?.details?.formFields || []).map((field: any) => (
+                {/* Renderização de Campos Personalizados */}
+                {(selectedEvent?.custom_fields || []).map((field: any) => (
                   <div key={field.id} className="space-y-2">
                     <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">{field.label} {field.required && <span className="text-red-500">*</span>}</Label>
                     {field.type === "text" && <Input placeholder={field.placeholder || `Digite seu ${field.label.toLowerCase()}`} className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
-                    {field.type === "email" && <Input type="email" placeholder="seu@email.com" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
                     {field.type === "tel" && <Input type="tel" placeholder="(00) 00000-0000" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
                     {field.type === "number" && <Input type="number" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
                     {field.type === "date" && <Input type="date" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
