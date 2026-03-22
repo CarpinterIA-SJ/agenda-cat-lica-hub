@@ -73,6 +73,13 @@ const EventCreatePage = () => {
     page_content: "",
     // Pagamento
     payment_methods: [] as string[],
+    pix_enabled: false,
+    pix_deadline: "",
+    pix_unit: "Minutos",
+    boleto_enabled: false,
+    boleto_deadline: "",
+    card_enabled: false,
+    auto_cancel_expired: true,
     pix_key: "",
     coupon_code: "",
     discount_type: "percentage" as "percentage" | "fixed",
@@ -508,57 +515,199 @@ const EventCreatePage = () => {
 
         {/* --- ABA 4: PAGAMENTO --- */}
         <TabsContent value="payment" className="mt-0 animate-in slide-in-from-right duration-300">
-          <Card className="border-none shadow-sm rounded-xl overflow-hidden">
-            <CardHeader className="bg-muted/30 pb-4"><CardTitle className="text-lg">Configurações de Pagamento</CardTitle></CardHeader>
-            <CardContent className="p-6 space-y-6">
-              {formData.is_free ? (
-                <div className="p-12 text-center bg-[#007600]/5 rounded-2xl border border-dashed border-[#007600]/20">
+          <div className="space-y-6">
+            <div className="pb-2 border-b-2 border-blue-100/50">
+              <h3 className="text-xl font-bold text-foreground">Configuração de Formas de Pagamento</h3>
+            </div>
+
+            {formData.is_free ? (
+              <Card className="border-none shadow-sm rounded-xl overflow-hidden">
+                <CardContent className="p-12 text-center bg-[#007600]/5 rounded-2xl border border-dashed border-[#007600]/20">
                   <CheckCircle2 className="w-12 h-12 text-[#007600] mx-auto mb-4" />
                   <p className="font-bold text-lg text-[#007600]">Evento Gratuito</p>
                   <p className="text-sm text-muted-foreground max-w-sm mx-auto mt-2">Os pagamentos são processados pela plataforma com valor R$ 0,00 automático.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {/* Métodos de Pagamento */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Cartão de Crédito */}
+                  <Card className={`border-2 transition-all ${formData.card_enabled ? 'border-blue-500 shadow-md' : 'border-border'}`}>
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                           <CreditCard className={`w-5 h-5 ${formData.card_enabled ? 'text-blue-500' : 'text-muted-foreground'}`} />
+                           <span className="font-bold">Cartão de Crédito</span>
+                        </div>
+                        <Switch 
+                          checked={formData.card_enabled} 
+                          onCheckedChange={(v) => handleInputChange("card_enabled", v)}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">Libere o parcelamento em até 12x para seus participantes.</p>
+                    </CardContent>
+                  </Card>
+
+                  {/* Pix */}
+                  <Card className={`border-2 transition-all ${formData.pix_enabled ? 'border-blue-500 shadow-md' : 'border-border'}`}>
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                           <QrCode className={`w-5 h-5 ${formData.pix_enabled ? 'text-blue-500' : 'text-muted-foreground'}`} />
+                           <span className="font-bold">Pix</span>
+                        </div>
+                        <Switch 
+                          checked={formData.pix_enabled} 
+                          onCheckedChange={(v) => handleInputChange("pix_enabled", v)}
+                        />
+                      </div>
+                      {formData.pix_enabled && (
+                        <div className="space-y-3 pt-2 animate-in fade-in duration-300">
+                          <Label className="text-[10px] font-bold uppercase text-muted-foreground">Prazo para pagamento <span className="text-red-500">*</span></Label>
+                          <div className="flex gap-2">
+                            <Input 
+                              type="number" 
+                              placeholder="0"
+                              value={formData.pix_deadline}
+                              onChange={(e) => handleInputChange("pix_deadline", e.target.value)}
+                              className="h-9 focus-visible:ring-blue-500" 
+                            />
+                            <Select 
+                              value={formData.pix_unit} 
+                              onValueChange={(v) => handleInputChange("pix_unit", v)}
+                            >
+                              <SelectTrigger className="h-9 w-32 focus:ring-blue-500">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Minutos">Minutos</SelectItem>
+                                <SelectItem value="Horas">Horas</SelectItem>
+                                <SelectItem value="Dias">Dias</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Boleto */}
+                  <Card className={`border-2 transition-all ${formData.boleto_enabled ? 'border-blue-500 shadow-md' : 'border-border'}`}>
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                           <FileText className={`w-5 h-5 ${formData.boleto_enabled ? 'text-blue-500' : 'text-muted-foreground'}`} />
+                           <span className="font-bold">Boleto</span>
+                        </div>
+                        <Switch 
+                          checked={formData.boleto_enabled} 
+                          onCheckedChange={(v) => handleInputChange("boleto_enabled", v)}
+                        />
+                      </div>
+                      {formData.boleto_enabled && (
+                        <div className="space-y-3 pt-2 animate-in fade-in duration-300">
+                          <Label className="text-[10px] font-bold uppercase text-muted-foreground">Prazo de vencimento <span className="text-red-500">*</span></Label>
+                          <div className="flex items-center gap-2">
+                            <Input 
+                              type="number" 
+                              placeholder="0"
+                              value={formData.boleto_deadline}
+                              onChange={(e) => handleInputChange("boleto_deadline", e.target.value)}
+                              className="h-9 focus-visible:ring-blue-500" 
+                            />
+                            <span className="text-sm font-medium text-muted-foreground">dias</span>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
-              ) : (
-                <>
-                  <div className="space-y-2 max-w-md">
-                    <Label className="text-sm font-semibold">Chave PIX para recebimento</Label>
+
+                {/* Chave PIX e Cupom */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Chave PIX para recebimento <span className="text-red-500">*</span></Label>
                     <Input placeholder="E-mail, CPF ou Aleatória" value={formData.pix_key} onChange={(e) => handleInputChange("pix_key", e.target.value)} className="h-11 focus-visible:ring-[#007600]" />
                   </div>
-
-                  {formData.has_coupon && (
-                    <div className="p-6 border-2 border-dashed border-[#007600]/20 rounded-2xl bg-white space-y-6">
-                      <h4 className="flex items-center gap-2 text-[#007600] font-bold">
-                        <Plus className="w-5 h-5" /> CONFIGURAR CUPOM DE DESCONTO
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="space-y-2">
-                          <Label className="text-xs font-semibold uppercase text-muted-foreground">Código</Label>
-                          <Input value={formData.coupon_code} onChange={(e) => handleInputChange("coupon_code", e.target.value.toUpperCase())} placeholder="EX: PASCOA20" className="h-11 font-mono uppercase" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs font-semibold uppercase text-muted-foreground">Tipo</Label>
-                          <Select value={formData.discount_type} onValueChange={(v: any) => handleInputChange("discount_type", v)}>
-                            <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="percentage">Percentual (%)</SelectItem>
-                              <SelectItem value="fixed">Valor Fixo (R$)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs font-semibold uppercase text-muted-foreground">Valor do Desconto</Label>
-                          <Input type="number" value={formData.discount_value} onChange={(e) => handleInputChange("discount_value", parseFloat(e.target.value))} className="h-11" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs font-semibold uppercase text-muted-foreground">Expiração</Label>
-                          <Input type="date" value={formData.coupon_expiry} onChange={(e) => handleInputChange("coupon_expiry", e.target.value)} className="h-11" />
-                        </div>
-                      </div>
+                  <div className="flex items-end pb-1.5">
+                    <div className="p-4 bg-muted/30 rounded-xl border flex items-center justify-between w-full">
+                       <div>
+                         <Label className="text-sm font-bold">Cupom de Desconto?</Label>
+                         <p className="text-[10px] text-muted-foreground">Adicionar códigos promocionais</p>
+                       </div>
+                       <Switch 
+                          checked={formData.has_coupon} 
+                          onCheckedChange={(v) => handleInputChange("has_coupon", v)}
+                        />
                     </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+                  </div>
+                </div>
+
+                {/* Alerta de Recebimentos */}
+                <div className="p-6 bg-blue-50 border border-blue-100 rounded-2xl flex gap-4 items-start shadow-sm">
+                  <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0 mt-1 shadow-md shadow-blue-500/20">
+                    <Info className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-3">
+                    <h4 className="font-black text-blue-900 text-base uppercase tracking-tight">Como funciona os recebimentos:</h4>
+                    <ul className="text-sm text-blue-700/90 space-y-2.5 font-medium list-none">
+                      <li className="flex gap-2">
+                        <span className="text-blue-500 font-bold">•</span>
+                        Você poderá sacar até 70% dos valores do evento, antes mesmo do evento acontecer através de antecipação.
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-blue-500 font-bold">•</span>
+                        Em até 4 dias após a finalização do evento, 100% dos valores estarão disponíveis para o saque.
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-blue-500 font-bold">•</span>
+                        Disponibilizamos a opção de parcelamento em até 12x (com juros) para o participante.
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Configurações Gerais */}
+                <div className="pt-4 border-t-2 border-blue-50">
+                   <h4 className="font-bold text-foreground mb-4 flex items-center gap-2">
+                     <Settings className="w-4 h-4 text-blue-500" /> Configurações gerais
+                   </h4>
+                   <div className="flex items-center justify-between p-5 border rounded-2xl bg-white hover:bg-muted/5 transition-colors">
+                      <div className="space-y-1">
+                        <Label className="font-bold text-sm">Cancelar pedidos automaticamente</Label>
+                        <p className="text-xs text-muted-foreground">Excluir pedidos após o prazo de pagamento expirado (conforme prazos acima)</p>
+                      </div>
+                      <Switch 
+                        checked={formData.auto_cancel_expired} 
+                        onCheckedChange={(v) => handleInputChange("auto_cancel_expired", v)}
+                      />
+                   </div>
+                </div>
+
+                {/* Botão Salvar Específico da Aba */}
+                <div className="flex justify-end pt-4">
+                   <Button 
+                    variant="default"
+                    className="bg-blue-600 hover:bg-blue-700 px-10 h-11 font-bold shadow-lg shadow-blue-600/20"
+                    onClick={() => {
+                      if (formData.pix_enabled && !formData.pix_deadline) {
+                        toast.error("Informe o prazo de pagamento do Pix");
+                        return;
+                      }
+                      if (formData.boleto_enabled && !formData.boleto_deadline) {
+                        toast.error("Informe o prazo de vencimento do Boleto");
+                        return;
+                      }
+                      handleSaveAndNext();
+                    }}
+                   >
+                     Salvar
+                   </Button>
+                </div>
+              </>
+            )}
+          </div>
         </TabsContent>
 
         {/* --- ABA 5: FORMULÁRIO --- */}
