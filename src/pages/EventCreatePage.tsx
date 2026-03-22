@@ -570,7 +570,7 @@ const EventCreatePage = () => {
             <CardContent className="p-6 space-y-6">
               <div className="p-4 bg-muted/20 rounded-lg flex items-center gap-3 border border-border">
                 <Info className="w-5 h-5 text-muted-foreground" />
-                <p className="text-sm text-card-foreground font-medium">Os campos <span className="underline">Nome Completo</span>, <span className="underline">E-mail</span> e <span className="underline">Telefone</span> já são coletados por padrão.</p>
+                <p className="text-sm text-card-foreground font-medium">Os campos <span className="underline">Nome Completo</span>, <span className="underline">CPF</span>, <span className="underline">E-mail</span> e <span className="underline">Telefone</span> já são coletados obrigatoriamente por padrão.</p>
               </div>
               
               {formData.custom_fields.map((field, index) => (

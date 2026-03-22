@@ -36,10 +36,12 @@ import {
   CreditCard,
   QrCode,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  Fingerprint
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/use-auth";
 
 const mockEvents = [
   { 
@@ -73,6 +75,7 @@ const EventsPage = () => {
   const [formValues, setFormValues] = useState<Record<string, any>>({});
   
   const navigate = useNavigate();
+  const { user } = useAuth();
   const userRole = localStorage.getItem("userRole") || "participant";
 
   useEffect(() => {
@@ -93,17 +96,18 @@ const EventsPage = () => {
     setSelectedTicketId(null);
     setSelectedPaymentMethod(null);
     
-    const initialValues: Record<string, any> = {};
-    const fields = event.custom_fields || event.details?.formFields || [];
+    // Inicializar formValues com campos fixos + dinâmicos
+    const initialValues: Record<string, any> = {
+      'fixed_nome': user?.user_metadata?.full_name || "",
+      'fixed_cpf': "",
+      'fixed_tel': "",
+      'fixed_email': user?.email || ""
+    };
     
-    if (fields.length === 0) {
-      initialValues['nome_default'] = "";
-      initialValues['email_default'] = "";
-    } else {
-      fields.forEach((f: any) => {
-        initialValues[f.id] = f.type === 'checkbox' ? false : "";
-      });
-    }
+    const fields = event.custom_fields || event.details?.formFields || [];
+    fields.forEach((f: any) => {
+      initialValues[f.id] = f.type === 'checkbox' ? false : "";
+    });
     
     setFormValues(initialValues);
     setIsModalOpen(true);
@@ -118,20 +122,15 @@ const EventsPage = () => {
     if (!selectedEvent) return false;
     const registrations = JSON.parse(localStorage.getItem("event_registrations") || "[]");
     
-    const currentEmail = formValues['email_default'] || 
-      Object.entries(formValues).find(([id, val]) => {
-        const field = (selectedEvent.custom_fields || selectedEvent.details?.formFields || []).find((f: any) => f.id === id);
-        return field?.type === 'email' || field?.label?.toLowerCase().includes('email');
-      })?.[1];
-
-    const currentPhone = Object.entries(formValues).find(([id, val]) => {
-      const field = (selectedEvent.custom_fields || selectedEvent.details?.formFields || []).find((f: any) => f.id === id);
-      return field?.type === 'tel' || field?.label?.toLowerCase().includes('whatsapp') || field?.label?.toLowerCase().includes('telefone');
-    })?.[1];
+    const currentEmail = formValues['fixed_email'];
+    const currentPhone = formValues['fixed_tel'];
+    const currentCpf = formValues['fixed_cpf'];
 
     return registrations.some((reg: any) => 
       reg.eventId === selectedEvent.id && 
-      ((currentEmail && reg.email === currentEmail) || (currentPhone && reg.phone === currentPhone))
+      ((currentEmail && reg.email === currentEmail) || 
+       (currentPhone && reg.phone === currentPhone) ||
+       (currentCpf && reg.values?.fixed_cpf === currentCpf))
     );
   }, [formValues, selectedEvent]);
 
@@ -142,12 +141,15 @@ const EventsPage = () => {
     const isPaid = selectedEvent?.type === "Pago" || selectedEvent?.is_free === false;
     if (isPaid && !selectedPaymentMethod) return false;
 
-    const fields = selectedEvent?.custom_fields || selectedEvent?.details?.formFields || [];
-    
-    if (fields.length === 0) {
-      return formValues['nome_default']?.trim().length > 0 && 
-             formValues['email_default']?.trim().length > 0;
+    // Validar campos fixos obrigatórios
+    if (!formValues['fixed_nome']?.trim() || 
+        !formValues['fixed_cpf']?.trim() || 
+        !formValues['fixed_tel']?.trim() || 
+        !formValues['fixed_email']?.trim()) {
+      return false;
     }
+
+    const fields = selectedEvent?.custom_fields || selectedEvent?.details?.formFields || [];
     
     return fields.every((field: any) => {
       if (!field.required) return true;
@@ -163,16 +165,8 @@ const EventsPage = () => {
       return;
     }
 
-    const email = formValues['email_default'] || 
-      Object.entries(formValues).find(([id, val]) => {
-        const field = (selectedEvent.custom_fields || selectedEvent.details?.formFields || []).find((f: any) => f.id === id);
-        return field?.type === 'email' || field?.label?.toLowerCase().includes('email');
-      })?.[1];
-
-    const phone = Object.entries(formValues).find(([id, val]) => {
-      const field = (selectedEvent.custom_fields || selectedEvent.details?.formFields || []).find((f: any) => f.id === id);
-      return field?.type === 'tel' || field?.label?.toLowerCase().includes('whatsapp');
-    })?.[1];
+    const email = formValues['fixed_email'];
+    const phone = formValues['fixed_tel'];
 
     // Salvar inscrição
     const registrations = JSON.parse(localStorage.getItem("event_registrations") || "[]");
@@ -297,39 +291,86 @@ const EventsPage = () => {
               </div>
             </div>
 
-            {/* Informações */}
-            <div className="space-y-4 pt-6 border-t">
+            <div className="space-y-4 pt-6 border-t font-sans">
               <h4 className="font-bold flex items-center gap-2 text-foreground text-sm uppercase tracking-wider"><User className="w-4 h-4 text-[#007600]" /> 2. Suas Informações</h4>
               <div className="grid gap-5">
-                {(selectedEvent?.custom_fields || selectedEvent?.details?.formFields || []).length === 0 ? (
-                  <>
-                    <div className="space-y-2"><Label className="text-xs font-bold uppercase text-muted-foreground">Nome Completo *</Label><Input placeholder="Ex: Maria José" className="h-11 focus-visible:ring-[#007600]" value={formValues['nome_default']} onChange={(e) => handleFieldChange('nome_default', e.target.value)} /></div>
-                    <div className="space-y-2"><Label className="text-xs font-bold uppercase text-muted-foreground">E-mail *</Label><Input type="email" placeholder="maria@email.com" className="h-11 focus-visible:ring-[#007600]" value={formValues['email_default']} onChange={(e) => handleFieldChange('email_default', e.target.value)} /></div>
-                  </>
-                ) : (
-                  (selectedEvent.custom_fields || selectedEvent.details?.formFields).map((field: any) => (
-                    <div key={field.id} className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">{field.label} {field.required && <span className="text-red-500">*</span>}</Label>
-                      {field.type === "text" && <Input placeholder={`Digite seu ${field.label.toLowerCase()}`} className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
-                      {field.type === "email" && <Input type="email" placeholder="seu@email.com" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
-                      {field.type === "tel" && <Input type="tel" placeholder="(00) 00000-0000" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
-                      {field.type === "number" && <Input type="number" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
-                      {field.type === "date" && <Input type="date" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
-                      {field.type === "select" && (
-                        <Select onValueChange={(v) => handleFieldChange(field.id, v)}>
-                          <SelectTrigger className="h-11"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                          <SelectContent>{field.options?.map((o: any) => <SelectItem key={o} value={o}>{o}</SelectItem>) || <SelectItem value="default">Opção Única</SelectItem>}</SelectContent>
-                        </Select>
-                      )}
-                      {field.type === "checkbox" && (
-                        <div className={`flex items-center space-x-3 p-4 rounded-xl border transition-all cursor-pointer ${formValues[field.id] ? "bg-[#007600]/5 border-[#007600]/30" : "bg-muted/10 border-transparent"}`} onClick={() => handleFieldChange(field.id, !formValues[field.id])}>
-                          <Checkbox checked={formValues[field.id] || false} className="data-[state=checked]:bg-[#007600] data-[state=checked]:border-[#007600]" />
-                          <Label className="text-sm font-bold cursor-pointer">{field.label}</Label>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
+                {/* Campos Padrão e Obrigatórios para todos */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
+                       <User className="w-3 h-3" /> Nome Completo *
+                    </Label>
+                    <Input 
+                      placeholder="Como deseja ser identificado" 
+                      className="h-11 focus-visible:ring-[#007600]" 
+                      value={formValues['fixed_nome'] || ""} 
+                      onChange={(e) => handleFieldChange('fixed_nome', e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
+                       <Fingerprint className="w-3 h-3" /> CPF *
+                    </Label>
+                    <Input 
+                      placeholder="000.000.000-00" 
+                      className="h-11 focus-visible:ring-[#007600]" 
+                      value={formValues['fixed_cpf'] || ""} 
+                      onChange={(e) => handleFieldChange('fixed_cpf', e.target.value)} 
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
+                       <Phone className="w-3 h-3" /> Telefone (WhatsApp) *
+                    </Label>
+                    <Input 
+                      type="tel"
+                      placeholder="(00) 00000-0000" 
+                      className="h-11 focus-visible:ring-[#007600]" 
+                      value={formValues['fixed_tel'] || ""} 
+                      onChange={(e) => handleFieldChange('fixed_tel', e.target.value)} 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
+                       <Mail className="w-3 h-3" /> E-mail *
+                    </Label>
+                    <Input 
+                      type="email" 
+                      readOnly
+                      placeholder="seu@email.com" 
+                      className="h-11 bg-muted/30 cursor-not-allowed focus-visible:ring-[#007600]" 
+                      value={formValues['fixed_email'] || ""} 
+                    />
+                    <p className="text-[10px] text-muted-foreground italic">Este é o e-mail da sua conta Guardião.</p>
+                  </div>
+                </div>
+
+                {/* Renderização de Campos Personalizados do Organizador */}
+                {(selectedEvent?.custom_fields || selectedEvent?.details?.formFields || []).map((field: any) => (
+                  <div key={field.id} className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">{field.label} {field.required && <span className="text-red-500">*</span>}</Label>
+                    {field.type === "text" && <Input placeholder={field.placeholder || `Digite seu ${field.label.toLowerCase()}`} className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
+                    {field.type === "email" && <Input type="email" placeholder="seu@email.com" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
+                    {field.type === "tel" && <Input type="tel" placeholder="(00) 00000-0000" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
+                    {field.type === "number" && <Input type="number" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
+                    {field.type === "date" && <Input type="date" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
+                    {field.type === "select" && (
+                      <Select onValueChange={(v) => handleFieldChange(field.id, v)}>
+                        <SelectTrigger className="h-11"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>{field.options?.map((o: any) => <SelectItem key={o} value={o}>{o}</SelectItem>) || <SelectItem value="default">Opção Única</SelectItem>}</SelectContent>
+                      </Select>
+                    )}
+                    {field.type === "checkbox" && (
+                      <div className={`flex items-center space-x-3 p-4 rounded-xl border transition-all cursor-pointer ${formValues[field.id] ? "bg-[#007600]/5 border-[#007600]/30" : "bg-muted/10 border-transparent"}`} onClick={() => handleFieldChange(field.id, !formValues[field.id])}>
+                        <Checkbox checked={formValues[field.id] || false} className="data-[state=checked]:bg-[#007600] data-[state=checked]:border-[#007600]" />
+                        <Label className="text-sm font-bold cursor-pointer">{field.label}</Label>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
