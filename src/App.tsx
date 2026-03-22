@@ -9,6 +9,7 @@ import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
 import EventsPage from "./pages/EventsPage";
 import EventCreatePage from "./pages/EventCreatePage";
+import EventDashboardPage from "./pages/EventDashboardPage";
 import CRMPage from "./pages/CRMPage";
 import DonationsPage from "./pages/DonationsPage";
 import TithePage from "./pages/TithePage";
