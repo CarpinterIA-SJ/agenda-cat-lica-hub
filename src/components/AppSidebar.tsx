@@ -1,4 +1,4 @@
-import { Home, Calendar, Users, HelpCircle, ChevronLeft, Church } from "lucide-react";
+import { Home, Calendar, Users, HelpCircle, ChevronLeft, Church, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -70,9 +70,24 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 space-y-4">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              onClick={() => {
+                localStorage.removeItem("userRole");
+                window.location.href = "/role-select";
+              }}
+              className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
+            >
+              <LogOut className="w-5 h-5 shrink-0" />
+              {!collapsed && <span>Trocar Perfil</span>}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+
         {!collapsed && (
-          <div className="text-xs text-sidebar-foreground/40">
+          <div className="text-xs text-sidebar-foreground/40 pl-2">
             © 2026 Guardião Eventos
           </div>
         )}
