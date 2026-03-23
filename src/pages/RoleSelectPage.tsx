@@ -16,21 +16,12 @@ const RoleSelectPage = () => {
     }
   };
 
-  const handleSelectRole = (role: "participant" | "organizer") => {
-    localStorage.setItem("userRole", role);
-    if (role === "participant") {
-      navigate("/participante/meus-ingressos");
-    } else {
-      navigate("/organizador/dashboard");
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
       <div className="max-w-4xl w-full space-y-12">
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg">
               <SaoJoseIcon className="w-7 h-7 text-primary-foreground" />
             </div>
             <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Guardião Eventos</h1>
@@ -46,13 +37,8 @@ const RoleSelectPage = () => {
         <div className="grid md:grid-cols-2 gap-8">
           {/* Participant Card */}
           <button
-<<<<<<< HEAD
-            onClick={() => handleSelectRole("participant")}
-            className="group bg-card border rounded-xl p-8 text-left shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
-=======
             onClick={() => handleRoleSelect('participant')}
             className="group relative bg-white border border-slate-200 rounded-2xl p-10 text-left shadow-sm hover:shadow-xl transition-all duration-300 hover:border-primary/30 flex flex-col items-start justify-between min-h-[320px]"
->>>>>>> 63e9086 (feat: substitui ícone da igreja por silhueta de São José e atualiza páginas)
           >
             <div>
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-white transition-colors duration-300">
@@ -73,13 +59,8 @@ const RoleSelectPage = () => {
 
           {/* Organizer Card */}
           <button
-<<<<<<< HEAD
-            onClick={() => handleSelectRole("organizer")}
-            className="group bg-card border rounded-xl p-8 text-left shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
-=======
             onClick={() => handleRoleSelect('organizer')}
             className="group relative bg-white border border-slate-200 rounded-2xl p-10 text-left shadow-sm hover:shadow-xl transition-all duration-300 hover:border-primary/30 flex flex-col items-start justify-between min-h-[320px]"
->>>>>>> 63e9086 (feat: substitui ícone da igreja por silhueta de São José e atualiza páginas)
           >
             <div>
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-white transition-colors duration-300">

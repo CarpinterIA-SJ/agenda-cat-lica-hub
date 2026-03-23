@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, Outlet } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,14 +20,14 @@ import EventDetailPage from "./pages/EventDetailPage";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { session, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   if (!session) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+  return children ? <>{children}</> : <Outlet />;
 };
 
-const RoleRoute = ({ children, requiredRole }: { children: React.ReactNode; requiredRole?: 'organizer' | 'participant' }) => {
+const RoleRoute = ({ children, requiredRole }: { children?: React.ReactNode; requiredRole?: 'organizer' | 'participant' }) => {
   const { role, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   if (!role) return <Navigate to="/role-select" replace />;
@@ -35,7 +35,7 @@ const RoleRoute = ({ children, requiredRole }: { children: React.ReactNode; requ
     const fallback = role === 'organizer' ? "/organizador/dashboard" : "/participante/meus-ingressos";
     return <Navigate to={fallback} replace />;
   }
-  return <>{children}</>;
+  return children ? <>{children}</> : <Outlet />;
 };
 
 const queryClient = new QueryClient();
