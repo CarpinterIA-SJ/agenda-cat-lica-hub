@@ -7,9 +7,11 @@ import LoginPage from "./pages/LoginPage";
 import RoleSelectPage from "./pages/RoleSelectPage";
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
-import EventsPage from "./pages/EventsPage";
+import OrganizerEventsPage from "./pages/OrganizerEventsPage";
 import EventCreatePage from "./pages/EventCreatePage";
 import EventDashboardPage from "./pages/EventDashboardPage";
+import MyTicketsPage from "./pages/MyTicketsPage";
+import ExploreEventsPage from "./pages/ExploreEventsPage";
 import CRMPage from "./pages/CRMPage";
 import DonationsPage from "./pages/DonationsPage";
 import TithePage from "./pages/TithePage";
@@ -31,6 +33,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const RoleGuard = ({ children }: { children: React.ReactNode }) => {
+  const role = localStorage.getItem("userRole");
+  if (!role) {
+    return <Navigate to="/role-select" replace />;
+  }
+  return <>{children}</>;
+};
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -44,16 +54,25 @@ const App = () => (
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/role-select" element={<ProtectedRoute><RoleSelectPage /></ProtectedRoute>} />
-            <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+
+            {/* Organizer routes */}
+            <Route element={<ProtectedRoute><RoleGuard><DashboardLayout /></RoleGuard></ProtectedRoute>}>
+              <Route path="/organizador/dashboard" element={<OrganizerEventsPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/events" element={<EventsPage />} />
+              <Route path="/events" element={<OrganizerEventsPage />} />
               <Route path="/events/new" element={<EventCreatePage />} />
               <Route path="/events/dashboard/:id" element={<EventDashboardPage />} />
               <Route path="/crm" element={<CRMPage />} />
               <Route path="/donations" element={<DonationsPage />} />
               <Route path="/tithe" element={<TithePage />} />
+
+              {/* Participant routes */}
+              <Route path="/participante/meus-ingressos" element={<MyTicketsPage />} />
+              <Route path="/participante/explorar" element={<ExploreEventsPage />} />
+
               <Route path="/support" element={<SupportPage />} />
             </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
