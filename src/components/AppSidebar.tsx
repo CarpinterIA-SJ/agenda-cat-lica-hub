@@ -42,7 +42,6 @@ const navItems: NavItem[] = [
     ],
   },
   { title: "CRM", url: "/crm", icon: BarChart3, roles: ["organizer"] },
-  { title: "Colaboradores", url: "/events/dashboard?tab=collaborators", icon: Users, roles: ["organizer"] },
   { title: "Integrações", url: "/events/dashboard?tab=integrations", icon: Globe, roles: ["organizer"] },
 
   // Participant items

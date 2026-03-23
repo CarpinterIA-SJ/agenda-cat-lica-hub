@@ -26,7 +26,6 @@ const sidebarItems = [
   { title: "Gerenciar Ingressos", icon: Ticket, id: "tickets-manage" },
   { title: "Participantes", icon: Users, id: "participants" },
   { title: "Financeiro", icon: DollarSign, id: "financial" },
-  { title: "Colaboradores", icon: UserPlus, id: "collaborators" },
   { title: "Integração", icon: Share2, id: "integrations" },
   { title: "Configurações", icon: Settings, id: "settings" },
   { title: "Check-ins", icon: CheckCircle2, id: "checkins" },
