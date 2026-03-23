@@ -7,6 +7,10 @@ import { EventDetailsTab } from "@/components/event-dashboard/EventDetailsTab";
 import { EventTicketsTab } from "@/components/event-dashboard/EventTicketsTab";
 import { EventCollaboratorsTab } from "@/components/event-dashboard/EventCollaboratorsTab";
 import { EventIntegrationsTab } from "@/components/event-dashboard/EventIntegrationsTab";
+import { EventPageTab } from "@/components/event-dashboard/EventPageTab";
+import { EventPaymentTab } from "@/components/event-dashboard/EventPaymentTab";
+import { EventFormTab } from "@/components/event-dashboard/EventFormTab";
+import { EventMessagesTab } from "@/components/event-dashboard/EventMessagesTab";
 
 const mockEvents = [
   {
