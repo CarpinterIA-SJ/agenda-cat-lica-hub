@@ -7,6 +7,10 @@ import { EventDetailsTab } from "@/components/event-dashboard/EventDetailsTab";
 import { EventTicketsTab } from "@/components/event-dashboard/EventTicketsTab";
 import { EventCollaboratorsTab } from "@/components/event-dashboard/EventCollaboratorsTab";
 import { EventIntegrationsTab } from "@/components/event-dashboard/EventIntegrationsTab";
+import { EventPageTab } from "@/components/event-dashboard/EventPageTab";
+import { EventPaymentTab } from "@/components/event-dashboard/EventPaymentTab";
+import { EventFormTab } from "@/components/event-dashboard/EventFormTab";
+import { EventMessagesTab } from "@/components/event-dashboard/EventMessagesTab";
 
 const mockEvents = [
   {
@@ -81,18 +85,10 @@ const EventDashboardPage = () => {
       {activeTab === "tickets" && <EventTicketsTab event={event} />}
       {activeTab === "collaborators" && <EventCollaboratorsTab />}
       {activeTab === "integrations" && <EventIntegrationsTab />}
-      {activeTab === "page" && (
-        <div className="text-muted-foreground text-center py-12">Página do evento — em breve</div>
-      )}
-      {activeTab === "payment" && (
-        <div className="text-muted-foreground text-center py-12">Pagamento — em breve</div>
-      )}
-      {activeTab === "form" && (
-        <div className="text-muted-foreground text-center py-12">Formulário de inscrição — em breve</div>
-      )}
-      {activeTab === "messages" && (
-        <div className="text-muted-foreground text-center py-12">Mensagens — em breve</div>
-      )}
+      {activeTab === "page" && <EventPageTab />}
+      {activeTab === "payment" && <EventPaymentTab />}
+      {activeTab === "form" && <EventFormTab />}
+      {activeTab === "messages" && <EventMessagesTab />}
     </div>
   );
 };
