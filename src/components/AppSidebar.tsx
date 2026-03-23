@@ -1,23 +1,15 @@
 import {
   Home, Calendar, Users, HelpCircle, ChevronLeft, Church, LogOut,
   Ticket, UserCheck, DollarSign, Settings, CheckSquare,
-  ChevronDown, ChevronUp, BarChart3, CreditCard, FileText,
-  MessageCircle, Globe, ListOrdered, Clock
+  ChevronDown, ChevronUp, BarChart3, Globe, Search,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useState } from "react";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarHeader,
-  SidebarFooter,
-  useSidebar,
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
+  SidebarMenu, SidebarMenuButton, SidebarMenuItem,
+  SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
 
 interface NavItem {
@@ -29,13 +21,9 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { title: "Dashboard", url: "/events/dashboard", icon: Home, roles: ["organizer"] },
-  {
-    title: "Gerenciar ingressos", icon: Ticket, roles: ["organizer"],
-    children: [
-      { title: "Ingressos", url: "/events/dashboard?tab=tickets" },
-    ],
-  },
+  // Organizer items
+  { title: "Meus Eventos", url: "/organizador/dashboard", icon: Calendar, roles: ["organizer"] },
+  { title: "Dashboard", url: "/dashboard", icon: Home, roles: ["organizer"] },
   {
     title: "Participantes", icon: UserCheck, roles: ["organizer"],
     children: [
@@ -51,24 +39,15 @@ const navItems: NavItem[] = [
       { title: "Repasses", url: "#" },
     ],
   },
-  { title: "Colaboradores", url: "/events/dashboard?tab=collaborators", icon: Users, roles: ["organizer"] },
-  { title: "Integração", url: "/events/dashboard?tab=integrations", icon: Globe, roles: ["organizer"] },
-  {
-    title: "Configurações", icon: Settings, roles: ["organizer"],
-    children: [
-      { title: "Informações gerais", url: "/events/dashboard?tab=general" },
-      { title: "Página do evento", url: "/events/dashboard?tab=page" },
-      { title: "Pagamento", url: "/events/dashboard?tab=payment" },
-      { title: "Formulário de cadastro", url: "/events/dashboard?tab=form" },
-      { title: "Mensagens", url: "/events/dashboard?tab=messages" },
-    ],
-  },
-  {
-    title: "Check-ins", icon: CheckSquare, roles: ["organizer"],
-    children: [],
-  },
-  { title: "Guardião Eventos", url: "/events", icon: Calendar, roles: ["organizer", "participant"] },
   { title: "CRM", url: "/crm", icon: BarChart3, roles: ["organizer"] },
+  { title: "Colaboradores", url: "/events/dashboard?tab=collaborators", icon: Users, roles: ["organizer"] },
+  { title: "Integrações", url: "/events/dashboard?tab=integrations", icon: Globe, roles: ["organizer"] },
+
+  // Participant items
+  { title: "Meus Ingressos", url: "/participante/meus-ingressos", icon: Ticket, roles: ["participant"] },
+  { title: "Explorar Eventos", url: "/participante/explorar", icon: Search, roles: ["participant"] },
+
+  // Shared
   { title: "Suporte", url: "/support", icon: HelpCircle, roles: ["organizer", "participant"] },
 ];
 
@@ -81,7 +60,7 @@ export function AppSidebar() {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const toggleGroup = (title: string) => {
-    setOpenGroups(prev => ({ ...prev, [title]: !prev[title] }));
+    setOpenGroups((prev) => ({ ...prev, [title]: !prev[title] }));
   };
 
   return (
@@ -122,9 +101,7 @@ export function AppSidebar() {
                           <item.icon className="w-5 h-5 shrink-0" />
                           {!collapsed && <span>{item.title}</span>}
                         </span>
-                        {!collapsed && (
-                          isOpen ? <ChevronUp className="w-4 h-4 opacity-50" /> : <ChevronDown className="w-4 h-4 opacity-50" />
-                        )}
+                        {!collapsed && (isOpen ? <ChevronUp className="w-4 h-4 opacity-50" /> : <ChevronDown className="w-4 h-4 opacity-50" />)}
                       </SidebarMenuButton>
                       {!collapsed && isOpen && (
                         <div className="ml-7 mt-1 space-y-0.5 border-l border-sidebar-border pl-3">
@@ -149,7 +126,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild tooltip={item.title}>
                       <NavLink
                         to={item.url!}
-                        end={item.url === "/dashboard" || item.url === "/events/dashboard"}
+                        end
                         className="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors"
                         activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                       >
@@ -180,9 +157,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        {!collapsed && (
-          <div className="text-xs text-sidebar-foreground/40 pl-2">© 2026 Guardião Eventos</div>
-        )}
+        {!collapsed && <div className="text-xs text-sidebar-foreground/40 pl-2">© 2026 Guardião Eventos</div>}
       </SidebarFooter>
     </Sidebar>
   );

@@ -72,7 +72,7 @@ const EventDashboardPage = () => {
       <EventDashboardHeader
         organizerName={event.name}
         eventDate={eventDate}
-        onBack={() => navigate("/events")}
+        onBack={() => navigate("/organizador/dashboard")}
       />
 
       <EventDashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
