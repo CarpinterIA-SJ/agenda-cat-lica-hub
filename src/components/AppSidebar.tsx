@@ -1,11 +1,13 @@
 import {
-  Home, Calendar, Users, HelpCircle, ChevronLeft, Church, LogOut,
+  Home, Calendar, Users, HelpCircle, ChevronLeft, LogOut,
   Ticket, UserCheck, DollarSign, Settings, CheckSquare,
   ChevronDown, ChevronUp, BarChart3, Globe, Search,
 } from "lucide-react";
+import { SaoJoseIcon } from "@/components/icons/SaoJoseIcon";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -54,9 +56,11 @@ const navItems: NavItem[] = [
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
+  const { role, setRole } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
-  const role = localStorage.getItem("userRole") || "participant";
-  const filteredNavItems = navItems.filter((item) => item.roles.includes(role));
+
+  const filteredNavItems = navItems.filter((item) => item.roles.includes(role || ""));
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const toggleGroup = (title: string) => {
@@ -68,7 +72,7 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-            <Church className="w-5 h-5 text-primary-foreground" />
+            <SaoJoseIcon className="w-5 h-5 text-primary-foreground" />
           </div>
           {!collapsed && (
             <div className="flex items-center justify-between flex-1">
@@ -126,7 +130,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild tooltip={item.title}>
                       <NavLink
                         to={item.url!}
-                        end
+                        end={item.url === "/dashboard"}
                         className="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors"
                         activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                       >
@@ -147,8 +151,8 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => {
-                localStorage.removeItem("userRole");
-                window.location.href = "/role-select";
+                setRole(null);
+                navigate("/role-select");
               }}
               className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
             >

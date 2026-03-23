@@ -2,46 +2,33 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Plus, 
   Search, 
   Calendar, 
   MapPin, 
   Users, 
-  Ticket, 
-  User, 
-  Mail, 
-  ChevronRight, 
-  Phone, 
-  Hash, 
-  CalendarDays,
-  CreditCard,
-  QrCode,
-  FileText,
-  AlertTriangle,
-  Fingerprint
+  Settings,
+  MoreHorizontal,
+  ChevronRight,
+  Filter,
+  Trash2,
+  Eye
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/use-auth";
 
 const mockEvents = [
   { 
@@ -49,397 +36,226 @@ const mockEvents = [
     name: "Retiro de Quaresma", 
     date: "28 Mar 2026", 
     location: "Paróquia São José", 
-    type: "Presencial", 
     attendees: 120, 
-    status: "Ativo",
-    details: {
-      tickets: [{ id: "1", name: "Inscrição Geral", price: "0" }],
-      formFields: [
-        { id: "1", label: "Nome Completo", type: "text", required: true },
-        { id: "2", label: "E-mail", type: "email", required: true },
-        { id: "3", label: "WhatsApp", type: "tel", required: true }
-      ]
-    }
+    status: "Publicado",
+    isFinished: false
+  },
+  { 
+    id: 2, 
+    name: "Congresso de Jovens 2024", 
+    date: "15 Fev 2024", 
+    location: "Centro de Eventos", 
+    attendees: 450, 
+    status: "Finalizado",
+    isFinished: true
+  },
+  { 
+    id: 3, 
+    name: "Workshop de Liderança", 
+    date: "10 Abr 2026", 
+    location: "Auditório Central", 
+    attendees: 0, 
+    status: "Rascunho",
+    isFinished: false
   },
 ];
 
 const EventsPage = () => {
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
   const [events, setEvents] = useState<any[]>(mockEvents);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
-  
-  // Estado do formulário
-  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
-  const [formValues, setFormValues] = useState<Record<string, any>>({});
-  
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const userRole = localStorage.getItem("userRole") || "participant";
 
   useEffect(() => {
     try {
       const storedEvents = JSON.parse(localStorage.getItem("custom_events") || "[]");
       if (storedEvents.length > 0) {
-        setEvents([...storedEvents, ...mockEvents]);
+        setEvents([...mockEvents, ...storedEvents]);
       }
     } catch (error) {
       console.error("Erro ao carregar eventos locais:", error);
     }
   }, []);
 
-  const filtered = events.filter((e) => e.name.toLowerCase().includes(search.toLowerCase()));
-
-  const handleOpenRegistration = (event: any) => {
-    setSelectedEvent(event);
-    setSelectedTicketId(null);
-    setSelectedPaymentMethod(null);
-    
-    // Inicializar formValues com campos fixos + dinâmicos
-    const initialValues: Record<string, any> = {
-      'fixed_nome': user?.user_metadata?.full_name || "",
-      'fixed_cpf': "",
-      'fixed_tel': "",
-      'fixed_email': user?.email || "",
-      'fixed_nascimento': ""
-    };
-    
-    const fields = event.custom_fields || event.details?.formFields || [];
-    fields.forEach((f: any) => {
-      initialValues[f.id] = f.type === 'checkbox' ? false : "";
-    });
-    
-    setFormValues(initialValues);
-    setIsModalOpen(true);
-  };
-
-  const handleFieldChange = (fieldId: string, value: any) => {
-    setFormValues(prev => ({ ...prev, [fieldId]: value }));
-  };
-
-  // Verificação de duplicidade
-  const isDuplicate = useMemo(() => {
-    if (!selectedEvent) return false;
-    const registrations = JSON.parse(localStorage.getItem("event_registrations") || "[]");
-    
-    const currentCpf = formValues['fixed_cpf'];
-
-    return registrations.some((reg: any) => 
-      reg.eventId === selectedEvent.id && 
-       (currentCpf && reg.values?.fixed_cpf === currentCpf)
-    );
-  }, [formValues, selectedEvent]);
-
-  // Validação do formulário
-  const isFormValid = useMemo(() => {
-    if (!selectedTicketId || isDuplicate) return false;
-    
-    const isPaid = selectedEvent?.type === "Pago" || selectedEvent?.is_free === false;
-    if (isPaid && !selectedPaymentMethod) return false;
-
-    // Validar campos fixos obrigatórios (apenas se estiverem ativos)
-    if (selectedEvent?.show_nome !== false && !formValues['fixed_nome']?.trim()) return false;
-    if (selectedEvent?.show_cpf !== false && !formValues['fixed_cpf']?.trim()) return false;
-    if (selectedEvent?.show_whatsapp !== false && !formValues['fixed_tel']?.trim()) return false;
-    if (selectedEvent?.show_email !== false && !formValues['fixed_email']?.trim()) return false;
-    if (selectedEvent?.show_nascimento !== false && !formValues['fixed_nascimento']?.trim()) return false;
-
-    const fields = selectedEvent?.custom_fields || selectedEvent?.details?.formFields || [];
-    
-    return fields.every((field: any) => {
-      if (!field.required) return true;
-      const val = formValues[field.id];
-      if (field.type === 'checkbox') return val === true;
-      return val && val.toString().trim().length > 0;
-    });
-  }, [selectedTicketId, selectedPaymentMethod, formValues, selectedEvent, isDuplicate]);
-
-  const handleRegister = () => {
-    if (isDuplicate) {
-      toast.error("Este CPF já possui uma inscrição para este evento.");
-      return;
+  const handleDeleteEvent = (id: number) => {
+    try {
+      const storedEvents = JSON.parse(localStorage.getItem("custom_events") || "[]");
+      const updatedStored = storedEvents.filter((e: any) => e.id !== id);
+      localStorage.setItem("custom_events", JSON.stringify(updatedStored));
+      
+      setEvents(events.filter(e => e.id !== id));
+      toast.success("Evento excluído com sucesso!");
+    } catch (error) {
+      toast.error("Erro ao excluir evento.");
     }
-
-    const email = formValues['fixed_email'];
-    const phone = formValues['fixed_tel'];
-
-    // Salvar inscrição
-    const registrations = JSON.parse(localStorage.getItem("event_registrations") || "[]");
-    const newRegistration = {
-      id: Date.now(),
-      eventId: selectedEvent.id,
-      email,
-      phone,
-      ticketId: selectedTicketId,
-      paymentMethod: selectedPaymentMethod,
-      values: formValues
-    };
-    localStorage.setItem("event_registrations", JSON.stringify([...registrations, newRegistration]));
-
-    toast.success("Inscrição confirmada!", {
-      description: `Sua participação no evento "${selectedEvent?.name}" foi registrada.`
-    });
-    
-    const updatedEvents = events.map(e => 
-      e.id === selectedEvent.id ? { ...e, attendees: (e.attendees || 0) + 1 } : e
-    );
-    setEvents(updatedEvents);
-    setIsModalOpen(false);
   };
+
+  const filtered = useMemo(() => {
+    return events.filter((e) => {
+      const matchesSearch = e.name.toLowerCase().includes(search.toLowerCase());
+      const isFinished = e.isFinished || new Date(e.date) < new Date();
+      
+      if (activeTab === "upcoming") return matchesSearch && !isFinished;
+      if (activeTab === "finished") return matchesSearch && isFinished;
+      return matchesSearch;
+    });
+  }, [events, search, activeTab]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Guardião Eventos</h1>
-          <p className="text-muted-foreground mt-1">
-            {userRole === "organizer" ? "Gerencie seus eventos e acompanhe as inscrições" : "Descubra e inscreva-se nos eventos da sua comunidade"}
-          </p>
+    <div className="space-y-8">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Meus Eventos</h1>
+          <p className="text-slate-500">Crie, gerencie e acompanhe todos os seus eventos em tempo real.</p>
         </div>
-        {userRole === "organizer" && (
-          <Button onClick={() => navigate("/events/new")} className="gap-2 bg-[#007600] hover:bg-[#006000]">
-            <Plus className="w-4 h-4" />
-            Novo Evento
+        <Button 
+          onClick={() => navigate("/events/new")} 
+          className="gap-2 bg-primary hover:bg-primary/90 h-11 px-6 font-semibold shadow-lg shadow-primary/20 transition-all border-none"
+        >
+          <Plus className="w-5 h-5" />
+          Criar novo evento
+        </Button>
+      </div>
+
+      {/* Filters & Search */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 py-2">
+        <Tabs defaultValue="all" className="w-full lg:w-auto" onValueChange={setActiveTab}>
+          <TabsList className="bg-slate-100/80 p-1">
+            <TabsTrigger value="upcoming" className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-6">Próximos eventos</TabsTrigger>
+            <TabsTrigger value="finished" className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-6">Eventos finalizados</TabsTrigger>
+            <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-6">Todos</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="flex items-center gap-3 w-full lg:max-w-md">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 font-bold" />
+            <Input 
+              placeholder="Pesquisar por nome do evento..." 
+              className="pl-10 h-10 bg-white border-slate-200 focus-visible:ring-primary/20 focus-visible:border-primary transition-all shadow-sm"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Button variant="outline" size="icon" className="h-10 w-10 border-slate-200 hover:bg-slate-50 shrink-0 shadow-sm">
+            <Filter className="w-4 h-4 text-slate-500" />
           </Button>
-        )}
+        </div>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Buscar eventos..." className="pl-10 focus-visible:ring-[#007600]" value={search} onChange={(e) => setSearch(e.target.value)} />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filtered.map((event) => (
-          <Card key={event.id} className="flex flex-col shadow-card hover:shadow-card-hover transition-all group border-l-4 border-l-transparent hover:border-l-[#007600] overflow-hidden bg-card">
-            <CardContent className="p-0 flex-1 flex flex-col">
-              <div className="p-5 flex-1">
-                <div className="flex items-start justify-between mb-4">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                    event.status === "Ativo" ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
-                  }`}>
-                    {event.status}
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#007600]/10 text-[#007600] font-bold uppercase tracking-wider">
-                    {event.type}
-                  </span>
+      {/* Events Grid */}
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center space-y-4 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200">
+          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+            <Calendar className="w-8 h-8 text-slate-300" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-lg font-semibold text-slate-900">Nenhum evento encontrado</h3>
+            <p className="text-slate-500 max-w-xs mx-auto">Tente ajustar seus filtros ou pesquise por outro termo.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filtered.map((event) => (
+            <Card key={event.id} className="group relative bg-white border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col rounded-2xl">
+              <CardContent className="p-0 flex-1 flex flex-col">
+                <div className="p-6 flex-1 space-y-5">
+                  <div className="flex items-start justify-between">
+                    <div className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                      event.status === "Publicado" 
+                        ? "bg-emerald-50 text-emerald-600 border border-emerald-100" 
+                        : event.status === "Rascunho"
+                        ? "bg-amber-50 text-amber-600 border border-amber-100"
+                        : "bg-slate-100 text-slate-500 border border-slate-200"
+                    }`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${
+                        event.status === "Publicado" ? "bg-emerald-500 animate-pulse" : event.status === "Rascunho" ? "bg-amber-500" : "bg-slate-400"
+                      }`} />
+                      {event.status}
+                    </div>
+                    <button className="text-slate-400 hover:text-slate-600 p-1 transition-colors">
+                      <MoreHorizontal className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h3 className="font-bold text-xl text-slate-900 group-hover:text-primary transition-colors leading-tight min-h-[3rem] line-clamp-2">
+                      {event.name}
+                    </h3>
+                  </div>
+                  
+                  <div className="space-y-3 pt-1">
+                    <div className="flex items-center gap-3 text-sm text-slate-500 font-medium">
+                      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
+                        <Calendar className="w-4 h-4 text-primary" />
+                      </div>
+                      {event.date}
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-slate-500 font-medium">
+                      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
+                        <MapPin className="w-4 h-4 text-primary" />
+                      </div>
+                      <span className="truncate">{event.location}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-slate-500 font-medium">
+                      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
+                        <Users className="w-4 h-4 text-primary" />
+                      </div>
+                      {event.attendees || 0} inscritos registrados
+                    </div>
+                  </div>
                 </div>
                 
-                <h3 className="font-bold text-lg text-card-foreground group-hover:text-[#007600] transition-colors mb-4 line-clamp-2 min-h-[3.5rem]">
-                  {event.name}
-                </h3>
-                
-                <div className="space-y-3 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-[#007600]" /> {event.date}</div>
-                  <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-[#007600]" /><span className="truncate">{event.location}</span></div>
-                  <div className="flex items-center gap-2 font-medium text-foreground/70"><Users className="w-4 h-4 text-[#007600]" /> {event.attendees || 0} inscritos</div>
-                </div>
-              </div>
-              
-              <div className="p-5 bg-muted/30 border-t mt-auto flex gap-2">
-                {userRole === "organizer" && (
+                <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex gap-2">
                   <Button 
                     variant="outline"
-                    onClick={() => navigate(`/events/dashboard/${event.id}`)}
-                    className="flex-1 gap-2 font-semibold border-[#007600]/30 text-[#007600] hover:bg-[#007600]/5"
+                    onClick={() => navigate(`/event/${event.id}`)}
+                    className="flex-1 gap-2 font-bold border-slate-200 text-slate-700 hover:bg-white hover:border-primary hover:text-primary transition-all rounded-xl h-11"
                   >
-                    <ChevronRight className="w-4 h-4" /> Gerenciar
+                    <Eye className="w-4 h-4" /> Visualizar
                   </Button>
-                )}
-                <Button 
-                  disabled={event.status !== "Ativo"}
-                  onClick={() => handleOpenRegistration(event)}
-                  className={`${userRole === "organizer" ? "flex-1" : "w-full"} gap-2 font-semibold ${event.status === "Ativo" ? "bg-[#007600] hover:bg-[#006000] text-white" : "bg-muted text-muted-foreground"}`}
-                >
-                  <Ticket className="w-4 h-4" /> Inscrever-se
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  
+                  <Button 
+                    variant="outline"
+                    className="gap-2 font-bold border-slate-200 text-slate-700 hover:bg-white hover:border-primary hover:text-primary transition-all rounded-xl h-11 px-3"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </Button>
 
-      {/* Modal de Inscrição */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-0 border-none rounded-2xl shadow-2xl">
-          <div className="bg-[#007600] p-6 text-white sticky top-0 z-10">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold flex items-center gap-2"><Ticket className="w-6 h-6" /> Inscrição no Evento</DialogTitle>
-              <DialogDescription className="text-white/80 font-medium text-lg mt-1">{selectedEvent?.name}</DialogDescription>
-            </DialogHeader>
-          </div>
-
-          <div className="p-6 space-y-8 pb-32">
-            {isDuplicate && (
-              <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-700 animate-in fade-in zoom-in duration-300">
-                <AlertTriangle className="w-5 h-5 shrink-0" />
-                <p className="text-sm font-bold leading-tight">Já identificamos uma inscrição para este evento com este CPF.</p>
-              </div>
-            )}
-
-            {/* Ingressos */}
-            <div className="space-y-4">
-              <h4 className="font-bold flex items-center gap-2 text-foreground text-sm uppercase tracking-wider"><Hash className="w-4 h-4 text-[#007600]" /> 1. Escolha sua Entrada</h4>
-              <div className="grid gap-3">
-                {(selectedEvent?.tickets || selectedEvent?.details?.tickets)?.map((ticket: any) => (
-                  <div key={ticket.id} onClick={() => setSelectedTicketId(ticket.id)} className={`p-4 border-2 rounded-2xl cursor-pointer transition-all flex items-center justify-between group ${selectedTicketId === ticket.id ? "border-[#007600] bg-[#007600]/5 ring-1 ring-[#007600]" : "border-border hover:border-[#007600]/30"}`}>
-                    <div className="flex items-center gap-3">
-                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedTicketId === ticket.id ? "border-[#007600]" : "border-muted-foreground/30"}`}>
-                         {selectedTicketId === ticket.id && <div className="w-2.5 h-2.5 rounded-full bg-[#007600]" />}
-                       </div>
-                       <div><p className="font-bold text-sm">{ticket.name}</p><p className="text-[10px] text-muted-foreground">Disponibilidade imediata</p></div>
-                    </div>
-                    <p className="font-black text-lg text-[#007600]">{Number(ticket.price) === 0 ? "GRÁTIS" : `R$ ${ticket.price}`}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-4 pt-6 border-t font-sans">
-              <h4 className="font-bold flex items-center gap-2 text-foreground text-sm uppercase tracking-wider"><User className="w-4 h-4 text-[#007600]" /> 2. Suas Informações</h4>
-              <div className="grid gap-5">
-                {/* Nome Completo */}
-                {selectedEvent?.show_nome !== false && (
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
-                       <User className="w-3 h-3" /> Nome Completo *
-                    </Label>
-                    <Input 
-                      placeholder="Como deseja ser identificado" 
-                      className="h-11 focus-visible:ring-[#007600]" 
-                      value={formValues['fixed_nome'] || ""} 
-                      onChange={(e) => handleFieldChange('fixed_nome', e.target.value)} 
-                    />
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* CPF */}
-                  {selectedEvent?.show_cpf !== false && (
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
-                         <Fingerprint className="w-3 h-3" /> CPF *
-                      </Label>
-                      <Input 
-                        placeholder="000.000.000-00" 
-                        className="h-11 focus-visible:ring-[#007600]" 
-                        value={formValues['fixed_cpf'] || ""} 
-                        onChange={(e) => handleFieldChange('fixed_cpf', e.target.value)} 
-                      />
-                    </div>
-                  )}
-
-                  {/* Data de Nascimento */}
-                  {selectedEvent?.show_nascimento !== false && (
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
-                         <Calendar className="w-3 h-3" /> Data de Nascimento *
-                      </Label>
-                      <Input 
-                        type="date"
-                        className="h-11 focus-visible:ring-[#007600]" 
-                        value={formValues['fixed_nascimento'] || ""} 
-                        onChange={(e) => handleFieldChange('fixed_nascimento', e.target.value)} 
-                      />
-                    </div>
-                  )}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="outline"
+                        className="gap-2 font-bold border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 transition-all rounded-xl h-11 px-3"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir Evento</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Você tem certeza que deseja excluir este evento? Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={() => handleDeleteEvent(event.id)}
+                          className="bg-red-500 hover:bg-red-600"
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Telefone */}
-                  {selectedEvent?.show_whatsapp !== false && (
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
-                         <Phone className="w-3 h-3" /> Telefone (WhatsApp) *
-                      </Label>
-                      <Input 
-                        type="tel"
-                        placeholder="(00) 00000-0000" 
-                        className="h-11 focus-visible:ring-[#007600]" 
-                        value={formValues['fixed_tel'] || ""} 
-                        onChange={(e) => handleFieldChange('fixed_tel', e.target.value)} 
-                      />
-                    </div>
-                  )}
-
-                  {/* E-mail */}
-                  {selectedEvent?.show_email !== false && (
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
-                         <Mail className="w-3 h-3" /> E-mail *
-                      </Label>
-                      <Input 
-                        type="email" 
-                        readOnly
-                        placeholder="seu@email.com" 
-                        className="h-11 bg-muted/30 cursor-not-allowed focus-visible:ring-[#007600]" 
-                        value={formValues['fixed_email'] || ""} 
-                      />
-                      <p className="text-[10px] text-muted-foreground italic">E-mail da sua conta Guardião.</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Renderização de Campos Personalizados */}
-                {(selectedEvent?.custom_fields || []).map((field: any) => (
-                  <div key={field.id} className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">{field.label} {field.required && <span className="text-red-500">*</span>}</Label>
-                    {field.type === "text" && <Input placeholder={field.placeholder || `Digite seu ${field.label.toLowerCase()}`} className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
-                    {field.type === "tel" && <Input type="tel" placeholder="(00) 00000-0000" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
-                    {field.type === "number" && <Input type="number" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
-                    {field.type === "date" && <Input type="date" className="h-11 focus-visible:ring-[#007600]" value={formValues[field.id]} onChange={(e) => handleFieldChange(field.id, e.target.value)} />}
-                    {field.type === "select" && (
-                      <Select onValueChange={(v) => handleFieldChange(field.id, v)}>
-                        <SelectTrigger className="h-11"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                        <SelectContent>{field.options?.map((o: any) => <SelectItem key={o} value={o}>{o}</SelectItem>) || <SelectItem value="default">Opção Única</SelectItem>}</SelectContent>
-                      </Select>
-                    )}
-                    {field.type === "checkbox" && (
-                      <div className={`flex items-center space-x-3 p-4 rounded-xl border transition-all cursor-pointer ${formValues[field.id] ? "bg-[#007600]/5 border-[#007600]/30" : "bg-muted/10 border-transparent"}`} onClick={() => handleFieldChange(field.id, !formValues[field.id])}>
-                        <Checkbox checked={formValues[field.id] || false} className="data-[state=checked]:bg-[#007600] data-[state=checked]:border-[#007600]" />
-                        <Label className="text-sm font-bold cursor-pointer">{field.label}</Label>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Pagamento */}
-            {(selectedEvent?.type === "Pago" || selectedEvent?.is_free === false) && (
-              <div className="space-y-6 pt-6 border-t animate-in slide-in-from-bottom duration-500">
-                <h4 className="font-bold flex items-center gap-2 text-foreground text-sm uppercase tracking-wider"><CreditCard className="w-4 h-4 text-[#007600]" /> 3. Escolha como Pagar</h4>
-                <RadioGroup value={selectedPaymentMethod || ""} onValueChange={setSelectedPaymentMethod} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {[
-                    { id: "pix", label: "PIX", icon: QrCode, desc: "Aprovação instantânea", enabled: selectedEvent?.pix_enabled },
-                    { id: "card", label: "Cartão de Crédito", icon: CreditCard, desc: "Até 12x sem juros", enabled: selectedEvent?.card_enabled },
-                    { id: "boleto", label: "Boleto", icon: FileText, desc: "Vencimento em 3 dias", enabled: selectedEvent?.boleto_enabled }
-                  ].filter(m => m.enabled !== false).map((method) => (
-                    <Label key={method.id} htmlFor={method.id} className={`flex flex-col gap-2 p-4 border-2 rounded-2xl cursor-pointer transition-all hover:bg-muted/50 ${selectedPaymentMethod === method.id ? "border-[#007600] bg-[#007600]/5" : "border-border"}`}>
-                      <div className="flex items-center justify-between">
-                        <method.icon className={`w-5 h-5 ${selectedPaymentMethod === method.id ? "text-[#007600]" : "text-muted-foreground"}`} />
-                        <RadioGroupItem value={method.id} id={method.id} className="text-[#007600]" />
-                      </div>
-                      <div className="mt-1">
-                        <p className="font-bold text-sm">{method.label}</p>
-                        <p className="text-[10px] text-muted-foreground">{method.desc}</p>
-                      </div>
-                    </Label>
-                  ))}
-                </RadioGroup>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="sticky bottom-0 bg-white border-t p-6 flex flex-col gap-3 sm:flex-row shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
-            <Button variant="ghost" onClick={() => setIsModalOpen(false)} className="sm:flex-1 h-12 font-bold">Cancelar</Button>
-            <Button disabled={!isFormValid} onClick={handleRegister} className={`sm:flex-2 h-12 font-black text-lg transition-all ${isFormValid ? "bg-[#007600] hover:bg-[#006000] hover:scale-[1.02] shadow-xl shadow-[#007600]/20" : "bg-muted text-muted-foreground"}`}>
-              {isDuplicate ? "Inscrição Já Realizada" : "CONFIRMAR INSCRIÇÃO"} <ChevronRight className="w-5 h-5 ml-1" />
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

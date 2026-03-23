@@ -11,7 +11,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Search, Plus, Download, Mail, Phone, MapPin, Church } from "lucide-react";
+import { Search, Plus, Download, Mail, Phone, MapPin } from "lucide-react";
+import { SaoJoseIcon } from "@/components/icons/SaoJoseIcon";
 
 interface Person {
   id: number;
@@ -139,7 +140,7 @@ const CRMPage = () => {
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-muted-foreground">
                       <div className="flex items-center gap-1.5">
-                        <Church className="w-3.5 h-3.5" />{person.parish}
+                        <SaoJoseIcon className="w-3.5 h-3.5" />{person.parish}
                       </div>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-muted-foreground">{person.community}</TableCell>

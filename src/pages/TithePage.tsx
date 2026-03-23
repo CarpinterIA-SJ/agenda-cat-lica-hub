@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Church, TrendingUp, Users, Calendar } from "lucide-react";
+import { TrendingUp, Users, Calendar } from "lucide-react";
+import { SaoJoseIcon } from "@/components/icons/SaoJoseIcon";
 
 const TithePage = () => (
   <div className="space-y-6">
@@ -9,7 +10,7 @@ const TithePage = () => (
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {[
-        { label: "Dízimo do Mês", value: "R$ 12.450", icon: Church, color: "text-primary bg-primary/10" },
+        { label: "Dízimo do Mês", value: "R$ 12.450", icon: SaoJoseIcon, color: "text-primary bg-primary/10" },
         { label: "Dizimistas Ativos", value: "312", icon: Users, color: "text-info bg-info/10" },
         { label: "Média Mensal", value: "R$ 11.800", icon: TrendingUp, color: "text-success bg-success/10" },
         { label: "Meses Registrados", value: "18", icon: Calendar, color: "text-gold bg-gold/10" },

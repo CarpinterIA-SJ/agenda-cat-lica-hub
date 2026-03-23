@@ -1,8 +1,20 @@
 import { useNavigate } from "react-router-dom";
-import { Church, Ticket, Calendar } from "lucide-react";
+import { Users, Calendar, ArrowRight, Ticket } from "lucide-react";
+import { SaoJoseIcon } from "@/components/icons/SaoJoseIcon";
+import { useAuth } from "@/hooks/use-auth";
 
 const RoleSelectPage = () => {
   const navigate = useNavigate();
+  const { setRole } = useAuth();
+
+  const handleRoleSelect = (role: 'organizer' | 'participant') => {
+    setRole(role);
+    if (role === 'organizer') {
+      navigate("/organizador/dashboard");
+    } else {
+      navigate("/participante/meus-ingressos");
+    }
+  };
 
   const handleSelectRole = (role: "participant" | "organizer") => {
     localStorage.setItem("userRole", role);
@@ -14,53 +26,75 @@ const RoleSelectPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="max-w-3xl w-full space-y-8">
-        <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-              <Church className="w-6 h-6 text-primary-foreground" />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+      <div className="max-w-4xl w-full space-y-12">
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shadow-lg">
+              <SaoJoseIcon className="w-7 h-7 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Guardião Eventos</h1>
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Guardião Eventos</h1>
           </div>
-          <h2 className="text-xl font-semibold text-foreground">Como deseja prosseguir?</h2>
-          <p className="text-muted-foreground">Selecione o perfil que melhor se aplica a você</p>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-semibold text-slate-800">Como você deseja acessar a plataforma?</h2>
+            <p className="text-slate-500 max-w-md mx-auto">
+              Escolha o perfil que melhor se adapta às suas necessidades no momento. Você poderá trocar depois.
+            </p>
+          </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-8">
           {/* Participant Card */}
           <button
+<<<<<<< HEAD
             onClick={() => handleSelectRole("participant")}
             className="group bg-card border rounded-xl p-8 text-left shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
+=======
+            onClick={() => handleRoleSelect('participant')}
+            className="group relative bg-white border border-slate-200 rounded-2xl p-10 text-left shadow-sm hover:shadow-xl transition-all duration-300 hover:border-primary/30 flex flex-col items-start justify-between min-h-[320px]"
+>>>>>>> 63e9086 (feat: substitui ícone da igreja por silhueta de São José e atualiza páginas)
           >
-            <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-              <Ticket className="w-7 h-7 text-primary" />
+            <div>
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-white transition-colors duration-300">
+                <Users className="w-8 h-8 text-primary group-hover:text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">Sou Participante</h3>
+              <p className="text-slate-500 leading-relaxed">
+                Quero encontrar eventos, comprar ingressos e gerenciar minhas participações e inscrições.
+              </p>
             </div>
-            <h3 className="text-lg font-semibold text-card-foreground mb-2">Sou Participante</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Visualize seus ingressos, acompanhe cancelamentos e descubra novos eventos na sua comunidade.
-            </p>
-            <div className="mt-4 flex items-center gap-2 text-sm font-medium text-primary">
-              <span>Acessar como participante</span>
-              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            <div className="w-full flex items-center justify-between mt-8 pt-6 border-t border-slate-50 group-hover:border-primary/10 transition-colors">
+              <span className="text-primary font-semibold flex items-center gap-2">
+                Acessar Área do Participante
+              </span>
+              <ArrowRight className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform" />
             </div>
           </button>
 
           {/* Organizer Card */}
           <button
+<<<<<<< HEAD
             onClick={() => handleSelectRole("organizer")}
             className="group bg-card border rounded-xl p-8 text-left shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
+=======
+            onClick={() => handleRoleSelect('organizer')}
+            className="group relative bg-white border border-slate-200 rounded-2xl p-10 text-left shadow-sm hover:shadow-xl transition-all duration-300 hover:border-primary/30 flex flex-col items-start justify-between min-h-[320px]"
+>>>>>>> 63e9086 (feat: substitui ícone da igreja por silhueta de São José e atualiza páginas)
           >
-            <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-              <Calendar className="w-7 h-7 text-primary" />
+            <div>
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-white transition-colors duration-300">
+                <Calendar className="w-8 h-8 text-primary group-hover:text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-3">Sou Organizador</h3>
+              <p className="text-slate-500 leading-relaxed">
+                Quero criar e gerenciar eventos, acompanhar vendas, gerenciar inscritos e controlar financeiro.
+              </p>
             </div>
-            <h3 className="text-lg font-semibold text-card-foreground mb-2">Sou Organizador</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Crie e gerencie eventos, controle CRM, finanças e doações da sua organização.
-            </p>
-            <div className="mt-4 flex items-center gap-2 text-sm font-medium text-primary">
-              <span>Acessar como organizador</span>
-              <span className="group-hover:translate-x-1 transition-transform">→</span>
+            <div className="w-full flex items-center justify-between mt-8 pt-6 border-t border-slate-50 group-hover:border-primary/10 transition-colors">
+              <span className="text-primary font-semibold flex items-center gap-2">
+                Acessar Área do Organizador
+              </span>
+              <ArrowRight className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform" />
             </div>
           </button>
         </div>

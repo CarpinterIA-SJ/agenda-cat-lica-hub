@@ -10,30 +10,19 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 
 const DashboardLayout = () => {
-  const role = localStorage.getItem("userRole") || "participant";
-  const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, signOut, role, setRole } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
-    localStorage.removeItem("userRole");
     await signOut();
     navigate("/login");
   };
 
   const handleSwitchProfile = () => {
-    localStorage.removeItem("userRole");
+    setRole(null);
     navigate("/role-select");
   };
-
-  // Redirect if accessing wrong role paths
-  if (role === "participant") {
-    const allowedPrefixes = ["/participante", "/support"];
-    const isAllowed = allowedPrefixes.some((p) => location.pathname.startsWith(p));
-    if (!isAllowed) {
-      return <Navigate to="/participante/meus-ingressos" replace />;
-    }
-  }
 
   if (role === "organizer") {
     if (location.pathname.startsWith("/participante")) {

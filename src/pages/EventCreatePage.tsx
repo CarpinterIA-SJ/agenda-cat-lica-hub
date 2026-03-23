@@ -13,8 +13,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   ArrowLeft, Save, Plus, Trash2, CheckCircle2, 
   Info, MessageCircle, Mail, Phone, Globe, Lock,
-  ChevronDown, Eye, CreditCard, QrCode, FileText, Settings, User, Fingerprint, Calendar, Ticket
+  ChevronDown, Eye, CreditCard, QrCode, FileText, Settings, User, Fingerprint, Calendar, Ticket,
+  MessageSquare, Bold, Italic, Underline, Strikethrough, PlusCircle, ChevronRight
 } from "lucide-react";
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import UnderlineExtension from '@tiptap/extension-underline';
+import Placeholder from '@tiptap/extension-placeholder';
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -35,7 +40,104 @@ interface FormField {
   placeholder?: string;
 }
 
+interface EventFormData {
+  id: string;
+  name: string;
+  organizer: string;
+  category: string;
+  date: string;
+  time: string;
+  location: string;
+  type: string;
+  is_free: boolean;
+  status: string;
+  description: string;
+  image: string;
+  tickets: any[];
+  custom_fields: any[];
+  
+  // Toggles de visibilidade do formulário
+  show_nome: boolean;
+  show_email: boolean;
+  show_cpf: boolean;
+  show_nascimento: boolean;
+  show_whatsapp: boolean;
+
+  // Mensagens
+  msg_confirm_whatsapp: string;
+  msg_waitlist_whatsapp: string;
+  msg_confirm_email: string;
+  msg_waitlist_email: string;
+  msg_ticket_pdf: string;
+  msg_recovery_pix: string;
+  msg_recovery_boleto: string;
+
+  // Pagamento
+  pix_enabled: boolean;
+  pix_key: string;
+  pix_deadline: string;
+  pix_deadline_unit: string;
+  card_enabled: boolean;
+  boleto_enabled: boolean;
+  boleto_deadline: string;
+}
+
 const TAB_ORDER = ["general", "page", "tickets", "payment", "form", "messages"];
+
+const RichTextEditor = ({ value, onChange, placeholder }: { value: string, onChange: (val: string) => void, placeholder?: string }) => {
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      UnderlineExtension,
+      Placeholder.configure({ placeholder: placeholder || 'Escreva sua mensagem...' }),
+    ],
+    content: value,
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML());
+    },
+  });
+
+  useEffect(() => {
+    if (editor && value !== editor.getHTML()) {
+      editor.commands.setContent(value);
+    }
+  }, [value, editor]);
+
+  if (!editor) return null;
+
+  const insertVariable = (variable: string) => {
+    editor.chain().focus().insertContent(`{{${variable}}}`).run();
+  };
+
+  return (
+    <div className="border rounded-2xl overflow-hidden bg-white shadow-sm border-gray-200 focus-within:border-blue-500 transition-colors">
+      <div className="bg-gray-50/50 border-b p-2 flex flex-wrap items-center gap-1">
+        <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().toggleBold().run()} className={`h-8 w-8 p-0 ${editor.isActive('bold') ? 'bg-gray-200 text-blue-600' : ''}`}><Bold className="w-4 h-4" /></Button>
+        <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().toggleItalic().run()} className={`h-8 w-8 p-0 ${editor.isActive('italic') ? 'bg-gray-200 text-blue-600' : ''}`}><Italic className="w-4 h-4" /></Button>
+        <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().toggleUnderline().run()} className={`h-8 w-8 p-0 ${editor.isActive('underline') ? 'bg-gray-200 text-blue-600' : ''}`}><Underline className="w-4 h-4" /></Button>
+        <Button variant="ghost" size="sm" onClick={() => editor.chain().focus().toggleStrike().run()} className={`h-8 w-8 p-0 ${editor.isActive('strike') ? 'bg-gray-200 text-blue-600' : ''}`}><Strikethrough className="w-4 h-4" /></Button>
+        
+        <div className="w-[1px] h-4 bg-gray-300 mx-1" />
+        
+        <div className="flex items-center gap-2 ml-auto pr-2">
+           <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg px-2" onClick={() => insertVariable('nome')}>+ {"{{nome}}"}</Button>
+           <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg px-2" onClick={() => insertVariable('nome_evento')}>+ {"{{nome_evento}}"}</Button>
+        </div>
+      </div>
+      <EditorContent editor={editor} className="p-4 min-h-[150px] focus:outline-none prose prose-sm max-w-none" />
+      <style>{`
+        .ProseMirror:focus { outline: none; }
+        .ProseMirror p.is-editor-empty:first-child::before {
+          content: attr(data-placeholder);
+          float: left;
+          color: #adb5bd;
+          pointer-events: none;
+          height: 0;
+        }
+      `}</style>
+    </div>
+  );
+};
 
 const CATEGORIES = [
   "Eventos Diversos", "Retiros", "Cursos e Workshops", "Encontros de Formação", 
@@ -75,7 +177,7 @@ const EventCreatePage = () => {
     payment_methods: [] as string[],
     pix_enabled: false,
     pix_deadline: "",
-    pix_unit: "Minutos",
+    pix_deadline_unit: "Minutos", // Renamed from pix_unit
     boleto_enabled: false,
     boleto_deadline: "",
     card_enabled: false,
@@ -92,9 +194,16 @@ const EventCreatePage = () => {
     show_nascimento: true,
     show_whatsapp: true,
     custom_fields: [] as FormField[],
-    // Mensagens
-    confirmation_msg: "",
-    reminder_msg: "",
+    
+    // Mensagens Default
+    msg_confirm_whatsapp: "Olá {{nome}} 😊!\n\nSua Inscrição foi realizada com sucesso para o evento {{nome_evento}}!\n\nVerifique o arquivo em Anexo com os ingressos de entrada ao evento.\n\nEm cada ingresso conterá um QR Code que será lido na entrada do evento para realização de check-in.\n\nAtenciosamente,\n\nEquipe Agenda Católica",
+    msg_waitlist_whatsapp: "",
+    msg_confirm_email: "",
+    msg_waitlist_email: "",
+    msg_ticket_pdf: "",
+    msg_recovery_pix: "",
+    msg_recovery_boleto: "",
+
     // Termos
     agreed_terms: false,
   });
@@ -211,7 +320,7 @@ const EventCreatePage = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl pb-16 relative font-sans">
+    <div className="min-h-screen bg-gray-50/50 relative font-sans">
       {/* Botão Flutuante WhatsApp */}
       <a 
         href="https://wa.me/5500000000000" 
@@ -222,15 +331,27 @@ const EventCreatePage = () => {
         <MessageCircle className="w-8 h-8" />
       </a>
 
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/events")} className="hover:bg-muted/50">
-          <ArrowLeft className="w-5 h-5 text-[#007600]" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Criar Novo Evento</h1>
-          <p className="text-muted-foreground mt-0.5">Configure os detalhes do seu evento</p>
+      <div className="max-w-6xl mx-auto px-4 pb-20">
+        <div className="mb-0 flex flex-col md:flex-row md:items-center justify-between gap-4 py-8">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-black text-foreground tracking-tight uppercase">
+              {user?.user_metadata?.full_name || "Organizador"}
+            </h1>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
+              <span className="hover:text-blue-600 cursor-pointer" onClick={() => navigate("/events")}>Meus eventos</span>
+              <ChevronRight className="w-4 h-4" />
+              <span className="text-blue-600 font-bold">{formData.name || "Novo Evento"}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" className="border-gray-200 text-blue-600 font-bold h-10 px-4 rounded-xl gap-2 hover:bg-gray-50 bg-white" onClick={() => navigate("/events")}>
+              <ArrowLeft className="w-4 h-4" /> Voltar para o painel do evento
+            </Button>
+            <Button variant="outline" className="border-gray-200 text-blue-600 font-bold h-10 px-4 rounded-xl hover:bg-gray-50 bg-white" onClick={() => navigate("/events")}>
+              Meus eventos
+            </Button>
+          </div>
         </div>
-      </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full justify-start flex-wrap h-auto gap-1 bg-muted/30 p-1 mb-6 border">
@@ -246,7 +367,7 @@ const EventCreatePage = () => {
               {tab === "tickets" && <><Ticket className="w-4 h-4" /> Ingressos</>}
               {tab === "payment" && <><CreditCard className="w-4 h-4" /> Pagamento</>}
               {tab === "form" && <><Fingerprint className="w-4 h-4" /> Formulário</>}
-              {tab === "messages" && <><Mail className="w-4 h-4" /> Mensagens</>}
+              {tab === "messages" && <><MessageSquare className="w-4 h-4" /> Mensagens</>}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -585,8 +706,8 @@ const EventCreatePage = () => {
                               className="h-9 focus-visible:ring-blue-500" 
                             />
                             <Select 
-                              value={formData.pix_unit} 
-                              onValueChange={(v) => handleInputChange("pix_unit", v)}
+                              value={formData.pix_deadline_unit} 
+                              onValueChange={(v) => handleInputChange("pix_deadline_unit", v)}
                             >
                               <SelectTrigger className="h-9 w-32 focus:ring-blue-500">
                                 <SelectValue />
@@ -639,7 +760,7 @@ const EventCreatePage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold">Chave PIX para recebimento <span className="text-red-500">*</span></Label>
-                    <Input placeholder="E-mail, CPF ou Aleatória" value={formData.pix_key} onChange={(e) => handleInputChange("pix_key", e.target.value)} className="h-11 focus-visible:ring-[#007600]" />
+                    <Input placeholder="E-mail, CPF ou Aleatória" value={formData.pix_key} onChange={(e) => handleInputChange("pix_key", e.target.value)} className="h-11 focus-visible:ring-blue-500" />
                   </div>
                   <div className="flex items-end pb-1.5">
                     <div className="p-4 bg-muted/30 rounded-xl border flex items-center justify-between w-full">
@@ -882,41 +1003,65 @@ const EventCreatePage = () => {
         </TabsContent>
 
         {/* --- ABA 6: MENSAGENS E TERMOS --- */}
-        <TabsContent value="messages" className="mt-0 animate-in zoom-in duration-300">
-          <Card className="border-none shadow-lg rounded-2xl overflow-hidden max-w-2xl mx-auto">
-            <CardContent className="p-10 space-y-8 text-center">
-              <div className="w-20 h-20 bg-[#007600]/10 rounded-full flex items-center justify-center mx-auto ring-8 ring-[#007600]/5">
-                <CheckCircle2 className="w-10 h-10 text-[#007600]" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-black text-foreground uppercase tracking-tight">Quase tudo pronto!</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  Confira as informações nas abas anteriores. Ao finalizar, o evento será ativado e você poderá começar a compartilhar o link.
-                </p>
-              </div>
+        <TabsContent value="messages" className="mt-0 space-y-8 animate-in slide-in-from-right duration-300">
+          {[
+            { id: 'msg_confirm_whatsapp', title: 'Mensagem para confirmação de inscrição - Whatsapp', type: 'whatsapp' },
+            { id: 'msg_waitlist_whatsapp', title: 'Mensagem enviada após cadastro em fila de espera - Whatsapp', type: 'whatsapp' },
+            { id: 'msg_confirm_email', title: 'Mensagem para confirmação de inscrição - E-mail', type: 'email' },
+            { id: 'msg_waitlist_email', title: 'Mensagem enviada após cadastro em fila de espera - Email', type: 'email' },
+            { id: 'msg_ticket_pdf', title: 'Mensagem para o ingresso (Comprovante de inscrição em PDF)', type: 'pdf' },
+            { id: 'msg_recovery_pix', title: 'Mensagem para recuperação de pedido pendente - PIX (não pago)', type: 'recovery' },
+            { id: 'msg_recovery_boleto', title: 'Mensagem para recuperação de pedido pendente - Boleto (não pago)', type: 'recovery' },
+          ].map((msg) => (
+            <Card key={msg.id} className="border-none shadow-sm rounded-xl overflow-hidden bg-white">
+              <CardHeader className="pb-4">
+                <h3 className="text-base font-bold text-foreground">{msg.title}</h3>
+                <div className="w-12 h-1 bg-blue-600 mt-1 rounded-full" />
+              </CardHeader>
+              <CardContent className="p-6 pt-0 space-y-4">
+                {msg.type === 'whatsapp' && (
+                  <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-3 text-blue-700">
+                    <Info className="w-5 h-5 shrink-0 mt-0.5" />
+                    <p className="text-xs leading-relaxed">
+                      Os participantes sempre receberão notificações via Whatsapp, ao realizarem suas inscrições. Pode acontecer, em algumas situações de instabilidade da API do Whatsapp, em que essas mensagens personalizadas não sejam enviadas ao participante. Nesses casos, o sistema enviará uma mensagem padrão.
+                    </p>
+                  </div>
+                )}
+                
+                <RichTextEditor 
+                  value={(formData as any)[msg.id] || ""} 
+                  onChange={(val) => handleInputChange(msg.id, val)} 
+                  placeholder="Olá {{nome}}, sua inscrição foi realizada..."
+                />
+              </CardContent>
+            </Card>
+          ))}
 
-              <div className="h-px bg-border w-full" />
-
-              <div className="flex items-start gap-3 text-left p-4 bg-muted/30 rounded-xl cursor-pointer group hover:bg-muted/50 transition-colors">
+          {/* Termos e Finalização */}
+          <Card className="border-none shadow-sm rounded-xl overflow-hidden bg-white">
+            <CardContent className="p-6 pt-8 space-y-6">
+              <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl">
                 <Checkbox 
                   id="terms" 
                   checked={formData.agreed_terms} 
                   onCheckedChange={(v: boolean) => handleInputChange("agreed_terms", v)}
-                  className="mt-1 data-[state=checked]:bg-[#007600] data-[state=checked]:border-[#007600]"
+                  className="mt-1 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                 />
-                <Label htmlFor="terms" className="text-sm font-medium leading-relaxed group-hover:text-foreground transition-colors cursor-pointer">
-                  Concordo com os <a href="/terms" className="text-[#007600] underline font-bold" onClick={e => e.stopPropagation()}>termos de uso</a> e 
-                  <a href="/privacy" className="text-[#007600] underline font-bold" onClick={e => e.stopPropagation()}> políticas de privacidade</a> da plataforma *
+                <Label htmlFor="terms" className="text-sm font-medium leading-relaxed cursor-pointer">
+                  Concordo com os <a href="/terms" className="text-blue-600 underline font-bold" onClick={e => e.stopPropagation()}>termos de uso</a> e 
+                  <a href="/privacy" className="text-blue-600 underline font-bold" onClick={e => e.stopPropagation()}> políticas de privacidade</a> da plataforma *
                 </Label>
               </div>
 
-              <Button 
-                onClick={handleFinalize} 
-                className="w-full h-14 text-lg font-black bg-[#007600] hover:bg-[#006000] shadow-xl shadow-[#007600]/20 transition-all active:scale-95 uppercase tracking-widest"
-                disabled={!formData.name || !formData.agreed_terms}
-              >
-                Criar evento e continuar
-              </Button>
+              <div className="flex justify-end">
+                <Button 
+                  onClick={handleFinalize} 
+                  className="h-12 px-10 font-bold bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 rounded-xl"
+                  disabled={!formData.name || !formData.agreed_terms}
+                >
+                  Salvar
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -932,12 +1077,13 @@ const EventCreatePage = () => {
           Sair sem salvar
         </Button>
         <Button 
-          className="w-full sm:w-auto h-12 px-10 gap-2 font-bold bg-[#007600] hover:bg-[#006000] transition-colors shadow-lg" 
+          className="w-full sm:w-auto h-12 px-10 gap-2 font-bold bg-blue-600 hover:bg-blue-700 transition-colors shadow-lg rounded-xl" 
           onClick={handleSaveAndNext}
         >
           <Save className="w-5 h-5" /> 
           {activeTab === "messages" ? "FINALIZAR CRIAÇÃO" : "SALVAR E CONTINUAR"}
         </Button>
+      </div>
       </div>
     </div>
   );

@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, Eye, EyeOff, Church, AlertCircle } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { SaoJoseIcon } from "@/components/icons/SaoJoseIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import authBg from "@/assets/auth-bg.jpg";
@@ -71,7 +72,7 @@ const LoginPage = () => {
           <div className="text-center space-y-2">
             <div className="flex items-center justify-center gap-2 mb-4">
               <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-                <Church className="w-6 h-6 text-primary-foreground" />
+                <SaoJoseIcon className="w-6 h-6 text-primary-foreground" />
               </div>
               <h1 className="text-2xl font-bold text-foreground">Guardião Eventos</h1>
             </div>
@@ -164,8 +165,8 @@ const LoginPage = () => {
         <img src={authBg} alt="Evento religioso" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#007600]/90 to-[#007600]/40" />
         <div className="absolute bottom-12 left-12 right-12 text-primary-foreground">
-          <h2 className="text-3xl font-bold mb-3">Gerencie seus eventos com excelência</h2>
-          <p className="text-lg opacity-90">Plataforma completa para gestão de eventos, CRM e doações da sua comunidade católica.</p>
+          <h2 className="text-4xl font-bold mb-3">Melhor plataforma de eventos do Brasil</h2>
+          <p className="text-xl opacity-90">Gestão completa, CRM integrado e doações simplificadas para sua comunidade.</p>
         </div>
       </div>
     </div>
