@@ -13,8 +13,6 @@ import EventDashboardPage from "./pages/EventDashboardPage";
 import MyTicketsPage from "./pages/MyTicketsPage";
 import ExploreEventsPage from "./pages/ExploreEventsPage";
 import CRMPage from "./pages/CRMPage";
-import DonationsPage from "./pages/DonationsPage";
-import TithePage from "./pages/TithePage";
 import SupportPage from "./pages/SupportPage";
 import EventDetailPage from "./pages/EventDetailPage";
 import EventManageLayout from "./components/EventManageLayout";
@@ -62,8 +60,6 @@ const App = () => (
                 <Route path="/events/new" element={<EventCreatePage />} />
                 <Route path="/events/dashboard/:id" element={<EventDashboardPage />} />
                 <Route path="/crm" element={<CRMPage />} />
-                <Route path="/donations" element={<DonationsPage />} />
-                <Route path="/tithe" element={<TithePage />} />
               </Route>
 
               {/* Participant Routes */}
