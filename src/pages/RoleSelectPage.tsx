@@ -1,8 +1,17 @@
 import { useNavigate } from "react-router-dom";
-import { Church, Users, Ticket, Calendar } from "lucide-react";
+import { Church, Ticket, Calendar } from "lucide-react";
 
 const RoleSelectPage = () => {
   const navigate = useNavigate();
+
+  const handleSelectRole = (role: "participant" | "organizer") => {
+    localStorage.setItem("userRole", role);
+    if (role === "participant") {
+      navigate("/participante/meus-ingressos");
+    } else {
+      navigate("/organizador/dashboard");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -21,10 +30,7 @@ const RoleSelectPage = () => {
         <div className="grid md:grid-cols-2 gap-6">
           {/* Participant Card */}
           <button
-            onClick={() => {
-              localStorage.setItem("userRole", "participant");
-              navigate("/events");
-            }}
+            onClick={() => handleSelectRole("participant")}
             className="group bg-card border rounded-xl p-8 text-left shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
           >
             <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
@@ -42,10 +48,7 @@ const RoleSelectPage = () => {
 
           {/* Organizer Card */}
           <button
-            onClick={() => {
-              localStorage.setItem("userRole", "organizer");
-              navigate("/dashboard");
-            }}
+            onClick={() => handleSelectRole("organizer")}
             className="group bg-card border rounded-xl p-8 text-left shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
           >
             <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
