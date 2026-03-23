@@ -210,17 +210,18 @@ const EventsPage = () => {
                 <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex gap-2">
                   <Button 
                     variant="outline"
-                    onClick={() => navigate(`/event/${event.id}`)}
+                    onClick={() => navigate(`/event/${event.id}/dashboard`)}
                     className="flex-1 gap-2 font-bold border-slate-200 text-slate-700 hover:bg-white hover:border-primary hover:text-primary transition-all rounded-xl h-11"
                   >
-                    <Eye className="w-4 h-4" /> Visualizar
+                    <Settings className="w-4 h-4" /> Gerenciar
                   </Button>
                   
                   <Button 
                     variant="outline"
+                    onClick={() => navigate(`/event/detail/${event.id}`)}
                     className="gap-2 font-bold border-slate-200 text-slate-700 hover:bg-white hover:border-primary hover:text-primary transition-all rounded-xl h-11 px-3"
                   >
-                    <Settings className="w-4 h-4" />
+                    <Eye className="w-4 h-4" />
                   </Button>
 
                   <AlertDialog>

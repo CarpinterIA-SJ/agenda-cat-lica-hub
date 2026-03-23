@@ -17,6 +17,7 @@ import DonationsPage from "./pages/DonationsPage";
 import TithePage from "./pages/TithePage";
 import SupportPage from "./pages/SupportPage";
 import EventDetailPage from "./pages/EventDetailPage";
+import EventManageLayout from "./components/EventManageLayout";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 
@@ -76,7 +77,12 @@ const App = () => (
               <Route path="/support" element={<SupportPage />} />
             </Route>
 
-            <Route path="/event/:id" element={<EventDetailPage />} />
+            {/* Event Management Dashboard (Specific Layout) */}
+            <Route path="/event/:id" element={<ProtectedRoute><RoleRoute requiredRole="organizer"><EventManageLayout /></RoleRoute></ProtectedRoute>}>
+              <Route path="dashboard" element={<EventDashboardPage />} />
+            </Route>
+
+            <Route path="/event/detail/:id" element={<EventDetailPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
