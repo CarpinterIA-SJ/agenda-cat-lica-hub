@@ -85,18 +85,10 @@ const EventDashboardPage = () => {
       {activeTab === "tickets" && <EventTicketsTab event={event} />}
       {activeTab === "collaborators" && <EventCollaboratorsTab />}
       {activeTab === "integrations" && <EventIntegrationsTab />}
-      {activeTab === "page" && (
-        <div className="text-muted-foreground text-center py-12">Página do evento — em breve</div>
-      )}
-      {activeTab === "payment" && (
-        <div className="text-muted-foreground text-center py-12">Pagamento — em breve</div>
-      )}
-      {activeTab === "form" && (
-        <div className="text-muted-foreground text-center py-12">Formulário de inscrição — em breve</div>
-      )}
-      {activeTab === "messages" && (
-        <div className="text-muted-foreground text-center py-12">Mensagens — em breve</div>
-      )}
+      {activeTab === "page" && <EventPageTab />}
+      {activeTab === "payment" && <EventPaymentTab />}
+      {activeTab === "form" && <EventFormTab />}
+      {activeTab === "messages" && <EventMessagesTab />}
     </div>
   );
 };
