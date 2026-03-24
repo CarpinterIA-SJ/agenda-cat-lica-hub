@@ -32,6 +32,7 @@ import { EventTicketsTab } from "@/components/event-dashboard/EventTicketsTab";
 import { EventPaymentTab } from "@/components/event-dashboard/EventPaymentTab";
 import { EventFormTab } from "@/components/event-dashboard/EventFormTab";
 import { EventMessagesTab } from "@/components/event-dashboard/EventMessagesTab";
+import { EventIntegrationsTab } from "@/components/event-dashboard/EventIntegrationsTab";
 
 interface SidebarChild {
   title: string;
