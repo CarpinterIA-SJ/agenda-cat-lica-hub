@@ -48,7 +48,7 @@ export const EventDetailsTab = ({ event }: Props) => {
             <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-sm text-foreground">
-                Atualize os seus dados cadastrais na Agenda Católica
+                Atualize os seus dados cadastrais na Guardião Eventos
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Esse cadastro é necessário para solicitar repasses de seu evento. Em caso de dúvidas, acesse:{" "}

@@ -32,6 +32,7 @@ import { EventTicketsTab } from "@/components/event-dashboard/EventTicketsTab";
 import { EventPaymentTab } from "@/components/event-dashboard/EventPaymentTab";
 import { EventFormTab } from "@/components/event-dashboard/EventFormTab";
 import { EventMessagesTab } from "@/components/event-dashboard/EventMessagesTab";
+import { EventIntegrationsTab } from "@/components/event-dashboard/EventIntegrationsTab";
 
 interface SidebarChild {
   title: string;
@@ -142,7 +143,7 @@ const EventManageLayout = () => {
       case "transfers":
         return <PlaceholderTab title="Repasses" />;
       case "integrations":
-        return <PlaceholderTab title="Integrações" />;
+        return <EventIntegrationsTab />;
       case "checkins":
         return <PlaceholderTab title="Check-ins" />;
       default:
