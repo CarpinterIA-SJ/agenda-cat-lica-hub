@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { Outlet, useNavigate, useParams, Link, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { 
   LayoutDashboard, 
   Ticket, 
   Users, 
   DollarSign, 
-  UserPlus, 
   Share2, 
   Settings, 
   CheckCircle2,
@@ -15,11 +14,18 @@ import {
   CreditCard,
   FileText,
   MessageSquare,
+  ClipboardList,
   Menu,
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { EventDetailsTab } from "@/components/event-dashboard/EventDetailsTab";
+import { EventPageTab } from "@/components/event-dashboard/EventPageTab";
+import { EventTicketsTab } from "@/components/event-dashboard/EventTicketsTab";
+import { EventPaymentTab } from "@/components/event-dashboard/EventPaymentTab";
+import { EventFormTab } from "@/components/event-dashboard/EventFormTab";
+import { EventMessagesTab } from "@/components/event-dashboard/EventMessagesTab";
 
 const sidebarItems = [
   { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
@@ -36,20 +42,58 @@ const tabItems = [
   { title: "Página do evento", icon: Globe, id: "page" },
   { title: "Ingressos", icon: Ticket, id: "tickets" },
   { title: "Pagamento", icon: CreditCard, id: "payment" },
-  { title: "Formulário de inscrição", icon: FileText, id: "form" },
+  { title: "Formulário de inscrição", icon: ClipboardList, id: "form" },
   { title: "Mensagens", icon: MessageSquare, id: "messages" },
 ];
 
 const EventManageLayout = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const [activeTab, setActiveTab] = useState("general");
+  const [activeSidebar, setActiveSidebar] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // Mock event data - in a real app this would be fetched based on 'id'
-  const eventName = "Retiro de Quaresma 2026";
-  const eventDate = "28 de Março, 2026 • 08:00 - 18:00";
+  // Load event data from localStorage or use mock
+  const getEvent = () => {
+    try {
+      const stored = localStorage.getItem("created_events");
+      if (stored) {
+        const events = JSON.parse(stored);
+        const found = events.find((e: any) => String(e.id) === String(id));
+        if (found) return found;
+      }
+    } catch {}
+    return {
+      id,
+      name: "Retiro de Quaresma 2026",
+      date: "28 de Março, 2026 • 08:00 - 18:00",
+      status: "Publicado",
+      tickets: [],
+    };
+  };
+
+  const event = getEvent();
+  const eventName = event.name || "Evento";
+  const eventDate = event.date || "Data não definida";
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "general":
+        return <EventDetailsTab event={event} />;
+      case "page":
+        return <EventPageTab />;
+      case "tickets":
+        return <EventTicketsTab event={event} />;
+      case "payment":
+        return <EventPaymentTab />;
+      case "form":
+        return <EventFormTab />;
+      case "messages":
+        return <EventMessagesTab />;
+      default:
+        return <EventDetailsTab event={event} />;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col">
@@ -89,16 +133,17 @@ const EventManageLayout = () => {
             {sidebarItems.map((item) => (
               <button
                 key={item.id}
+                onClick={() => setActiveSidebar(item.id)}
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-all group",
-                  item.id === "dashboard" 
+                  activeSidebar === item.id 
                     ? "bg-primary/5 text-primary border border-primary/10" 
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium"
                 )}
               >
                 <item.icon className={cn(
                   "w-5 h-5 shrink-0",
-                  item.id === "dashboard" ? "text-primary" : "text-slate-400 group-hover:text-slate-600"
+                  activeSidebar === item.id ? "text-primary" : "text-slate-400 group-hover:text-slate-600"
                 )} />
                 {isSidebarOpen && <span>{item.title}</span>}
               </button>
@@ -131,7 +176,7 @@ const EventManageLayout = () => {
 
           {/* Content Scrollable */}
           <div className="flex-1 overflow-y-auto p-6 lg:p-10 bg-[#F8FAFC]">
-            <Outlet />
+            {renderTabContent()}
           </div>
         </main>
       </div>

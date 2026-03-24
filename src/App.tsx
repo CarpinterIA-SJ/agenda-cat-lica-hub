@@ -74,9 +74,7 @@ const App = () => (
             </Route>
 
             {/* Event Management Dashboard (Specific Layout) */}
-            <Route path="/event/:id" element={<ProtectedRoute><RoleRoute requiredRole="organizer"><EventManageLayout /></RoleRoute></ProtectedRoute>}>
-              <Route path="dashboard" element={<EventDashboardPage />} />
-            </Route>
+            <Route path="/event/:id/dashboard" element={<ProtectedRoute><RoleRoute requiredRole="organizer"><EventManageLayout /></RoleRoute></ProtectedRoute>} />
 
             <Route path="/event/detail/:id" element={<EventDetailPage />} />
             <Route path="*" element={<NotFound />} />
