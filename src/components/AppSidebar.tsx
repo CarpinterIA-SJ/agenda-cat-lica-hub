@@ -26,21 +26,8 @@ const navItems: NavItem[] = [
   // Organizer items
   { title: "Meus Eventos", url: "/organizador/dashboard", icon: Calendar, roles: ["organizer"] },
   { title: "Dashboard", url: "/dashboard", icon: Home, roles: ["organizer"] },
-  {
-    title: "Participantes", icon: UserCheck, roles: ["organizer"],
-    children: [
-      { title: "Lista de participantes", url: "/events/dashboard?tab=general" },
-      { title: "Fila de espera", url: "#" },
-    ],
-  },
-  {
-    title: "Financeiro", icon: DollarSign, roles: ["organizer"],
-    children: [
-      { title: "Cupons de desconto", url: "#" },
-      { title: "Histórico de transações", url: "#" },
-      { title: "Repasses", url: "#" },
-    ],
-  },
+  { title: "Participantes", url: "/organizador/participantes", icon: UserCheck, roles: ["organizer"] },
+  { title: "Financeiro", url: "/organizador/financeiro", icon: DollarSign, roles: ["organizer"] },
   { title: "CRM", url: "/crm", icon: BarChart3, roles: ["organizer"] },
   { title: "Integrações", url: "/events/dashboard?tab=integrations", icon: Globe, roles: ["organizer"] },
 

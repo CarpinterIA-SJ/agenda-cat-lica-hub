@@ -196,7 +196,7 @@ const EventCreatePage = () => {
     custom_fields: [] as FormField[],
     
     // Mensagens Default
-    msg_confirm_whatsapp: "Olá {{nome}} 😊!\n\nSua Inscrição foi realizada com sucesso para o evento {{nome_evento}}!\n\nVerifique o arquivo em Anexo com os ingressos de entrada ao evento.\n\nEm cada ingresso conterá um QR Code que será lido na entrada do evento para realização de check-in.\n\nAtenciosamente,\n\nEquipe Agenda Católica",
+    msg_confirm_whatsapp: "Olá {{nome}} 😊!\n\nSua Inscrição foi realizada com sucesso para o evento {{nome_evento}}!\n\nVerifique o arquivo em Anexo com os ingressos de entrada ao evento.\n\nEm cada ingresso conterá um QR Code que será lido na entrada do evento para realização de check-in.\n\nAtenciosamente,\n\nmsg_confirm_whatsapp: "Olá {{nome}} 😊!\n\nSua Inscrição foi realizada com sucesso para o evento {{nome_evento}}!\n\nVerifique o arquivo em Anexo com os ingressos de entrada ao evento.\n\nEm cada ingresso conterá um QR Code que será lido na entrada do evento para realização de check-in.\n\nAtenciosamente,\n\nEquipe Guardião Eventos",,
     msg_waitlist_whatsapp: "",
     msg_confirm_email: "",
     msg_waitlist_email: "",

@@ -142,7 +142,7 @@ const EventManageLayout = () => {
       case "transfers":
         return <PlaceholderTab title="Repasses" />;
       case "integrations":
-        return <PlaceholderTab title="Integrações" />;
+        return <EventIntegrationsTab />;
       case "checkins":
         return <PlaceholderTab title="Check-ins" />;
       default:
