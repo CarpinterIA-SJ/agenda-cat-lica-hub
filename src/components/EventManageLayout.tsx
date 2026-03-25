@@ -55,7 +55,7 @@ interface SidebarItem {
 const sidebarItems: SidebarItem[] = [
   { title: "Dashboard", icon: LayoutDashboard, id: "dashboard", tabId: "general" },
   {
-    title: "Gerenciar Ingressos", icon: Ticket, id: "tickets-manage",
+    title: "Gerenciar ingressos", icon: Ticket, id: "tickets-manage",
     children: [
       { title: "Ingressos", icon: Ticket, tabId: "tickets" },
     ],
@@ -75,6 +75,7 @@ const sidebarItems: SidebarItem[] = [
       { title: "Repasses", icon: Banknote, tabId: "transfers" },
     ],
   },
+  { title: "Colaboradores", icon: UsersRound, id: "collaborators", tabId: "collaborators" },
   { title: "Integração", icon: Share2, id: "integrations", tabId: "integrations" },
   {
     title: "Configurações", icon: Settings, id: "settings",
@@ -86,7 +87,12 @@ const sidebarItems: SidebarItem[] = [
       { title: "Mensagens", icon: MessageSquare, tabId: "messages" },
     ],
   },
-  { title: "Check-ins", icon: CheckCircle2, id: "checkins", tabId: "checkins" },
+  {
+    title: "Check-ins", icon: CheckCircle2, id: "checkins",
+    children: [
+      { title: "Check-ins", icon: CheckCircle2, tabId: "checkins" },
+    ],
+  },
 ];
 
 const EventManageLayout = () => {
