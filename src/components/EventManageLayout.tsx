@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { EventDetailsTab } from "@/components/event-dashboard/EventDetailsTab";
+import { EventGeneralSettingsTab } from "@/components/event-dashboard/EventGeneralSettingsTab";
 import { EventPageTab } from "@/components/event-dashboard/EventPageTab";
 import { EventTicketsTab } from "@/components/event-dashboard/EventTicketsTab";
 import { EventPaymentTab } from "@/components/event-dashboard/EventPaymentTab";
