@@ -23,6 +23,7 @@ import {
   Tag,
   Receipt,
   Banknote,
+  UsersRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
