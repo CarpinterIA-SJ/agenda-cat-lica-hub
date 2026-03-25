@@ -99,7 +99,7 @@ const sidebarItems: SidebarItem[] = [
 const EventManageLayout = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("general");
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
