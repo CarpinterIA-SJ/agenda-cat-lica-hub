@@ -131,8 +131,10 @@ const EventManageLayout = () => {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case "general":
+      case "dashboard":
         return <EventDetailsTab event={event} />;
+      case "general":
+        return <EventGeneralSettingsTab event={event} />;
       case "page":
         return <EventPageTab />;
       case "tickets":
