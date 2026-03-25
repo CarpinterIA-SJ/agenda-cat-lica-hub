@@ -152,6 +152,8 @@ const EventManageLayout = () => {
         return <PlaceholderTab title="Histórico de Transações" />;
       case "transfers":
         return <PlaceholderTab title="Repasses" />;
+      case "collaborators":
+        return <PlaceholderTab title="Colaboradores" />;
       case "integrations":
         return <EventIntegrationsTab />;
       case "checkins":
