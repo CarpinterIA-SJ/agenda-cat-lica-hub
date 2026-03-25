@@ -32,7 +32,7 @@ interface Props {
 }
 
 export const EventDetailsTab = ({ event }: Props) => {
-  const shareLink = `https://evento.agendacatolica.com/${event.custom_url || event.name?.toLowerCase().replace(/\s+/g, "") || "meuevent"}`;
+  const shareLink = `https://evento.guardianeventos.com/${event.custom_url || event.name?.toLowerCase().replace(/\s+/g, "") || "meuevent"}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareLink);

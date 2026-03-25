@@ -23,6 +23,7 @@ import {
   Tag,
   Receipt,
   Banknote,
+  UsersRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,9 @@ import { EventPaymentTab } from "@/components/event-dashboard/EventPaymentTab";
 import { EventFormTab } from "@/components/event-dashboard/EventFormTab";
 import { EventMessagesTab } from "@/components/event-dashboard/EventMessagesTab";
 import { EventIntegrationsTab } from "@/components/event-dashboard/EventIntegrationsTab";
+import { EventDashboardTabs } from "@/components/event-dashboard/EventDashboardTabs";
+
+const TABBAR_TABS = ["general", "page", "tickets", "payment", "form", "messages"];
 
 interface SidebarChild {
   title: string;
@@ -51,7 +55,7 @@ interface SidebarItem {
 const sidebarItems: SidebarItem[] = [
   { title: "Dashboard", icon: LayoutDashboard, id: "dashboard", tabId: "general" },
   {
-    title: "Gerenciar Ingressos", icon: Ticket, id: "tickets-manage",
+    title: "Gerenciar ingressos", icon: Ticket, id: "tickets-manage",
     children: [
       { title: "Ingressos", icon: Ticket, tabId: "tickets" },
     ],
@@ -71,6 +75,7 @@ const sidebarItems: SidebarItem[] = [
       { title: "Repasses", icon: Banknote, tabId: "transfers" },
     ],
   },
+  { title: "Colaboradores", icon: UsersRound, id: "collaborators", tabId: "collaborators" },
   { title: "Integração", icon: Share2, id: "integrations", tabId: "integrations" },
   {
     title: "Configurações", icon: Settings, id: "settings",
@@ -82,7 +87,12 @@ const sidebarItems: SidebarItem[] = [
       { title: "Mensagens", icon: MessageSquare, tabId: "messages" },
     ],
   },
-  { title: "Check-ins", icon: CheckCircle2, id: "checkins", tabId: "checkins" },
+  {
+    title: "Check-ins", icon: CheckCircle2, id: "checkins",
+    children: [
+      { title: "Check-ins", icon: CheckCircle2, tabId: "checkins" },
+    ],
+  },
 ];
 
 const EventManageLayout = () => {
@@ -142,6 +152,8 @@ const EventManageLayout = () => {
         return <PlaceholderTab title="Histórico de Transações" />;
       case "transfers":
         return <PlaceholderTab title="Repasses" />;
+      case "collaborators":
+        return <PlaceholderTab title="Colaboradores" />;
       case "integrations":
         return <EventIntegrationsTab />;
       case "checkins":
@@ -253,6 +265,11 @@ const EventManageLayout = () => {
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-6 lg:p-10 bg-muted/30">
+          {TABBAR_TABS.includes(activeTab) && (
+            <div className="mb-6">
+              <EventDashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
+            </div>
+          )}
           {renderTabContent()}
         </main>
       </div>
