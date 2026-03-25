@@ -43,12 +43,7 @@ const RichTextEditor = ({ value, onChange, placeholder }: { value: string; onCha
 
 export const EventMessagesTab = () => {
   const [whatsappConfirmation, setWhatsappConfirmation] = useState(
-    "Olá {{nome}} 😄!
-Sua Inscrição foi realizada com sucesso para o evento {{nome_evento}}!
-Verifique o arquivo em Anexo com os ingressos de entrada ao evento.
-Em cada ingresso conterá um QR Code que será lido na entrada do evento para realização de check-in.
-Atenciosamente,
-Equipe Guardião Eventos"
+    `Olá {{nome}} 😄!\nSua Inscrição foi realizada com sucesso para o evento {{nome_evento}}!\nVerifique o arquivo em Anexo com os ingressos de entrada ao evento.\nEm cada ingresso conterá um QR Code que será lido na entrada do evento para realização de check-in.\nAtenciosamente,\nEquipe Guardião Eventos`
   );
   const [whatsappWaitlist, setWhatsappWaitlist] = useState("");
   const [emailConfirmation, setEmailConfirmation] = useState("");
