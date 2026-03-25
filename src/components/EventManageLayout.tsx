@@ -54,7 +54,7 @@ interface SidebarItem {
 }
 
 const sidebarItems: SidebarItem[] = [
-  { title: "Dashboard", icon: LayoutDashboard, id: "dashboard", tabId: "general" },
+  { title: "Dashboard", icon: LayoutDashboard, id: "dashboard", tabId: "dashboard" },
   {
     title: "Gerenciar ingressos", icon: Ticket, id: "tickets-manage",
     children: [
