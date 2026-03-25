@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { EventDetailsTab } from "@/components/event-dashboard/EventDetailsTab";
+import { EventGeneralSettingsTab } from "@/components/event-dashboard/EventGeneralSettingsTab";
 import { EventPageTab } from "@/components/event-dashboard/EventPageTab";
 import { EventTicketsTab } from "@/components/event-dashboard/EventTicketsTab";
 import { EventPaymentTab } from "@/components/event-dashboard/EventPaymentTab";
@@ -53,7 +54,7 @@ interface SidebarItem {
 }
 
 const sidebarItems: SidebarItem[] = [
-  { title: "Dashboard", icon: LayoutDashboard, id: "dashboard", tabId: "general" },
+  { title: "Dashboard", icon: LayoutDashboard, id: "dashboard", tabId: "dashboard" },
   {
     title: "Gerenciar ingressos", icon: Ticket, id: "tickets-manage",
     children: [
@@ -98,7 +99,7 @@ const sidebarItems: SidebarItem[] = [
 const EventManageLayout = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("general");
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -130,8 +131,10 @@ const EventManageLayout = () => {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case "general":
+      case "dashboard":
         return <EventDetailsTab event={event} />;
+      case "general":
+        return <EventGeneralSettingsTab event={event} />;
       case "page":
         return <EventPageTab />;
       case "tickets":
