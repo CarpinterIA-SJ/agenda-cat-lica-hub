@@ -256,6 +256,11 @@ const EventManageLayout = () => {
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-6 lg:p-10 bg-muted/30">
+          {TABBAR_TABS.includes(activeTab) && (
+            <div className="mb-6">
+              <EventDashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
+            </div>
+          )}
           {renderTabContent()}
         </main>
       </div>
