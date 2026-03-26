@@ -12,7 +12,7 @@ const SupportPage = () => (
       {[
         { title: "Central de Ajuda", desc: "Artigos e tutoriais", icon: FileText },
         { title: "Chat ao Vivo", desc: "Fale com nossa equipe", icon: MessageCircle },
-        { title: "E-mail", desc: "suporte@agendacatolica.com", icon: Mail },
+        { title: "E-mail", desc: "suporte@guardiaoeventos.com", icon: Mail },
       ].map((item) => (
         <Card key={item.title} className="shadow-card hover:shadow-card-hover transition-shadow cursor-pointer">
           <CardContent className="p-6 text-center">

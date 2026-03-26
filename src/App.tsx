@@ -264,6 +264,13 @@ const OrganizerEventCheckinsPage = () => (
   </div>
 );
 
+const OrganizerDonationsPage = () => (
+  <div className="space-y-4">
+    <h1 className="text-2xl font-semibold text-foreground">Doações</h1>
+    <p className="text-muted-foreground">Em breve você poderá gerenciar suas campanhas de doações aqui.</p>
+  </div>
+);
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -288,11 +295,23 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
+            <Route
+              path="/organizador/home"
+              element={
+                <ProtectedRoute>
+                  <RoleRoute requiredRole="organizer">
+                    <DashboardPage />
+                  </RoleRoute>
+                </ProtectedRoute>
+              }
+            />
             
             <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
               {/* Organizer Routes */}
               <Route element={<RoleRoute requiredRole="organizer" />}>
                 <Route path="/crm" element={<CRMPage />} />
+                <Route path="/organizador/doacoes" element={<OrganizerDonationsPage />} />
                 <Route path="/organizador/evento/:id/dashboard" element={<OrganizerEventDashboardPage />} />
                 <Route path="/organizador/evento/:id/ingressos" element={<OrganizerEventIngressosPage />} />
                 <Route path="/organizador/evento/:id/participantes" element={<OrganizerEventParticipantesPage />} />

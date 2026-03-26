@@ -25,6 +25,7 @@ import {
   HelpCircle,
   LogOut,
   User,
+  MessageCircle,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -77,6 +78,15 @@ const OrganizerEventsPage = () => {
 
   const totalPages = 1;
 
+  const appItems = [
+    { label: "Home", icon: Home, route: "/organizador/home" },
+    { label: "Guardião Eventos", icon: Calendar, route: "/organizador/meus-eventos" },
+    { label: "CRM", icon: Users2, route: "/crm" },
+    { label: "Doações", icon: HandHeart, route: "/organizador/doacoes" },
+    { label: "Dizimo", icon: HeartCrack, route: "/organizador/doacoes" },
+    { label: "Atendimento", icon: Headset, route: "/support" },
+  ];
+
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="w-full border-b bg-white">
@@ -97,21 +107,15 @@ const OrganizerEventsPage = () => {
               <PopoverContent align="end" className="w-80 border-gray-100 shadow-sm">
                 <div className="text-sm font-semibold text-slate-900 mb-3">Aplicações</div>
                 <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label: "Home", icon: Home },
-                    { label: "Guardião Eventos", icon: Calendar },
-                    { label: "CRM", icon: Users2 },
-                    { label: "Doações", icon: HandHeart },
-                    { label: "Dizimo", icon: HeartCrack },
-                    { label: "Atendimento", icon: Headset },
-                  ].map((item) => (
-                    <div
+                  {appItems.map((item) => (
+                    <button
                       key={item.label}
-                      className="flex flex-col items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white p-3 text-center shadow-sm"
+                      onClick={() => navigate(item.route)}
+                      className="flex flex-col items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white p-3 text-center shadow-sm hover:shadow-md transition cursor-pointer"
                     >
                       <item.icon className="w-5 h-5 text-primary" />
                       <span className="text-xs font-medium text-slate-700">{item.label}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </PopoverContent>
@@ -300,6 +304,14 @@ const OrganizerEventsPage = () => {
           </div>
         </div>
       </main>
+
+      <a
+        href="https://wa.me/5500000000000"
+        className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700"
+        aria-label="WhatsApp"
+      >
+        <MessageCircle className="w-5 h-5" />
+      </a>
     </div>
   );
 };
