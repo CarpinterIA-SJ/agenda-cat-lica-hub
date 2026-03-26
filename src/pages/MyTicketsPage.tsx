@@ -65,7 +65,7 @@ const MyTicketsPage = () => {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Meus Ingressos</h1>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Ingressos</h1>
           <p className="text-slate-500 mt-1">Veja todos os seus ingressos e inscrições em um só lugar.</p>
         </div>
         <Button 
