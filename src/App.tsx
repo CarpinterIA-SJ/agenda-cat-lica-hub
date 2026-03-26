@@ -63,6 +63,7 @@ const App = () => (
               <Route path="/support" element={<SupportPage />} />
             </Route>
 
+            <Route path="/organizador/dashboard" element={<Navigate to="/crm" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
