@@ -9,9 +9,9 @@ import {
   LogOut,
   ChevronDown,
   ChevronUp,
-  BarChart3,
   Search,
   HelpCircle,
+  Calendar,
 } from "lucide-react";
 import { SaoJoseIcon } from "@/components/icons/SaoJoseIcon";
 import { NavLink } from "@/components/NavLink";
@@ -33,6 +33,28 @@ interface NavItem {
 }
 
 const baseNavItems: NavItem[] = [
+  { title: "Home", url: "/organizador/home", icon: LayoutDashboard, roles: ["organizer"] },
+  {
+    title: "Eventos",
+    icon: Calendar,
+    roles: ["organizer"],
+    children: [
+      { title: "Lista de eventos", url: "/organizador/meus-eventos" },
+      { title: "Categorias", url: "/organizador/eventos/categorias" },
+    ],
+  },
+  {
+    title: "CRM",
+    icon: Users,
+    roles: ["organizer"],
+    children: [
+      { title: "Pessoas", url: "/crm/pessoas" },
+      { title: "Grupos", url: "/crm/grupos" },
+      { title: "Setores", url: "/crm/setores" },
+      { title: "Minhas Tags", url: "/crm/tags" },
+      { title: "Categorias", url: "/crm/categorias" },
+    ],
+  },
   { title: "Meus Ingressos", url: "/participante/meus-ingressos", icon: Ticket, roles: ["participant"] },
   { title: "Explorar Eventos", url: "/participante/explorar", icon: Search, roles: ["participant"] },
   { title: "Suporte", url: "/support", icon: HelpCircle, roles: ["organizer", "participant"] },

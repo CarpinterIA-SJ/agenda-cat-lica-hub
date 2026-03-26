@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,6 @@ import {
   Plus,
   Search,
   Calendar,
-  Eye,
   LayoutGrid,
   Moon,
   Sun,
@@ -24,6 +23,8 @@ import {
   LogOut,
   User,
   MessageCircle,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -36,52 +37,78 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 const mockEvents = [
   {
     id: 1,
-    name: "FABRICIO CHRISTIAN DA SILVA CAVALCANTE",
-    date: "21 a 22 de outubro de 2026",
-    type: "Evento Online",
-    organizer: "Fabrício Cavalcante",
-    status: "Publicado",
+    name: "Encontro de Jovens",
+    startDate: "21/10/2026",
+    endDate: "22/10/2026",
   },
+];
+
+const mockCategories = [
+  { id: 1, name: "Retiro", status: "Ativo" },
+  { id: 2, name: "Formação", status: "Inativo" },
 ];
 
 const OrganizerEventsPage = () => {
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("upcoming");
+  const location = useLocation();
+  const { toast } = useToast();
   const [events, setEvents] = useState<any[]>(mockEvents);
+  const [categories, setCategories] = useState<any[]>(mockCategories);
+  const [eventSearch, setEventSearch] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
   const [isDark, setIsDark] = useState(false);
+  const [eventDialogOpen, setEventDialogOpen] = useState(false);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [eventOption, setEventOption] = useState("");
+  const [categoryForm, setCategoryForm] = useState({ name: "", description: "", status: "Ativo" });
+
+  const isCategoriesRoute = location.pathname.includes("categorias");
+  const [tab, setTab] = useState(isCategoriesRoute ? "categorias" : "lista");
 
   useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem("custom_events") || "[]");
-      if (stored.length > 0) {
-        setEvents([...stored, ...mockEvents]);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
+    setTab(isCategoriesRoute ? "categorias" : "lista");
+  }, [isCategoriesRoute]);
 
-  const filtered = events
-    .filter((e) => (e.name || "").toLowerCase().includes(search.toLowerCase()))
-    .filter((e) => {
-      if (filter === "upcoming") return e.status === "Publicado" || e.status === "Ativo";
-      if (filter === "finished") return e.status === "Finalizado";
-      return true;
-    });
+  const filteredEvents = events.filter((event) =>
+    event.name.toLowerCase().includes(eventSearch.toLowerCase()),
+  );
 
-  const totalPages = 1;
+  const filteredCategories = categories.filter((category) =>
+    category.name.toLowerCase().includes(categorySearch.toLowerCase()),
+  );
 
   const appItems = [
     { label: "Home", icon: Home, route: "/organizador/home" },
     { label: "Guardião Eventos", icon: Calendar, route: "/organizador/meus-eventos" },
-    { label: "CRM", icon: Users2, route: "/crm" },
+    { label: "CRM", icon: Users2, route: "/crm/pessoas" },
     { label: "Atendimento", icon: Headset, route: "/support" },
   ];
+
+  const handleEventSave = () => {
+    if (!eventOption) return;
+    setEventDialogOpen(false);
+    toast({ title: "Solicitação enviada", description: "Sua escolha foi registrada." });
+    setEventOption("");
+  };
+
+  const handleCategorySave = () => {
+    if (!categoryForm.name.trim()) return;
+    setCategories((prev) => [
+      { id: Date.now(), name: categoryForm.name, status: categoryForm.status },
+      ...prev,
+    ]);
+    setCategoryForm({ name: "", description: "", status: "Ativo" });
+    setCategoryDialogOpen(false);
+    toast({ title: "Categoria salva", description: "Categoria cadastrada com sucesso." });
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -183,112 +210,144 @@ const OrganizerEventsPage = () => {
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold text-slate-900">Meus eventos</h1>
-          <Button onClick={() => navigate("/events/new")} className="gap-2 bg-primary hover:bg-primary/90">
-            <Plus className="w-4 h-4" />
-            Criar novo evento
-          </Button>
-        </div>
-
-        <div className="space-y-4">
-          <Tabs value={filter} onValueChange={setFilter} className="w-full">
-            <TabsList className="bg-transparent p-0 h-auto gap-6">
-              <TabsTrigger
-                value="upcoming"
-                className="px-0 pb-2 text-slate-500 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary"
-              >
-                Próximos eventos
-              </TabsTrigger>
-              <TabsTrigger
-                value="finished"
-                className="px-0 pb-2 text-slate-500 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary"
-              >
-                Eventos finalizados
-              </TabsTrigger>
-              <TabsTrigger
-                value="all"
-                className="px-0 pb-2 text-slate-500 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary"
-              >
-                Todos
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input
-              placeholder="Buscar..."
-              className="pl-10 bg-white"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Eventos</h1>
+            <p className="text-sm text-slate-500">Gerencie os eventos e categorias da plataforma.</p>
           </div>
+          {tab === "lista" ? (
+            <Button onClick={() => setEventDialogOpen(true)} className="gap-2 bg-primary hover:bg-primary/90">
+              <Plus className="w-4 h-4" />
+              + Adicionar
+            </Button>
+          ) : (
+            <Button onClick={() => setCategoryDialogOpen(true)} className="gap-2 bg-primary hover:bg-primary/90">
+              <Plus className="w-4 h-4" />
+              + Adicionar
+            </Button>
+          )}
         </div>
 
-        {filtered.length === 0 ? (
-          <Card className="border-slate-200">
-            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-5">
-                <Calendar className="w-7 h-7 text-slate-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">Nenhum evento encontrado</h3>
-              <p className="text-slate-500 max-w-sm mb-6">Crie seu primeiro evento para começar.</p>
-              <Button onClick={() => navigate("/events/new")} className="gap-2 bg-primary hover:bg-primary/90">
-                <Plus className="w-4 h-4" />
-                Criar novo evento
-              </Button>
-            </CardContent>
-          </Card>
+        <Tabs
+          value={tab}
+          onValueChange={(value) => {
+            setTab(value);
+            navigate(value === "categorias" ? "/organizador/eventos/categorias" : "/organizador/meus-eventos");
+          }}
+        >
+          <TabsList className="bg-transparent p-0 h-auto gap-6">
+            <TabsTrigger
+              value="lista"
+              className="px-0 pb-2 text-slate-500 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary"
+            >
+              Lista de eventos
+            </TabsTrigger>
+            <TabsTrigger
+              value="categorias"
+              className="px-0 pb-2 text-slate-500 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary"
+            >
+              Categorias de eventos
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {tab === "lista" ? (
+          <>
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="Buscar por evento..."
+                className="pl-10 bg-white"
+                value={eventSearch}
+                onChange={(e) => setEventSearch(e.target.value)}
+              />
+            </div>
+            <Card className="border-slate-200">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome do Evento</TableHead>
+                      <TableHead>Data de Início</TableHead>
+                      <TableHead>Data de Término</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredEvents.map((event) => (
+                      <TableRow key={event.id}>
+                        <TableCell className="font-medium">{event.name}</TableCell>
+                        <TableCell>{event.startDate}</TableCell>
+                        <TableCell>{event.endDate}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-primary">
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-destructive">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filtered.map((event) => (
-              <Card key={event.id} className="overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                <CardContent className="p-0">
-                  <div className="h-28 bg-primary/90 flex items-center justify-center">
-                    <Calendar className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="p-5 space-y-3">
-                    <span className="text-xs text-orange-500 font-semibold">
-                      {event.date || "Data não definida"}
-                    </span>
-                    <h3 className="text-sm font-bold text-slate-900 uppercase line-clamp-2 min-h-[2.5rem]">
-                      {event.name}
-                    </h3>
-                    <div className="text-sm text-slate-500 space-y-1">
-                      <p>{event.type || "Evento Online"}</p>
-                      <p>Organizado por: {event.organizer || "Equipe Guardião"}</p>
-                    </div>
-                    <div className="flex items-center justify-between pt-2">
-                      <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-1 rounded-full">
-                        {event.status === "Ativo" ? "Publicado" : event.status || "Publicado"}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="border border-slate-200 text-slate-500 hover:text-primary"
-                          onClick={() => navigate(`/events/${event.id}`)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="border-slate-200 text-slate-700 hover:border-primary/40 hover:text-primary"
-                          onClick={() => navigate(`/organizador/evento/${event.id}/dashboard`)}
-                        >
-                          Gerenciar
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <>
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="Buscar categoria..."
+                className="pl-10 bg-white"
+                value={categorySearch}
+                onChange={(e) => setCategorySearch(e.target.value)}
+              />
+            </div>
+            <Card className="border-slate-200">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome da Categoria</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCategories.map((category) => (
+                      <TableRow key={category.id}>
+                        <TableCell className="font-medium">{category.name}</TableCell>
+                        <TableCell>
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            category.status === "Ativo" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                          }`}>
+                            {category.status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-primary">
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-destructive">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </>
         )}
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200">
-          <span className="text-sm text-slate-500">Exibindo 1 de {totalPages} páginas</span>
+          <span className="text-sm text-slate-500">Exibindo 1 de 1 páginas</span>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="text-slate-500">
               <ChevronLeft className="w-4 h-4" />
@@ -300,6 +359,62 @@ const OrganizerEventsPage = () => {
           </div>
         </div>
       </main>
+
+      <Dialog open={eventDialogOpen} onOpenChange={setEventDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Evento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Select value={eventOption} onValueChange={setEventOption}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma opção" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="novo">Registrar um novo evento</SelectItem>
+                <SelectItem value="vincular">Vincular a um novo evento da plataforma Guardião Eventos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEventDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleEventSave} disabled={!eventOption}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova Categoria</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Nome</label>
+              <Input value={categoryForm.name} onChange={(e) => setCategoryForm((prev) => ({ ...prev, name: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Descrição</label>
+              <Input value={categoryForm.description} onChange={(e) => setCategoryForm((prev) => ({ ...prev, description: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Status</label>
+              <select
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={categoryForm.status}
+                onChange={(e) => setCategoryForm((prev) => ({ ...prev, status: e.target.value }))}
+              >
+                <option value="Ativo">Ativo</option>
+                <option value="Inativo">Inativo</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCategoryDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCategorySave} disabled={!categoryForm.name.trim()}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <a
         href="https://wa.me/5500000000000"

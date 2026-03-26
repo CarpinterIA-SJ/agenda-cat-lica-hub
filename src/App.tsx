@@ -11,6 +11,7 @@ import MyTicketsPage from "./pages/MyTicketsPage";
 import ExploreEventsPage from "./pages/ExploreEventsPage";
 import SupportPage from "./pages/SupportPage";
 import OrganizerEventsPage from "./pages/OrganizerEventsPage";
+import CRMPage from "./pages/CRMPage";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
@@ -294,6 +295,16 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/organizador/eventos/categorias"
+              element={
+                <ProtectedRoute>
+                  <RoleRoute requiredRole="organizer">
+                    <OrganizerEventsPage />
+                  </RoleRoute>
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="/organizador/home"
@@ -316,6 +327,8 @@ const App = () => (
                 <Route path="/organizador/evento/:id/financeiro" element={<OrganizerEventFinanceiroPage />} />
                 <Route path="/organizador/evento/:id/configuracoes" element={<OrganizerEventConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/checkins" element={<OrganizerEventCheckinsPage />} />
+                <Route path="/crm" element={<Navigate to="/crm/pessoas" replace />} />
+                <Route path="/crm/:section" element={<CRMPage />} />
               </Route>
 
               {/* Participant Routes */}
