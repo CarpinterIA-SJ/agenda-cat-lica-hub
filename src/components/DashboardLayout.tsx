@@ -1,7 +1,7 @@
 import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Bell, User, LogOut, Settings, Users, LayoutGrid, Sun, MessageCircle } from "lucide-react";
+import { User, LogOut, Settings, Users, LayoutGrid, Moon, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -30,7 +30,7 @@ const DashboardLayout = () => {
     }
   }
 
-  const showSidebar = role !== "organizer";
+  const showSidebar = role !== "organizer" || location.pathname.startsWith("/organizador/evento/");
 
   const content = (
     <div className="min-h-screen flex w-full">
@@ -48,10 +48,7 @@ const DashboardLayout = () => {
               <LayoutGrid className="w-5 h-5" />
             </Button>
             <Button variant="ghost" size="icon" className="text-muted-foreground" aria-label="Troca de tema">
-              <Sun className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-muted-foreground">
-              <Bell className="w-5 h-5" />
+              <Moon className="w-5 h-5" />
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

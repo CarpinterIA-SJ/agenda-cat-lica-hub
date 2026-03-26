@@ -234,6 +234,36 @@ const OrganizerEventDashboardPage = () => {
   );
 };
 
+const OrganizerEventIngressosPage = () => (
+  <div className="space-y-4">
+    <h1 className="text-2xl font-semibold text-foreground">Gerenciar ingressos</h1>
+  </div>
+);
+
+const OrganizerEventParticipantesPage = () => (
+  <div className="space-y-4">
+    <h1 className="text-2xl font-semibold text-foreground">Participantes</h1>
+  </div>
+);
+
+const OrganizerEventFinanceiroPage = () => (
+  <div className="space-y-4">
+    <h1 className="text-2xl font-semibold text-foreground">Financeiro</h1>
+  </div>
+);
+
+const OrganizerEventConfiguracoesPage = () => (
+  <div className="space-y-4">
+    <h1 className="text-2xl font-semibold text-foreground">Configurações</h1>
+  </div>
+);
+
+const OrganizerEventCheckinsPage = () => (
+  <div className="space-y-4">
+    <h1 className="text-2xl font-semibold text-foreground">Check-ins</h1>
+  </div>
+);
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -264,6 +294,11 @@ const App = () => (
               <Route element={<RoleRoute requiredRole="organizer" />}>
                 <Route path="/crm" element={<CRMPage />} />
                 <Route path="/organizador/evento/:id/dashboard" element={<OrganizerEventDashboardPage />} />
+                <Route path="/organizador/evento/:id/ingressos" element={<OrganizerEventIngressosPage />} />
+                <Route path="/organizador/evento/:id/participantes" element={<OrganizerEventParticipantesPage />} />
+                <Route path="/organizador/evento/:id/financeiro" element={<OrganizerEventFinanceiroPage />} />
+                <Route path="/organizador/evento/:id/configuracoes" element={<OrganizerEventConfiguracoesPage />} />
+                <Route path="/organizador/evento/:id/checkins" element={<OrganizerEventCheckinsPage />} />
               </Route>
 
               {/* Participant Routes */}

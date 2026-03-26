@@ -1,7 +1,17 @@
 import {
-  Home, Calendar, Users, HelpCircle, ChevronLeft, LogOut,
-  Ticket, UserCheck, DollarSign, Settings, CheckSquare,
-  ChevronDown, ChevronUp, BarChart3, Globe, Search,
+  LayoutDashboard,
+  Ticket,
+  Users,
+  DollarSign,
+  Settings,
+  ClipboardCheck,
+  ChevronLeft,
+  LogOut,
+  ChevronDown,
+  ChevronUp,
+  BarChart3,
+  Search,
+  HelpCircle,
 } from "lucide-react";
 import { SaoJoseIcon } from "@/components/icons/SaoJoseIcon";
 import { NavLink } from "@/components/NavLink";
@@ -22,16 +32,50 @@ interface NavItem {
   children?: { title: string; url: string }[];
 }
 
-const navItems: NavItem[] = [
-  // Organizer items
+const baseNavItems: NavItem[] = [
   { title: "CRM", url: "/crm", icon: BarChart3, roles: ["organizer"] },
-
-  // Participant items
   { title: "Meus Ingressos", url: "/participante/meus-ingressos", icon: Ticket, roles: ["participant"] },
   { title: "Explorar Eventos", url: "/participante/explorar", icon: Search, roles: ["participant"] },
-
-  // Shared
   { title: "Suporte", url: "/support", icon: HelpCircle, roles: ["organizer", "participant"] },
+];
+
+const buildOrganizerEventItems = (eventId: string): NavItem[] => [
+  {
+    title: "Dashboard",
+    url: `/organizador/evento/${eventId}/dashboard`,
+    icon: LayoutDashboard,
+    roles: ["organizer"],
+  },
+  {
+    title: "Gerenciar ingressos",
+    icon: Ticket,
+    roles: ["organizer"],
+    children: [{ title: "Visão geral", url: `/organizador/evento/${eventId}/ingressos` }],
+  },
+  {
+    title: "Participantes",
+    icon: Users,
+    roles: ["organizer"],
+    children: [{ title: "Visão geral", url: `/organizador/evento/${eventId}/participantes` }],
+  },
+  {
+    title: "Financeiro",
+    icon: DollarSign,
+    roles: ["organizer"],
+    children: [{ title: "Visão geral", url: `/organizador/evento/${eventId}/financeiro` }],
+  },
+  {
+    title: "Configurações",
+    icon: Settings,
+    roles: ["organizer"],
+    children: [{ title: "Visão geral", url: `/organizador/evento/${eventId}/configuracoes` }],
+  },
+  {
+    title: "Check-ins",
+    icon: ClipboardCheck,
+    roles: ["organizer"],
+    children: [{ title: "Visão geral", url: `/organizador/evento/${eventId}/checkins` }],
+  },
 ];
 
 export function AppSidebar() {
@@ -40,7 +84,11 @@ export function AppSidebar() {
   const { role, setRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const eventMatch = location.pathname.match(/^\/organizador\/evento\/([^/]+)/);
+  const eventId = eventMatch?.[1];
+  const isOrganizerEvent = role === "organizer" && !!eventId;
 
+  const navItems = isOrganizerEvent ? buildOrganizerEventItems(eventId!) : baseNavItems;
   const filteredNavItems = navItems.filter((item) => item.roles.includes(role || ""));
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
@@ -49,7 +97,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r-0">
+    <Sidebar collapsible="icon" className="border-r border-slate-200 bg-white">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
@@ -72,7 +120,10 @@ export function AppSidebar() {
             <SidebarMenu>
               {filteredNavItems.map((item) => {
                 const hasChildren = item.children && item.children.length > 0;
-                const isOpen = openGroups[item.title];
+                const isItemActive = item.url
+                  ? location.pathname === item.url || location.pathname.startsWith(item.url)
+                  : item.children?.some((child) => location.pathname === child.url);
+                const isOpen = openGroups[item.title] ?? !!isItemActive;
 
                 if (hasChildren) {
                   return (
@@ -80,7 +131,8 @@ export function AppSidebar() {
                       <SidebarMenuButton
                         onClick={() => toggleGroup(item.title)}
                         tooltip={item.title}
-                        className="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors justify-between"
+                        isActive={isItemActive}
+                        className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 data-[active=true]:bg-emerald-50 data-[active=true]:text-emerald-700 rounded-lg transition-colors justify-between"
                       >
                         <span className="flex items-center gap-2">
                           <item.icon className="w-5 h-5 shrink-0" />
@@ -94,8 +146,8 @@ export function AppSidebar() {
                             <NavLink
                               key={child.title}
                               to={child.url}
-                              className="block text-sm py-1.5 px-2 rounded text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
-                              activeClassName="text-sidebar-foreground font-medium"
+                              className="block text-sm py-1.5 px-2 rounded text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                              activeClassName="text-emerald-700 font-medium bg-emerald-50"
                             >
                               {child.title}
                             </NavLink>
@@ -112,8 +164,8 @@ export function AppSidebar() {
                       <NavLink
                         to={item.url!}
                         end={item.url === "/dashboard"}
-                        className="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg transition-colors"
-                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                        className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors"
+                        activeClassName="bg-emerald-50 text-emerald-700 font-medium"
                       >
                         <item.icon className="w-5 h-5 shrink-0" />
                         {!collapsed && <span>{item.title}</span>}
