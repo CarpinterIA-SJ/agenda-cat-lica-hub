@@ -1,7 +1,7 @@
 import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Bell, User, LogOut, Settings, Users } from "lucide-react";
+import { Bell, User, LogOut, Settings, Users, LayoutGrid, Sun, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -44,6 +44,12 @@ const DashboardLayout = () => {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="text-muted-foreground" aria-label="Aplicações">
+              <LayoutGrid className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="text-muted-foreground" aria-label="Troca de tema">
+              <Sun className="w-5 h-5" />
+            </Button>
             <Button variant="ghost" size="icon" className="text-muted-foreground">
               <Bell className="w-5 h-5" />
             </Button>
@@ -82,6 +88,13 @@ const DashboardLayout = () => {
           <Outlet />
         </main>
       </div>
+      <a
+        href="https://wa.me/5500000000000"
+        className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700"
+        aria-label="WhatsApp"
+      >
+        <MessageCircle className="w-5 h-5" />
+      </a>
     </div>
   );
 
