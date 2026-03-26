@@ -274,7 +274,7 @@ const OrganizerEventsPage = () => {
                         <Button
                           variant="outline"
                           className="border-slate-200 text-slate-700 hover:border-primary/40 hover:text-primary"
-                          onClick={() => navigate(`/events/dashboard/${event.id}`)}
+                          onClick={() => navigate(`/organizador/evento/${event.id}/dashboard`)}
                         >
                           Gerenciar
                         </Button>

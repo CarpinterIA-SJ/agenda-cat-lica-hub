@@ -263,7 +263,7 @@ const App = () => (
               {/* Organizer Routes */}
               <Route element={<RoleRoute requiredRole="organizer" />}>
                 <Route path="/crm" element={<CRMPage />} />
-                <Route path="/organizador/evento/1/dashboard" element={<OrganizerEventDashboardPage />} />
+                <Route path="/organizador/evento/:id/dashboard" element={<OrganizerEventDashboardPage />} />
               </Route>
 
               {/* Participant Routes */}
