@@ -11,9 +11,32 @@ import {
   Eye,
   LayoutGrid,
   Moon,
+  Sun,
   ChevronLeft,
   ChevronRight,
+  Home,
+  Users2,
+  HandHeart,
+  HeartCrack,
+  Headset,
+  Ticket,
+  Mail,
+  Users,
+  HelpCircle,
+  LogOut,
+  User,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const mockEvents = [
   {
@@ -31,6 +54,7 @@ const OrganizerEventsPage = () => {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("upcoming");
   const [events, setEvents] = useState<any[]>(mockEvents);
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     try {
@@ -64,15 +88,95 @@ const OrganizerEventsPage = () => {
             <span className="text-lg font-bold text-slate-900">Guardião Eventos</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="text-slate-600 hover:text-primary">
-              <LayoutGrid className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-slate-600 hover:text-primary">
-              <Moon className="w-5 h-5" />
-            </Button>
-            <div className="w-9 h-9 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center">
-              GE
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-slate-600 hover:text-primary">
+                  <LayoutGrid className="w-5 h-5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 border-gray-100 shadow-sm">
+                <div className="text-sm font-semibold text-slate-900 mb-3">Aplicações</div>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: "Home", icon: Home },
+                    { label: "Guardião Eventos", icon: Calendar },
+                    { label: "CRM", icon: Users2 },
+                    { label: "Doações", icon: HandHeart },
+                    { label: "Dizimo", icon: HeartCrack },
+                    { label: "Atendimento", icon: Headset },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex flex-col items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white p-3 text-center shadow-sm"
+                    >
+                      <item.icon className="w-5 h-5 text-primary" />
+                      <span className="text-xs font-medium text-slate-700">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-slate-600 hover:text-primary"
+                    onClick={() => setIsDark((prev) => !prev)}
+                  >
+                    {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Alterar tema</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="outline-none">
+                  <Avatar className="h-9 w-9">
+                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">FC</AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 border-gray-100 shadow-sm">
+                <DropdownMenuLabel className="font-normal text-[11px] text-slate-400">
+                  fabricio.christian@gmail.com
+                </DropdownMenuLabel>
+                <DropdownMenuItem className="gap-2 cursor-pointer">
+                  <LayoutGrid className="w-4 h-4" />
+                  Ver aplicações
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 cursor-pointer">
+                  <User className="w-4 h-4" />
+                  Minha conta
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 cursor-pointer">
+                  <Ticket className="w-4 h-4" />
+                  Meus ingressos
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 cursor-pointer">
+                  <Mail className="w-4 h-4" />
+                  Convites pendentes
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 cursor-pointer">
+                  <Users className="w-4 h-4" />
+                  Organizadores
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 cursor-pointer">
+                  <HelpCircle className="w-4 h-4" />
+                  Ajuda
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 cursor-pointer text-destructive focus:text-destructive">
+                  <LogOut className="w-4 h-4" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
