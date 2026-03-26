@@ -10,7 +10,7 @@ const RoleSelectPage = () => {
   const handleRoleSelect = (role: 'organizer' | 'participant') => {
     setRole(role);
     if (role === 'organizer') {
-      navigate("/organizador/dashboard");
+      navigate("/organizador/meus-eventos");
     } else {
       navigate("/participante/meus-ingressos");
     }

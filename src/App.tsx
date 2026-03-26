@@ -11,6 +11,7 @@ import MyTicketsPage from "./pages/MyTicketsPage";
 import ExploreEventsPage from "./pages/ExploreEventsPage";
 import CRMPage from "./pages/CRMPage";
 import SupportPage from "./pages/SupportPage";
+import OrganizerEventsPage from "./pages/OrganizerEventsPage";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 
@@ -45,6 +46,17 @@ const App = () => (
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/role-select" element={<ProtectedRoute><RoleSelectPage /></ProtectedRoute>} />
+
+            <Route
+              path="/organizador/meus-eventos"
+              element={
+                <ProtectedRoute>
+                  <RoleRoute requiredRole="organizer">
+                    <OrganizerEventsPage />
+                  </RoleRoute>
+                </ProtectedRoute>
+              }
+            />
             
             <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
               {/* Organizer Routes */}
