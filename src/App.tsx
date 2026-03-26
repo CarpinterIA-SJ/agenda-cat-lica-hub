@@ -9,7 +9,6 @@ import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
 import MyTicketsPage from "./pages/MyTicketsPage";
 import ExploreEventsPage from "./pages/ExploreEventsPage";
-import CRMPage from "./pages/CRMPage";
 import SupportPage from "./pages/SupportPage";
 import OrganizerEventsPage from "./pages/OrganizerEventsPage";
 import NotFound from "./pages/NotFound";
@@ -47,7 +46,7 @@ const RoleRoute = ({ children, requiredRole }: { children?: React.ReactNode; req
   if (loading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   if (!role) return <Navigate to="/role-select" replace />;
   if (requiredRole && role !== requiredRole) {
-    const fallback = role === 'organizer' ? "/crm" : "/participante/meus-ingressos";
+    const fallback = role === 'organizer' ? "/organizador/home" : "/participante/meus-ingressos";
     return <Navigate to={fallback} replace />;
   }
   return children ? <>{children}</> : <Outlet />;
@@ -310,7 +309,6 @@ const App = () => (
             <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
               {/* Organizer Routes */}
               <Route element={<RoleRoute requiredRole="organizer" />}>
-                <Route path="/crm" element={<CRMPage />} />
                 <Route path="/organizador/doacoes" element={<OrganizerDonationsPage />} />
                 <Route path="/organizador/evento/:id/dashboard" element={<OrganizerEventDashboardPage />} />
                 <Route path="/organizador/evento/:id/ingressos" element={<OrganizerEventIngressosPage />} />
@@ -331,7 +329,7 @@ const App = () => (
               <Route path="/support" element={<SupportPage />} />
             </Route>
 
-            <Route path="/organizador/dashboard" element={<Navigate to="/crm" replace />} />
+            <Route path="/organizador/dashboard" element={<Navigate to="/organizador/home" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

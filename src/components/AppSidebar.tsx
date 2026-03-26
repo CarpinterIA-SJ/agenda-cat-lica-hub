@@ -33,7 +33,6 @@ interface NavItem {
 }
 
 const baseNavItems: NavItem[] = [
-  { title: "CRM", url: "/crm", icon: BarChart3, roles: ["organizer"] },
   { title: "Meus Ingressos", url: "/participante/meus-ingressos", icon: Ticket, roles: ["participant"] },
   { title: "Explorar Eventos", url: "/participante/explorar", icon: Search, roles: ["participant"] },
   { title: "Suporte", url: "/support", icon: HelpCircle, roles: ["organizer", "participant"] },
