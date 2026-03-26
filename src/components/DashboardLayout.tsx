@@ -26,7 +26,7 @@ const DashboardLayout = () => {
 
   if (role === "organizer") {
     if (location.pathname.startsWith("/participante")) {
-      return <Navigate to="/organizador/dashboard" replace />;
+      return <Navigate to="/crm" replace />;
     }
   }
 
