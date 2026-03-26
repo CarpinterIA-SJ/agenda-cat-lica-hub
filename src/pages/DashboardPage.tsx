@@ -5,7 +5,7 @@ const DashboardPage = () => {
   const { role } = useAuth();
 
   if (role === "organizer") {
-    return <Navigate to="/organizador/dashboard" replace />;
+    return <Navigate to="/crm" replace />;
   }
 
   if (role === "participant") {

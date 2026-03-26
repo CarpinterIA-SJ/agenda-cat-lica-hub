@@ -7,15 +7,10 @@ import LoginPage from "./pages/LoginPage";
 import RoleSelectPage from "./pages/RoleSelectPage";
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
-import EventsPage from "./pages/EventsPage";
-import EventCreatePage from "./pages/EventCreatePage";
-import EventDashboardPage from "./pages/EventDashboardPage";
 import MyTicketsPage from "./pages/MyTicketsPage";
 import ExploreEventsPage from "./pages/ExploreEventsPage";
 import CRMPage from "./pages/CRMPage";
 import SupportPage from "./pages/SupportPage";
-import EventDetailPage from "./pages/EventDetailPage";
-import EventManageLayout from "./components/EventManageLayout";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 
@@ -31,7 +26,7 @@ const RoleRoute = ({ children, requiredRole }: { children?: React.ReactNode; req
   if (loading) return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   if (!role) return <Navigate to="/role-select" replace />;
   if (requiredRole && role !== requiredRole) {
-    const fallback = role === 'organizer' ? "/organizador/dashboard" : "/participante/meus-ingressos";
+    const fallback = role === 'organizer' ? "/crm" : "/participante/meus-ingressos";
     return <Navigate to={fallback} replace />;
   }
   return children ? <>{children}</> : <Outlet />;
@@ -51,14 +46,9 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/role-select" element={<ProtectedRoute><RoleSelectPage /></ProtectedRoute>} />
             
-            {/* Shared Layout for Authenticated Users with Role */}
             <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
               {/* Organizer Routes */}
               <Route element={<RoleRoute requiredRole="organizer" />}>
-                <Route path="/organizador/dashboard" element={<EventsPage />} />
-                <Route path="/events" element={<EventsPage />} />
-                <Route path="/events/new" element={<EventCreatePage />} />
-                <Route path="/events/dashboard/:id" element={<EventDashboardPage />} />
                 <Route path="/crm" element={<CRMPage />} />
               </Route>
 
@@ -73,10 +63,6 @@ const App = () => (
               <Route path="/support" element={<SupportPage />} />
             </Route>
 
-            {/* Event Management Dashboard (Specific Layout) */}
-            <Route path="/event/:id/dashboard" element={<ProtectedRoute><RoleRoute requiredRole="organizer"><EventManageLayout /></RoleRoute></ProtectedRoute>} />
-
-            <Route path="/event/detail/:id" element={<EventDetailPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

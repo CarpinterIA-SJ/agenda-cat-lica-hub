@@ -24,12 +24,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   // Organizer items
-  { title: "Meus Eventos", url: "/organizador/dashboard", icon: Calendar, roles: ["organizer"] },
-  { title: "Dashboard", url: "/dashboard", icon: Home, roles: ["organizer"] },
-  { title: "Participantes", url: "/organizador/participantes", icon: UserCheck, roles: ["organizer"] },
-  { title: "Financeiro", url: "/organizador/financeiro", icon: DollarSign, roles: ["organizer"] },
   { title: "CRM", url: "/crm", icon: BarChart3, roles: ["organizer"] },
-  { title: "Integrações", url: "/events/dashboard?tab=integrations", icon: Globe, roles: ["organizer"] },
 
   // Participant items
   { title: "Meus Ingressos", url: "/participante/meus-ingressos", icon: Ticket, roles: ["participant"] },
