@@ -16,8 +16,6 @@ import {
   ChevronRight,
   Home,
   Users2,
-  HandHeart,
-  HeartCrack,
   Headset,
   Ticket,
   Mail,
@@ -82,8 +80,6 @@ const OrganizerEventsPage = () => {
     { label: "Home", icon: Home, route: "/organizador/home" },
     { label: "Guardião Eventos", icon: Calendar, route: "/organizador/meus-eventos" },
     { label: "CRM", icon: Users2, route: "/crm" },
-    { label: "Doações", icon: HandHeart, route: "/organizador/doacoes" },
-    { label: "Dizimo", icon: HeartCrack, route: "/organizador/doacoes" },
     { label: "Atendimento", icon: Headset, route: "/support" },
   ];
 
