@@ -43,7 +43,7 @@ const DashboardLayout = () => {
     { label: "Guardião Eventos", icon: Calendar, route: "/organizador/meus-eventos" },
     { label: "CRM", icon: Users2, route: "/crm/pessoas" },
     { label: "Atendimento", icon: Headset, route: "/support" },
-  ];
+  ].filter((item) => item.label.toLowerCase() !== "dizimo" && item.label.toLowerCase() !== "dízimo");
 
   const userInitials = user?.user_metadata?.full_name
     ? user.user_metadata.full_name.split(" ").map((n: string) => n[0]).slice(0, 2).join("").toUpperCase()
