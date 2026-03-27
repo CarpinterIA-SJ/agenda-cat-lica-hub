@@ -62,7 +62,7 @@ const baseNavItems: NavItem[] = [
 
 const buildOrganizerEventItems = (eventId: string): NavItem[] => [
   {
-    title: "Dashboard",
+    title: "Gerenciar",
     url: `/organizador/evento/${eventId}/dashboard`,
     icon: LayoutDashboard,
     roles: ["organizer"],
