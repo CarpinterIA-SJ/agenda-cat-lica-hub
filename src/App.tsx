@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate, Outlet, useNavigate } from "rea
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useState } from "react";
 import LoginPage from "./pages/LoginPage";
 import RoleSelectPage from "./pages/RoleSelectPage";
 import DashboardLayout from "./components/DashboardLayout";
@@ -17,6 +18,11 @@ import { AuthProvider, useAuth } from "./hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   ExternalLink,
@@ -32,6 +38,10 @@ import {
   Wallet,
   Download,
   Link as LinkIcon,
+  MapPin,
+  Video,
+  Shuffle,
+  Locate,
 } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 
@@ -51,6 +61,247 @@ const RoleRoute = ({ children, requiredRole }: { children?: React.ReactNode; req
     return <Navigate to={fallback} replace />;
   }
   return children ? <>{children}</> : <Outlet />;
+};
+
+const OrganizerEventNewPage = () => {
+  const navigate = useNavigate();
+  const [tab, setTab] = useState("informacoes");
+
+  return (
+    <div className="min-h-screen w-full bg-slate-50">
+      <div className="w-full border-b bg-white">
+        <div className="w-full px-6 py-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">Meus eventos &gt; Criar evento</p>
+            <h1 className="text-2xl font-semibold text-foreground">Criar evento</h1>
+          </div>
+          <Button variant="outline" className="border-slate-300 text-slate-600 hover:bg-slate-100" onClick={() => navigate("/organizador/meus-eventos")}
+          >
+            Voltar para os eventos
+          </Button>
+        </div>
+      </div>
+
+      <div className="w-full px-6 py-8 space-y-6">
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 bg-white border rounded-lg">
+            <TabsTrigger value="informacoes" className="gap-2 data-[state=active]:text-emerald-800">
+              <Info className="h-4 w-4" />
+              Informações gerais
+            </TabsTrigger>
+            <TabsTrigger value="pagina" className="gap-2">
+              <Globe className="h-4 w-4" />
+              Página do evento
+            </TabsTrigger>
+            <TabsTrigger value="ingressos" className="gap-2">
+              <Ticket className="h-4 w-4" />
+              Ingressos
+            </TabsTrigger>
+            <TabsTrigger value="pagamento" className="gap-2">
+              <CreditCard className="h-4 w-4" />
+              Pagamento
+            </TabsTrigger>
+            <TabsTrigger value="formulario" className="gap-2">
+              <ClipboardList className="h-4 w-4" />
+              Formulário de inscrição
+            </TabsTrigger>
+            <TabsTrigger value="mensagens" className="gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Mensagens
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Tipo de evento</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup defaultValue="presencial" className="grid gap-3 md:grid-cols-3">
+                {[
+                  { value: "presencial", label: "Evento presencial", icon: MapPin },
+                  { value: "online", label: "Evento online", icon: Video },
+                  { value: "hibrido", label: "Híbrido", icon: Shuffle },
+                ].map((item) => (
+                  <label
+                    key={item.value}
+                    htmlFor={item.value}
+                    className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 p-4 transition hover:border-emerald-600"
+                  >
+                    <RadioGroupItem id={item.value} value={item.value} />
+                    <item.icon className="h-5 w-5 text-emerald-700" />
+                    <span className="text-sm font-medium text-foreground">{item.label}</span>
+                  </label>
+                ))}
+              </RadioGroup>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Organizador</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                <Select>
+                  <SelectTrigger className="md:max-w-sm">
+                    <SelectValue placeholder="Selecione o organizador" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="guardiao">Guardião Eventos</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" className="border-emerald-600 text-emerald-700 hover:bg-emerald-50">+ Adicionar organizador</Button>
+              </div>
+
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                Notificações sobre vendas e suporte serão enviadas por WhatsApp e E-mail.
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Whatsapp de suporte</label>
+                  <div className="flex gap-2">
+                    <Select>
+                      <SelectTrigger className="w-24">
+                        <SelectValue placeholder="+55" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="55">+55</SelectItem>
+                        <SelectItem value="351">+351</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input placeholder="(00) 00000-0000" inputMode="tel" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">E-mail de suporte</label>
+                  <Input placeholder="suporte@guardiaoeventos.com" type="email" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Informações básicas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Nome do evento</label>
+                <Input placeholder="Informe o nome do evento" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Endereço da página</label>
+                <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                  <div className="flex flex-1 items-center rounded-md border border-input bg-white">
+                    <span className="px-3 text-sm text-muted-foreground">guardiaoeventos.com/</span>
+                    <Input className="border-0 focus-visible:ring-0" placeholder="meu-evento" />
+                  </div>
+                  <Button variant="outline" className="border-emerald-600 text-emerald-700 hover:bg-emerald-50">Verificar</Button>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Categoria do evento</label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="religioso">Religioso</SelectItem>
+                      <SelectItem value="cultural">Cultural</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Nomenclatura</label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Ex: Inscrição" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="inscricao">Inscrição</SelectItem>
+                      <SelectItem value="ingresso">Ingresso</SelectItem>
+                      <SelectItem value="participacao">Participação</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Visibilidade do evento</label>
+                <RadioGroup defaultValue="publico" className="grid gap-3 md:grid-cols-2">
+                  <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-slate-200 p-4">
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="publico" />
+                      <span className="text-sm font-medium">Público</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">Aparece para todos na Guardião Eventos.</span>
+                  </label>
+                  <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-slate-200 p-4">
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="privado" />
+                      <span className="text-sm font-medium">Privado</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">Somente quem tiver o link pode acessar.</span>
+                  </label>
+                </RadioGroup>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Início do evento</label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Input placeholder="dd/mm/aaaa" inputMode="numeric" />
+                    <Input placeholder="hh:mm" inputMode="numeric" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Término do evento</label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Input placeholder="dd/mm/aaaa" inputMode="numeric" />
+                    <Input placeholder="hh:mm" inputMode="numeric" />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Local do evento</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Input placeholder="Buscar endereço" />
+              <div className="flex h-48 items-center justify-center rounded-lg border border-dashed bg-slate-100">
+                <Locate className="h-8 w-8 text-slate-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Termos de uso</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <label className="flex items-center gap-3 text-sm text-muted-foreground">
+                <Checkbox />
+                Concordo com os termos de uso e políticas de privacidade da plataforma
+              </label>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="flex justify-end">
+          <Button className="h-12 px-6 bg-emerald-700 text-white hover:bg-emerald-800">Criar evento e continuar</Button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const OrganizerEventDashboardPage = () => {
@@ -301,6 +552,16 @@ const App = () => (
                 <ProtectedRoute>
                   <RoleRoute requiredRole="organizer">
                     <OrganizerEventsPage />
+                  </RoleRoute>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/organizador/evento/novo"
+              element={
+                <ProtectedRoute>
+                  <RoleRoute requiredRole="organizer">
+                    <OrganizerEventNewPage />
                   </RoleRoute>
                 </ProtectedRoute>
               }

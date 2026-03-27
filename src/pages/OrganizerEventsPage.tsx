@@ -199,7 +199,7 @@ const OrganizerEventsPage = () => {
             <h1 className="text-2xl font-bold text-slate-900">Meus eventos</h1>
             <p className="text-sm text-slate-500">Acompanhe e gerencie seus eventos cadastrados.</p>
           </div>
-          <Button onClick={() => setEventDialogOpen(true)} className="gap-2 bg-primary hover:bg-primary/90">
+          <Button onClick={() => navigate("/organizador/evento/novo")} className="gap-2 bg-primary hover:bg-primary/90">
             <Plus className="w-4 h-4" />
             Criar novo evento
           </Button>
