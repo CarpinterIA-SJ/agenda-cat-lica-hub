@@ -73,7 +73,7 @@ const DashboardPage = () => {
     { label: "Home", icon: Home, route: "/organizador/home" },
     { label: "Guardião Eventos", icon: Calendar, route: "/organizador/meus-eventos" },
     { label: "CRM", icon: Users2, route: "/crm" },
-    { label: "Dizimo", icon: HeartCrack, route: "/organizador/doacoes" },
+    
     { label: "Atendimento", icon: Headset, route: "/support" },
   ];
 
