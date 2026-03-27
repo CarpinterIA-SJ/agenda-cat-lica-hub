@@ -23,7 +23,7 @@ import {
   LogOut,
   User,
   MessageCircle,
-  Eye,
+  MapPin,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -43,11 +43,12 @@ import { useToast } from "@/hooks/use-toast";
 const mockEvents = [
   {
     id: 1,
-    dateLabel: "21 a 22 de outubro de 2026",
-    title: "FABRICIO CHRISTIAN DA SILVA CAVALCANTE",
-    type: "Evento Online",
-    organizer: "FABRICIO CHRISTIAN DA SILVA CAVALCANTE",
-    status: "Publicado",
+    title: "Retiro de Quaresma",
+    status: "Ativo",
+    format: "Presencial",
+    date: "28 Mar 2026",
+    location: "Paróquia São José",
+    attendees: "120 inscritos",
   },
 ];
 
@@ -84,6 +85,14 @@ const OrganizerEventsPage = () => {
     setEventDialogOpen(false);
     toast({ title: "Solicitação enviada", description: "Sua escolha foi registrada." });
     setEventOption("");
+  };
+
+  const handleViewEvent = (eventTitle: string) => {
+    toast({ title: "Visualizar evento", description: `Abrindo ${eventTitle}.` });
+  };
+
+  const handleManageEvent = (eventTitle: string) => {
+    toast({ title: "Gerenciar evento", description: `Gerenciando ${eventTitle}.` });
   };
 
   return (
@@ -233,30 +242,45 @@ const OrganizerEventsPage = () => {
           {filteredEvents.map((event) => (
             <Card key={event.id} className="border-slate-200 shadow-sm">
               <CardContent className="p-4 space-y-4">
-                <div className="rounded-xl bg-blue-600/90 h-28 flex items-center justify-center">
-                  <div className="w-10 h-10 rounded-full border-2 border-orange-300 text-orange-300 flex items-center justify-center text-sm">
-                    ♱
-                  </div>
-                </div>
-                <div className="space-y-2 text-left">
-                  <span className="text-xs font-medium text-orange-500">{event.dateLabel}</span>
-                  <h3 className="text-sm font-bold text-slate-900 leading-5">{event.title}</h3>
-                  <p className="text-sm text-slate-500">{event.type}</p>
-                  <div className="text-xs text-slate-400">Organizado por:</div>
-                  <div className="text-xs font-semibold text-slate-700">{event.organizer}</div>
-                </div>
-                <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-                  <span className="text-xs px-3 py-1 rounded-full font-semibold bg-emerald-100 text-emerald-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
                     {event.status}
                   </span>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" className="h-8 w-8 text-slate-500">
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button variant="outline" className="h-8 text-primary border-primary">
-                      Gerenciar
-                    </Button>
+                  <span className="text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+                    {event.format}
+                  </span>
+                </div>
+                <div className="space-y-3 text-left">
+                  <h3 className="text-lg font-semibold text-slate-900 leading-6">{event.title}</h3>
+                  <div className="space-y-2 text-sm text-slate-600">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-emerald-600" />
+                      <span>{event.date}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-emerald-600" />
+                      <span>{event.location}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-emerald-600" />
+                      <span>{event.attendees}</span>
+                    </div>
                   </div>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-2 border-t border-slate-100 pt-3">
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => handleViewEvent(event.title)}
+                  >
+                    Visualizar
+                  </Button>
+                  <Button
+                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => handleManageEvent(event.title)}
+                  >
+                    Gerenciar
+                  </Button>
                 </div>
               </CardContent>
             </Card>
