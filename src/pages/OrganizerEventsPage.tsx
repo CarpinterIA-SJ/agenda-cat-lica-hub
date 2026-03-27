@@ -91,8 +91,8 @@ const OrganizerEventsPage = () => {
     toast({ title: "Visualizar evento", description: `Abrindo ${eventTitle}.` });
   };
 
-  const handleManageEvent = (eventTitle: string) => {
-    toast({ title: "Gerenciar evento", description: `Gerenciando ${eventTitle}.` });
+  const handleManageEvent = (eventId: number) => {
+    navigate(`/organizador/evento/${eventId}/dashboard`);
   };
 
   return (
@@ -277,7 +277,7 @@ const OrganizerEventsPage = () => {
                   </Button>
                   <Button
                     className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
-                    onClick={() => handleManageEvent(event.title)}
+                    onClick={() => handleManageEvent(event.id)}
                   >
                     Gerenciar
                   </Button>
