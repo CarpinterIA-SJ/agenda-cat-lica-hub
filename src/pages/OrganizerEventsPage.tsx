@@ -78,7 +78,7 @@ const OrganizerEventsPage = () => {
     { label: "Guardião Eventos", icon: Calendar, route: "/organizador/meus-eventos" },
     { label: "CRM", icon: Users2, route: "/crm/pessoas" },
     { label: "Atendimento", icon: Headset, route: "/support" },
-  ];
+  ].filter((item) => item.label.toLowerCase() !== "dizimo" && item.label.toLowerCase() !== "dízimo");
 
   const handleEventSave = () => {
     if (!eventOption) return;
