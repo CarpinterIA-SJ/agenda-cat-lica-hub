@@ -87,8 +87,8 @@ const OrganizerEventsPage = () => {
     setEventOption("");
   };
 
-  const handleViewEvent = (eventTitle: string) => {
-    toast({ title: "Visualizar evento", description: `Abrindo ${eventTitle}.` });
+  const handleViewEvent = (eventId: number) => {
+    navigate(`/organizador/evento/${eventId}/visualizar`);
   };
 
   const handleManageEvent = (eventId: number) => {
@@ -271,7 +271,7 @@ const OrganizerEventsPage = () => {
                   <Button
                     variant="outline"
                     className="w-full sm:w-auto"
-                    onClick={() => handleViewEvent(event.title)}
+                    onClick={() => handleViewEvent(event.id)}
                   >
                     Visualizar
                   </Button>

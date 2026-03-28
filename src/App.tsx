@@ -42,6 +42,8 @@ import {
   Video,
   Shuffle,
   Locate,
+  Calendar,
+  Clock,
 } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 
@@ -485,6 +487,120 @@ const OrganizerEventDashboardPage = () => {
   );
 };
 
+const OrganizerEventPreviewPage = () => {
+  const navigate = useNavigate();
+  const countdown = [
+    { value: "207", label: "Dias" },
+    { value: "13", label: "Horas" },
+    { value: "43", label: "Minutos" },
+    { value: "15", label: "Segundos" },
+  ];
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="w-full border-b bg-white">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
+              <Ticket className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <span className="text-lg font-semibold text-slate-900">Visualização do evento</span>
+          </div>
+          <Button variant="outline" className="border-slate-300 text-slate-600 hover:bg-slate-100" onClick={() => navigate("/organizador/meus-eventos")}>
+            Voltar para meus eventos
+          </Button>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h1 className="text-2xl font-semibold text-slate-900">FABRICIO CHRISTIAN DA SILVA CAVALCANTE</h1>
+              <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
+                <span className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  21/10/2026 às 12:00 até 22/10/2026 às 18:00
+                </span>
+                <span className="flex items-center gap-2">
+                  <Video className="w-4 h-4 text-primary" />
+                  Evento online
+                </span>
+              </div>
+            </div>
+            <div className="border-t border-slate-100 pt-6 space-y-3">
+              <h2 className="text-base font-semibold text-slate-900">Políticas do evento</h2>
+              <p className="text-sm text-slate-500">
+                O cancelamento para pedidos que contém inscrições pagas serão aceitos até 7 dias após a data da compra,
+                considerando que a solicitação seja submetida em até 24 horas antes do início do evento.
+              </p>
+              <button className="text-sm font-medium text-primary hover:underline">Saiba mais</button>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-3">
+              {countdown.map((item) => (
+                <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+                  <p className="text-xl font-semibold text-slate-900">{item.value}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">{item.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-slate-900">Inscrição</h3>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 text-center">
+                Nenhum ingresso cadastrado entre em contato com um organizador.
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-slate-900">Realização</h3>
+              <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="h-10 w-10 rounded-lg bg-slate-400 text-white flex items-center justify-center font-semibold">FC</div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-slate-900">FABRICIO CHRISTIAN DA SILVA CAVALCANTE</p>
+                  <p className="text-xs text-slate-500">vsv\sv\s</p>
+                </div>
+              </div>
+              <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/5">
+                Falar com o organizador
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-3">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-3">
+            <h4 className="text-sm font-semibold text-slate-900">Formas de pagamento</h4>
+            <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+              {['Visa', 'Mastercard', 'Elo', 'American Express', 'Boleto', 'Pix'].map((item) => (
+                <span key={item} className="rounded-full bg-slate-100 px-3 py-1">{item}</span>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-3">
+            <h4 className="text-sm font-semibold text-slate-900">Certificados</h4>
+            <div className="flex items-center gap-2 text-xs text-emerald-700">
+              <Clock className="w-4 h-4" />
+              SITE 100% SEGURO
+            </div>
+            <p className="text-xs text-slate-500">Seus dados protegidos e transações seguras.</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-3">
+            <h4 className="text-sm font-semibold text-slate-900">Precisa de ajuda?</h4>
+            <p className="text-xs text-slate-500">Central de atendimento Guardião Eventos.</p>
+            <Button variant="outline" className="border-primary text-primary hover:bg-primary/5">
+              Central de atendimento
+            </Button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
 const OrganizerEventIngressosPage = () => (
   <div className="space-y-4">
     <h1 className="text-2xl font-semibold text-foreground">Gerenciar ingressos</h1>
@@ -556,6 +672,16 @@ const App = () => (
                 <ProtectedRoute>
                   <RoleRoute requiredRole="organizer">
                     <OrganizerEventNewPage />
+                  </RoleRoute>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/organizador/evento/:id/visualizar"
+              element={
+                <ProtectedRoute>
+                  <RoleRoute requiredRole="organizer">
+                    <OrganizerEventPreviewPage />
                   </RoleRoute>
                 </ProtectedRoute>
               }
