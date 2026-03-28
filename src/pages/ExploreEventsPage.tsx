@@ -157,8 +157,8 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
                 {[
                   { label: "Dias", value: countdown.days },
                   { label: "Horas", value: countdown.hours },
-                  { label: "Min", value: countdown.minutes },
-                  { label: "Seg", value: countdown.seconds },
+                  { label: "Minutos", value: countdown.minutes },
+                  { label: "Segundos", value: countdown.seconds },
                 ].map((item) => (
                   <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-4 text-center">
                     <div className="text-2xl font-bold text-foreground">{String(item.value).padStart(2, "0")}</div>
