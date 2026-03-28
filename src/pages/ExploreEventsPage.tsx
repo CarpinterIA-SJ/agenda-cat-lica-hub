@@ -108,115 +108,147 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
     link: "#",
   };
   const tickets = eventData?.tickets || eventData?.details?.tickets || [];
+  const primaryTicket = tickets[0];
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] font-sans">
-      <header className="bg-white border-b">
+    <div className="min-h-screen bg-[#f6f8f6] font-sans">
+      <header className="bg-white border-b border-[#dfe8df]">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="text-sm font-semibold text-foreground">Guardião Eventos</div>
-          <div className="flex items-center gap-4">
-            <a href="#" className="text-sm font-medium text-[#004d00] hover:underline">Cadastre-se</a>
-            <Button className="h-9 px-5 bg-[#004d00] text-white hover:bg-[#003a00]">Entrar</Button>
+          <div className="text-sm font-semibold text-[#0b3d2e]">Guardião Eventos</div>
+          <div className="flex items-center gap-3">
+            <a href="#" className="text-sm font-medium text-[#0b3d2e] hover:underline">Sou organizador</a>
+            <Button className="h-9 px-5 bg-[#0b3d2e] text-white hover:bg-[#0a3225]">Entrar</Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-10">
-        <div className="bg-white rounded-3xl shadow-lg p-8 md:p-10 grid gap-10 md:grid-cols-[1.2fr_0.8fr]">
+      <main className="max-w-6xl mx-auto px-4 py-10 space-y-10">
+        <section className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-6">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase">Evento</p>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-foreground uppercase">
+            <div className="space-y-3">
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#2f5a47]">Evento</span>
+              <h1 className="text-3xl md:text-4xl font-bold text-[#0b3d2e]">
                 {eventData?.name || "Nome do Evento"}
               </h1>
+              <p className="text-sm text-[#4b6355]">
+                {eventData?.description || "Experiência organizada pela Guardião Eventos para sua comunidade."}
+              </p>
             </div>
-            <div className="space-y-3 text-sm text-foreground">
-              <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-[#004d00]" />
-                <span>{dateLabel} {timeLabel ? `às ${timeLabel}` : ""}</span>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex items-center gap-3 rounded-2xl border border-[#dfe8df] bg-white p-4">
+                <Calendar className="w-5 h-5 text-[#0b3d2e]" />
+                <div>
+                  <p className="text-xs uppercase text-[#7a8c81]">Data</p>
+                  <p className="text-sm font-semibold text-[#0b3d2e]">{dateLabel} {timeLabel ? `às ${timeLabel}` : ""}</p>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Video className="w-5 h-5 text-[#004d00]" />
-                <span>{eventData?.type || "Evento online"}</span>
+              <div className="flex items-center gap-3 rounded-2xl border border-[#dfe8df] bg-white p-4">
+                <MapPin className="w-5 h-5 text-[#0b3d2e]" />
+                <div>
+                  <p className="text-xs uppercase text-[#7a8c81]">Local</p>
+                  <p className="text-sm font-semibold text-[#0b3d2e]">{eventData?.location || "Local a definir"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-2xl border border-[#dfe8df] bg-white p-4 sm:col-span-2">
+                <Video className="w-5 h-5 text-[#0b3d2e]" />
+                <div>
+                  <p className="text-xs uppercase text-[#7a8c81]">Modalidade</p>
+                  <p className="text-sm font-semibold text-[#0b3d2e]">{eventData?.type || "Evento online"}</p>
+                </div>
               </div>
             </div>
-            <div className="h-px w-full bg-slate-200" />
-            <div className="space-y-2">
-              <h2 className="text-sm font-semibold text-foreground">{policies.title}</h2>
-              <p className="text-sm text-muted-foreground">{policies.text}</p>
-              <a href={policies.link} className="inline-flex items-center gap-1 text-sm font-medium text-[#004d00] hover:underline">
+
+            <div className="rounded-2xl border border-[#dfe8df] bg-white p-5">
+              <h2 className="text-sm font-semibold text-[#0b3d2e]">{policies.title}</h2>
+              <p className="text-sm text-[#4b6355] mt-2">{policies.text}</p>
+              <a href={policies.link} className="inline-flex items-center gap-1 text-sm font-medium text-[#0b3d2e] hover:underline mt-3">
                 Saiba mais <ArrowRight className="w-4 h-4" />
               </a>
             </div>
           </div>
 
-          <div className="space-y-8">
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">Contagem regressiva</h3>
-              <div className="grid grid-cols-4 gap-3">
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-[#0b3d2e]/20 bg-white p-6 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase text-[#7a8c81]">Inscrição</p>
+                  <p className="text-xl font-bold text-[#0b3d2e]">
+                    {primaryTicket ? primaryTicket.name : "Entrada disponível"}
+                  </p>
+                </div>
+                <span className="rounded-full bg-[#0b3d2e]/10 px-3 py-1 text-sm font-semibold text-[#0b3d2e]">
+                  {primaryTicket ? (Number(primaryTicket.price) === 0 ? "Gratuito" : `R$ ${primaryTicket.price}`) : "Consultar"}
+                </span>
+              </div>
+
+              <div className="mt-6 grid grid-cols-4 gap-3">
                 {[
                   { label: "Dias", value: countdown.days },
                   { label: "Horas", value: countdown.hours },
                   { label: "Minutos", value: countdown.minutes },
                   { label: "Segundos", value: countdown.seconds },
                 ].map((item) => (
-                  <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-4 text-center">
-                    <div className="text-2xl font-bold text-foreground">{String(item.value).padStart(2, "0")}</div>
-                    <div className="text-[10px] uppercase text-muted-foreground">{item.label}</div>
+                  <div key={item.label} className="rounded-xl border border-[#dfe8df] bg-[#f2f6f3] px-3 py-4 text-center">
+                    <div className="text-xl font-bold text-[#0b3d2e]">{String(item.value).padStart(2, "0")}</div>
+                    <div className="text-[10px] uppercase text-[#7a8c81]">{item.label}</div>
                   </div>
                 ))}
               </div>
+
+              <Button className="mt-6 w-full h-12 bg-[#0b3d2e] text-white hover:bg-[#0a3225]">
+                Garantir minha inscrição
+              </Button>
+              <p className="mt-3 text-xs text-[#7a8c81]">Pagamento seguro e confirmação imediata.</p>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Inscrição</h3>
-                <div className="h-1 w-12 bg-[#004d00] rounded-full mt-1" />
+            <div className="rounded-2xl border border-[#dfe8df] bg-white p-5 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-[#0b3d2e]/10 text-[#0b3d2e] flex items-center justify-center font-bold">
+                {organizerInitials}
               </div>
-              <div className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-muted-foreground">
-                {tickets.length === 0 ? (
-                  "Nenhum ingresso cadastrado entre em contato com um organizador"
-                ) : (
-                  <div className="space-y-2">
-                    {tickets.map((ticket: any) => (
-                      <div key={ticket.id} className="flex items-center justify-between">
-                        <span className="font-medium text-foreground">{ticket.name}</span>
-                        <span className="text-[#004d00] font-semibold">
-                          {Number(ticket.price) === 0 ? "Grátis" : `R$ ${ticket.price}`}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-[#0b3d2e]">{organizerName}</p>
+                <p className="text-xs text-[#7a8c81]">Organizador oficial</p>
               </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">Realização</h3>
-              <div className="rounded-xl border border-slate-200 p-4 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-[#004d00]/10 text-[#004d00] flex items-center justify-center font-bold">
-                  {organizerInitials}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-foreground">{organizerName}</p>
-                  <p className="text-xs text-muted-foreground">Organizador oficial</p>
-                </div>
-                <Button variant="outline" className="border-[#004d00] text-[#004d00] hover:bg-[#004d00]/10">
-                  Falar com o organizador
-                </Button>
-              </div>
+              <Button variant="outline" className="border-[#0b3d2e] text-[#0b3d2e] hover:bg-[#0b3d2e]/10">
+                Falar com o organizador
+              </Button>
             </div>
           </div>
-        </div>
+        </section>
+
+        <section className="grid gap-6 md:grid-cols-3">
+          <div className="rounded-2xl border border-[#dfe8df] bg-white p-5">
+            <h3 className="text-sm font-semibold text-[#0b3d2e]">Sobre o evento</h3>
+            <p className="text-sm text-[#4b6355] mt-2">
+              Este evento foi pensado para proporcionar uma experiência acolhedora, com organização profissional e suporte completo.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-[#dfe8df] bg-white p-5">
+            <h3 className="text-sm font-semibold text-[#0b3d2e]">O que está incluso</h3>
+            <ul className="mt-2 space-y-2 text-sm text-[#4b6355]">
+              <li>• Confirmação imediata da inscrição</li>
+              <li>• Suporte dedicado ao participante</li>
+              <li>• Credenciamento rápido no dia do evento</li>
+            </ul>
+          </div>
+          <div className="rounded-2xl border border-[#dfe8df] bg-white p-5">
+            <h3 className="text-sm font-semibold text-[#0b3d2e]">Precisa de ajuda?</h3>
+            <p className="text-sm text-[#4b6355] mt-2">Nosso time está disponível para tirar suas dúvidas antes da inscrição.</p>
+            <Button variant="outline" className="mt-4 border-[#0b3d2e] text-[#0b3d2e] hover:bg-[#0b3d2e]/10">
+              Falar com atendimento
+            </Button>
+          </div>
+        </section>
       </main>
 
       <footer className="max-w-6xl mx-auto px-4 pb-16">
         <div className="bg-white rounded-2xl shadow-sm p-6 grid gap-6 md:grid-cols-3">
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-foreground">Formas de pagamento</h4>
-            <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+            <h4 className="text-sm font-semibold text-[#0b3d2e]">Formas de pagamento</h4>
+            <div className="grid grid-cols-3 gap-2 text-xs text-[#7a8c81]">
               {["Visa", "Mastercard", "Elo", "Diners", "Amex", "Boleto", "Pix"].map((item) => (
-                <div key={item} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-center font-medium">
+                <div key={item} className="rounded-md border border-[#dfe8df] bg-[#f6f8f6] px-2 py-2 text-center font-medium">
                   {item}
                 </div>
               ))}
@@ -224,16 +256,16 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-foreground">Certificados</h4>
-            <div className="flex items-center gap-2 rounded-lg border border-[#004d00]/20 bg-[#004d00]/5 px-3 py-2 text-sm font-semibold text-[#004d00]">
+            <h4 className="text-sm font-semibold text-[#0b3d2e]">Certificados</h4>
+            <div className="flex items-center gap-2 rounded-lg border border-[#0b3d2e]/20 bg-[#0b3d2e]/5 px-3 py-2 text-sm font-semibold text-[#0b3d2e]">
               <Lock className="w-4 h-4" /> SITE 100% SEGURO
             </div>
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-foreground">Precisa de ajuda?</h4>
-            <a href="#" className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-foreground hover:border-[#004d00]">
-              <Headset className="w-5 h-5 text-[#004d00]" />
+            <h4 className="text-sm font-semibold text-[#0b3d2e]">Precisa de ajuda?</h4>
+            <a href="#" className="flex items-center gap-3 rounded-lg border border-[#dfe8df] bg-[#f6f8f6] px-4 py-3 text-sm font-medium text-[#0b3d2e] hover:border-[#0b3d2e]">
+              <Headset className="w-5 h-5 text-[#0b3d2e]" />
               Central de atendimento - Tire suas dúvidas aqui
             </a>
           </div>
