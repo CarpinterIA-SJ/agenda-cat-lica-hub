@@ -9,7 +9,7 @@ import RoleSelectPage from "./pages/RoleSelectPage";
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardPage from "./pages/DashboardPage";
 import MyTicketsPage from "./pages/MyTicketsPage";
-import ExploreEventsPage from "./pages/ExploreEventsPage";
+import ExploreEventsPage, { PublicEventPage } from "./pages/ExploreEventsPage";
 import SupportPage from "./pages/SupportPage";
 import OrganizerEventsPage from "./pages/OrganizerEventsPage";
 import CRMPage from "./pages/CRMPage";
@@ -528,6 +528,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/role-select" element={<ProtectedRoute><RoleSelectPage /></ProtectedRoute>} />
+            <Route path="/evento/:slug" element={<PublicEventPage />} />
 
             <Route
               path="/organizador/meus-eventos"

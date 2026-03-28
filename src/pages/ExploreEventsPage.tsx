@@ -9,20 +9,31 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus, Search, Calendar, MapPin, Users, Ticket, User, Mail, ChevronRight,
-  Phone, Hash, CreditCard, AlertTriangle, Fingerprint,
+  Phone, Hash, CreditCard, AlertTriangle, Fingerprint, Video, ArrowRight, Lock,
+  Headset, MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
+import { useParams } from "react-router-dom";
 
 const mockEvents = [
   {
     id: 1,
     name: "Retiro de Quaresma",
+    slug: "retiro-de-quaresma",
     date: "28 Mar 2026",
+    time: "09:00",
+    startDateTime: "2026-03-28T09:00:00",
     location: "Paróquia São José",
-    type: "Presencial",
+    type: "Evento presencial",
     attendees: 120,
     status: "Ativo",
+    policies: {
+      title: "Política de cancelamento",
+      text: "Cancelamentos podem ser solicitados até 7 dias antes do evento. Após esse período, entre em contato com a organização.",
+      link: "#",
+    },
+    organizerName: "Guardião Eventos",
     details: {
       tickets: [{ id: "1", name: "Inscrição Geral", price: "0" }],
       formFields: [
@@ -33,6 +44,212 @@ const mockEvents = [
     },
   },
 ];
+
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-");
+
+export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
+  const { slug } = useParams();
+  const [eventData, setEventData] = useState<any>(eventProp || null);
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+  useEffect(() => {
+    if (eventProp) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem("custom_events") || "[]");
+      const list = [...stored, ...mockEvents];
+      const found = list.find((item) => (item.slug || slugify(item.name)) === slug);
+      setEventData(found || list[0]);
+    } catch {
+      setEventData(mockEvents[0]);
+    }
+  }, [eventProp, slug]);
+
+  const eventDate = useMemo(() => {
+    if (!eventData) return null;
+    if (eventData.startDateTime) return new Date(eventData.startDateTime);
+    if (eventData.date) return new Date(`${eventData.date} ${eventData.time || ""}`);
+    return null;
+  }, [eventData]);
+
+  useEffect(() => {
+    if (!eventDate) return;
+    const update = () => {
+      const diff = Math.max(eventDate.getTime() - Date.now(), 0);
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+      setCountdown({ days, hours, minutes, seconds });
+    };
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [eventDate]);
+
+  const organizerName = eventData?.organizerName || "Guardião Eventos";
+  const organizerInitials = organizerName
+    .split(" ")
+    .map((part: string) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  const dateLabel = eventData?.date || (eventDate ? eventDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" }) : "");
+  const timeLabel = eventData?.time || (eventDate ? eventDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "");
+  const policies = eventData?.policies || {
+    title: "Política de cancelamento",
+    text: "Entre em contato com o organizador caso precise alterar sua inscrição.",
+    link: "#",
+  };
+  const tickets = eventData?.tickets || eventData?.details?.tickets || [];
+
+  return (
+    <div className="min-h-screen bg-[#f3f4f6] font-sans">
+      <header className="bg-white border-b">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="text-sm font-semibold text-foreground">Guardião Eventos</div>
+          <div className="flex items-center gap-4">
+            <a href="#" className="text-sm font-medium text-[#004d00] hover:underline">Cadastre-se</a>
+            <Button className="h-9 px-5 bg-[#004d00] text-white hover:bg-[#003a00]">Entrar</Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 py-10">
+        <div className="bg-white rounded-3xl shadow-lg p-8 md:p-10 grid gap-10 md:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Evento</p>
+              <h1 className="text-3xl md:text-4xl font-extrabold text-foreground uppercase">
+                {eventData?.name || "Nome do Evento"}
+              </h1>
+            </div>
+            <div className="space-y-3 text-sm text-foreground">
+              <div className="flex items-center gap-3">
+                <Calendar className="w-5 h-5 text-[#004d00]" />
+                <span>{dateLabel} {timeLabel ? `às ${timeLabel}` : ""}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Video className="w-5 h-5 text-[#004d00]" />
+                <span>{eventData?.type || "Evento online"}</span>
+              </div>
+            </div>
+            <div className="h-px w-full bg-slate-200" />
+            <div className="space-y-2">
+              <h2 className="text-sm font-semibold text-foreground">{policies.title}</h2>
+              <p className="text-sm text-muted-foreground">{policies.text}</p>
+              <a href={policies.link} className="inline-flex items-center gap-1 text-sm font-medium text-[#004d00] hover:underline">
+                Saiba mais <ArrowRight className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+
+          <div className="space-y-8">
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">Contagem regressiva</h3>
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { label: "Dias", value: countdown.days },
+                  { label: "Horas", value: countdown.hours },
+                  { label: "Min", value: countdown.minutes },
+                  { label: "Seg", value: countdown.seconds },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-100 px-3 py-4 text-center">
+                    <div className="text-2xl font-bold text-foreground">{String(item.value).padStart(2, "0")}</div>
+                    <div className="text-[10px] uppercase text-muted-foreground">{item.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Inscrição</h3>
+                <div className="h-1 w-12 bg-[#004d00] rounded-full mt-1" />
+              </div>
+              <div className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-muted-foreground">
+                {tickets.length === 0 ? (
+                  "Nenhum ingresso cadastrado entre em contato com um organizador"
+                ) : (
+                  <div className="space-y-2">
+                    {tickets.map((ticket: any) => (
+                      <div key={ticket.id} className="flex items-center justify-between">
+                        <span className="font-medium text-foreground">{ticket.name}</span>
+                        <span className="text-[#004d00] font-semibold">
+                          {Number(ticket.price) === 0 ? "Grátis" : `R$ ${ticket.price}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">Realização</h3>
+              <div className="rounded-xl border border-slate-200 p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-[#004d00]/10 text-[#004d00] flex items-center justify-center font-bold">
+                  {organizerInitials}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-foreground">{organizerName}</p>
+                  <p className="text-xs text-muted-foreground">Organizador oficial</p>
+                </div>
+                <Button variant="outline" className="border-[#004d00] text-[#004d00] hover:bg-[#004d00]/10">
+                  Falar com o organizador
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer className="max-w-6xl mx-auto px-4 pb-16">
+        <div className="bg-white rounded-2xl shadow-sm p-6 grid gap-6 md:grid-cols-3">
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-foreground">Formas de pagamento</h4>
+            <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+              {["Visa", "Mastercard", "Elo", "Diners", "Amex", "Boleto", "Pix"].map((item) => (
+                <div key={item} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-center font-medium">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-foreground">Certificados</h4>
+            <div className="flex items-center gap-2 rounded-lg border border-[#004d00]/20 bg-[#004d00]/5 px-3 py-2 text-sm font-semibold text-[#004d00]">
+              <Lock className="w-4 h-4" /> SITE 100% SEGURO
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-foreground">Precisa de ajuda?</h4>
+            <a href="#" className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-foreground hover:border-[#004d00]">
+              <Headset className="w-5 h-5 text-[#004d00]" />
+              Central de atendimento - Tire suas dúvidas aqui
+            </a>
+          </div>
+        </div>
+      </footer>
+
+      <a
+        href="https://wa.me/"
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-[#25D366] text-white shadow-lg flex items-center justify-center hover:scale-105 transition"
+        aria-label="WhatsApp"
+      >
+        <MessageCircle className="w-6 h-6" />
+      </a>
+    </div>
+  );
+};
 
 const ExploreEventsPage = () => {
   const [search, setSearch] = useState("");
