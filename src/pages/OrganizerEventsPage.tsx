@@ -276,7 +276,7 @@ const OrganizerEventsPage = () => {
                     Visualizar
                   </Button>
                   <Button
-                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
+                    className="w-full sm:w-auto bg-primary hover:bg-primary/90"
                     onClick={() => handleManageEvent(event.id)}
                   >
                     Gerenciar
