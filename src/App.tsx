@@ -44,8 +44,19 @@ import {
   Locate,
   Calendar,
   Clock,
+  Search,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { session, loading } = useAuth();
@@ -614,11 +625,174 @@ const OrganizerEventPreviewPage = () => {
   );
 };
 
-const OrganizerEventIngressosPage = () => (
-  <div className="space-y-4">
-    <h1 className="text-2xl font-semibold text-foreground">Gerenciar ingressos</h1>
-  </div>
-);
+const OrganizerEventIngressosPage = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const [dialogType, setDialogType] = useState<"pago" | "gratuito" | null>(null);
+  const eventName = "FABRICIO CHRISTIAN DA SILVA CAVALCANTE";
+  const tabs = [
+    { label: "Informações gerais", icon: Info },
+    { label: "Página do evento", icon: Globe },
+    { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos`, active: true },
+    { label: "Pagamento", icon: CreditCard },
+    { label: "Formulário de inscrição", icon: ClipboardList },
+    { label: "Mensagens", icon: MessageSquare },
+  ];
+  const totalPages = 0;
+  const currentPage = 1;
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] -m-6 p-6 bg-slate-100/70 space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-foreground">{eventName}</h1>
+          <button
+            onClick={() => navigate("/organizador/meus-eventos")}
+            className="text-sm text-muted-foreground hover:text-[#004d00]"
+          >
+            Meus eventos &gt; {eventName}
+          </button>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button
+            variant="outline"
+            className="border-slate-300 text-slate-600 hover:bg-slate-100"
+            onClick={() => navigate(`/organizador/evento/${id}/dashboard`)}
+          >
+            Voltar para o painel do evento
+          </Button>
+          <Button
+            variant="outline"
+            className="border-slate-300 text-slate-600 hover:bg-slate-100"
+            onClick={() => navigate("/organizador/meus-eventos")}
+          >
+            Meus eventos
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-2">
+        {tabs.map((tab) => (
+          <button
+            key={tab.label}
+            type="button"
+            onClick={() => tab.route && navigate(tab.route)}
+            className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${
+              tab.active
+                ? "bg-emerald-50 text-[#004d00]"
+                : "text-slate-500 hover:bg-slate-50 hover:text-[#004d00]"
+            }`}
+          >
+            <tab.icon className={`h-4 w-4 ${tab.active ? "text-[#004d00]" : "text-slate-400"}`} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <Card className="bg-white rounded-2xl">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="w-fit border-b-4 border-[#004d00] pb-1">
+              <CardTitle className="text-lg">Ingressos</CardTitle>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              className="bg-[#004d00] text-white hover:bg-[#003a00]"
+              onClick={() => setDialogType("pago")}
+            >
+              + Ingresso pago
+            </Button>
+            <Button
+              variant="outline"
+              className="border-emerald-200 bg-emerald-50 text-[#004d00] hover:bg-emerald-100"
+              onClick={() => setDialogType("gratuito")}
+            >
+              + Ingresso gratuito
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input className="pl-9" placeholder="Buscar..." />
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-slate-200">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Nome</th>
+                  <th className="px-4 py-3 text-left font-medium">Quantidade</th>
+                  <th className="px-4 py-3 text-left font-medium">Preço</th>
+                  <th className="px-4 py-3 text-left font-medium">Status</th>
+                  <th className="px-4 py-3 text-left font-medium">Visibilidade</th>
+                  <th className="px-4 py-3 text-left font-medium">Repassar taxas</th>
+                  <th className="px-4 py-3 text-left font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colSpan={7} className="bg-slate-50 px-4 py-12 text-center text-slate-500">
+                    Nenhum dado adicionado.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-slate-200 pt-4">
+            <span className="text-xs text-slate-500">Exibindo {currentPage} de {totalPages} páginas</span>
+            <div className="flex items-center gap-2">
+              <button className="h-8 w-8 rounded-full border border-slate-200 text-slate-400 hover:text-[#004d00]">
+                <ChevronLeft className="h-4 w-4 mx-auto" />
+              </button>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#004d00] text-xs font-semibold text-white">
+                {currentPage}
+              </span>
+              <button className="h-8 w-8 rounded-full border border-slate-200 text-slate-400 hover:text-[#004d00]">
+                <ChevronRight className="h-4 w-4 mx-auto" />
+              </button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!dialogType} onOpenChange={(open) => !open && setDialogType(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Adicionar ingresso {dialogType === "pago" ? "pago" : "gratuito"}
+            </DialogTitle>
+            <DialogDescription>Preencha os dados do novo ingresso.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Nome</label>
+              <Input placeholder="Nome do ingresso" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Quantidade</label>
+              <Input placeholder="0" type="number" />
+            </div>
+            {dialogType === "pago" && (
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Preço</label>
+                <Input placeholder="R$ 0,00" />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogType(null)}>
+              Cancelar
+            </Button>
+            <Button className="bg-[#004d00] text-white hover:bg-[#003a00]">Salvar ingresso</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
 
 const OrganizerEventParticipantesPage = () => (
   <div className="space-y-4">
