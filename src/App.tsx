@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   ExternalLink,
@@ -666,7 +667,7 @@ const OrganizerEventIngressosPage = () => {
     { label: "Informações gerais", icon: Info },
     { label: "Página do evento", icon: Globe },
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos`, active: true },
-    { label: "Pagamento", icon: CreditCard },
+    { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/configuracoes/pagamento` },
     { label: "Formulário de inscrição", icon: ClipboardList },
     { label: "Mensagens", icon: MessageSquare },
   ];
@@ -1662,7 +1663,7 @@ const OrganizerEventConfiguracoesPage = () => {
     { label: "Informações gerais", icon: Info, active: true },
     { label: "Página do evento", icon: Globe, route: `/organizador/evento/${id}/configuracoes/pagina` },
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
-    { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/financeiro` },
+    { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/configuracoes/pagamento` },
     { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/participantes` },
     { label: "Mensagens", icon: MessageSquare },
   ];
@@ -1948,7 +1949,7 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
     { label: "Informações gerais", icon: Info, route: `/organizador/evento/${id}/configuracoes` },
     { label: "Página do evento", icon: Globe, active: true },
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
-    { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/financeiro` },
+    { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/configuracoes/pagamento` },
     { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/participantes` },
     { label: "Mensagens", icon: MessageSquare },
   ];
@@ -2102,7 +2103,7 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
           <p className="text-sm text-muted-foreground">Adicione as imagens de divulgação que aparecerão na página pública.</p>
         </CardHeader>
         <CardContent className="grid gap-4 lg:grid-cols-2">
-          {[{
+          [{
             title: "Imagem da divulgação mobile",
             details: "400px x 300px · JPEG ou PNG · até 3MB",
           }, {
@@ -2121,7 +2122,7 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
                 Selecionar imagem
               </Button>
             </div>
-          ))}
+          ))
         </CardContent>
       </Card>
 
@@ -2152,6 +2153,189 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
               De acordo com o CDC Art. 49, compras online têm direito de arrependimento em até 7 dias. Ajuste as políticas
               para respeitar esse prazo mínimo.
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button className="bg-[#004d00] text-white hover:bg-[#003a00]">Salvar</Button>
+      </div>
+    </div>
+  );
+};
+
+const OrganizerEventPagamentoConfiguracoesPage = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const eventName = "FABRICIO CHRISTIAN DA SILVA CAVALCANTE";
+  const [creditEnabled, setCreditEnabled] = useState(true);
+  const [pixEnabled, setPixEnabled] = useState(false);
+  const [boletoEnabled, setBoletoEnabled] = useState(false);
+  const [pixPrazo, setPixPrazo] = useState("30");
+  const [pixUnit, setPixUnit] = useState("minutos");
+  const [boletoPrazo, setBoletoPrazo] = useState("2");
+  const [autoCancel, setAutoCancel] = useState(true);
+
+  const tabs = [
+    { label: "Informações gerais", icon: Info, route: `/organizador/evento/${id}/configuracoes` },
+    { label: "Página do evento", icon: Globe, route: `/organizador/evento/${id}/configuracoes/pagina` },
+    { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
+    { label: "Pagamento", icon: CreditCard, active: true },
+    { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/participantes` },
+    { label: "Mensagens", icon: MessageSquare },
+  ];
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] -m-6 p-6 bg-slate-100/70 space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-foreground">{eventName}</h1>
+          <button
+            onClick={() => navigate("/organizador/meus-eventos")}
+            className="text-sm text-muted-foreground hover:text-[#004d00]"
+          >
+            Meus eventos &gt; {eventName}
+          </button>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button
+            variant="outline"
+            className="border-slate-300 text-slate-600 hover:bg-slate-100"
+            onClick={() => navigate(`/organizador/evento/${id}/dashboard`)}
+          >
+            Voltar para o painel do evento
+          </Button>
+          <Button
+            variant="outline"
+            className="border-slate-300 text-slate-600 hover:bg-slate-100"
+            onClick={() => navigate("/organizador/meus-eventos")}
+          >
+            Meus eventos
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-2">
+        {tabs.map((tab) => (
+          <button
+            key={tab.label}
+            type="button"
+            onClick={() => tab.route && navigate(tab.route)}
+            className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${
+              tab.active
+                ? "bg-emerald-50 text-[#004d00]"
+                : "text-slate-500 hover:bg-slate-50 hover:text-[#004d00]"
+            }`}
+          >
+            <tab.icon className={`h-4 w-4 ${tab.active ? "text-[#004d00]" : "text-slate-400"}`} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <Card className="rounded-2xl bg-white shadow-sm">
+        <CardHeader>
+          <CardTitle>Formas de pagamento disponíveis</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-700">Cartão de crédito</span>
+            <Switch
+              checked={creditEnabled}
+              onCheckedChange={setCreditEnabled}
+              className="data-[state=checked]:bg-[#004d00]"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-700">Pix</span>
+              <Switch
+                checked={pixEnabled}
+                onCheckedChange={setPixEnabled}
+                className="data-[state=checked]:bg-[#004d00]"
+              />
+            </div>
+            {pixEnabled && (
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Prazo para pagamento</label>
+                  <Input
+                    type="number"
+                    value={pixPrazo}
+                    onChange={(event) => setPixPrazo(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-500">Unidade</label>
+                  <Select value={pixUnit} onValueChange={setPixUnit}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="minutos">Minutos</SelectItem>
+                      <SelectItem value="horas">Horas</SelectItem>
+                      <SelectItem value="dias">Dias</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-700">Boleto</span>
+              <Switch
+                checked={boletoEnabled}
+                onCheckedChange={setBoletoEnabled}
+                className="data-[state=checked]:bg-[#004d00]"
+              />
+            </div>
+            {boletoEnabled && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-500">Prazo para pagamento</label>
+                <div className="relative max-w-xs">
+                  <Input
+                    type="number"
+                    value={boletoPrazo}
+                    onChange={(event) => setBoletoPrazo(event.target.value)}
+                    className="pr-12"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">dias</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-start gap-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-4 text-sm text-emerald-900">
+            <InfoIcon className="mt-0.5 h-4 w-4 text-[#004d00]" />
+            <div className="space-y-2">
+              <p className="font-medium">Como funciona os recebimentos:</p>
+              <ul className="list-disc space-y-1 pl-4 text-xs text-emerald-900">
+                <li>Pix: saque disponível em até 2 dias úteis após a confirmação.</li>
+                <li>Boleto: saque disponível após 3 dias úteis da compensação.</li>
+                <li>Cartão de crédito: saque liberado em até 30 dias.</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl bg-white shadow-sm">
+        <CardHeader>
+          <CardTitle>Configurações gerais</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-sm text-slate-600">
+              Cancelar pedidos automaticamente após o prazo de pagamento expirado (conforme prazos acima)
+            </span>
+            <Switch
+              checked={autoCancel}
+              onCheckedChange={setAutoCancel}
+              className="data-[state=checked]:bg-[#004d00]"
+            />
           </div>
         </CardContent>
       </Card>
@@ -2248,6 +2432,7 @@ const App = () => (
                 <Route path="/organizador/evento/:id/financeiro/repasse" element={<OrganizerEventRepassePage />} />
                 <Route path="/organizador/evento/:id/configuracoes" element={<OrganizerEventConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/configuracoes/pagina" element={<OrganizerEventPaginaConfiguracoesPage />} />
+                <Route path="/organizador/evento/:id/configuracoes/pagamento" element={<OrganizerEventPagamentoConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/checkins" element={<OrganizerEventCheckinsPage />} />
                 <Route path="/crm" element={<Navigate to="/crm/pessoas" replace />} />
                 <Route path="/crm/:section" element={<CRMPage />} />
