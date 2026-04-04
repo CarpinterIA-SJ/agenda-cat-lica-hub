@@ -79,7 +79,7 @@ const buildOrganizerEventItems = (eventId: string): NavItem[] => [
     roles: ["organizer"],
     children: [
       { title: "Lista de Participantes", url: `/organizador/evento/${eventId}/participantes` },
-      { title: "Fila de Espera", url: `/organizador/evento/${eventId}/participantes/fila` },
+      { title: "Fila de Espera", url: `/organizador/evento/${eventId}/fila-de-espera` },
     ],
   },
   {
