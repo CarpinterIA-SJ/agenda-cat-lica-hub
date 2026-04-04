@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate, Outlet, useNavigate, useParams 
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LoginPage from "./pages/LoginPage";
 import RoleSelectPage from "./pages/RoleSelectPage";
 import DashboardLayout from "./components/DashboardLayout";
@@ -66,6 +66,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { session, loading } = useAuth();
@@ -1550,11 +1552,359 @@ const OrganizerEventRepassePage = () => {
   );
 };
 
-const OrganizerEventConfiguracoesPage = () => (
-  <div className="space-y-4">
-    <h1 className="text-2xl font-semibold text-foreground">Configurações</h1>
-  </div>
-);
+const OrganizerEventConfiguracoesPage = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const { toast } = useToast();
+  const [eventName, setEventName] = useState("FABRICIO CHRISTIAN DA SILVA CAVALCANTE");
+  const [eventType, setEventType] = useState("online");
+  const [organizer, setOrganizer] = useState("guardiao");
+  const [ddi, setDdi] = useState("+55");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
+  const [slug, setSlug] = useState("fabricio-christian");
+  const [category, setCategory] = useState("religioso");
+  const [visibility, setVisibility] = useState("publico");
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadEvent = async () => {
+      if (!id) return;
+      const { data, error } = await supabase
+        .from("events")
+        .select("name, slug, category, visibility, start_date, end_date, support_whatsapp, support_email, event_type")
+        .eq("id", id)
+        .maybeSingle();
+      if (error || !data) return;
+      if (data.name) setEventName(data.name);
+      if (data.slug) setSlug(data.slug);
+      if (data.category) setCategory(data.category);
+      if (data.visibility) setVisibility(data.visibility);
+      if (data.event_type) setEventType(data.event_type);
+      if (data.support_email) setSupportEmail(data.support_email);
+      if (data.support_whatsapp) setWhatsapp(data.support_whatsapp.replace("+", ""));
+      if (data.start_date) {
+        const start = new Date(data.start_date);
+        if (!Number.isNaN(start.getTime())) {
+          setStartDate(start.toISOString().slice(0, 10));
+          setStartTime(start.toISOString().slice(11, 16));
+        }
+      }
+      if (data.end_date) {
+        const end = new Date(data.end_date);
+        if (!Number.isNaN(end.getTime())) {
+          setEndDate(end.toISOString().slice(0, 10));
+          setEndTime(end.toISOString().slice(11, 16));
+        }
+      }
+    };
+
+    loadEvent();
+  }, [id]);
+
+  const handleSave = async () => {
+    if (!id) return;
+    setSaving(true);
+    const start = startDate ? new Date(`${startDate}T${startTime || "00:00"}`).toISOString() : null;
+    const end = endDate ? new Date(`${endDate}T${endTime || "00:00"}`).toISOString() : null;
+
+    const { error } = await supabase
+      .from("events")
+      .update({
+        name: eventName,
+        slug,
+        category,
+        visibility,
+        event_type: eventType,
+        support_whatsapp: whatsapp ? `${ddi}${whatsapp}` : null,
+        support_email: supportEmail,
+        start_date: start,
+        end_date: end,
+      })
+      .eq("id", id);
+
+    setSaving(false);
+
+    if (error) {
+      toast({ title: "Erro ao salvar", description: "Não foi possível atualizar o evento." });
+      return;
+    }
+
+    toast({ title: "Dados atualizados", description: "As informações do evento foram salvas." });
+  };
+
+  const tabs = [
+    { label: "Informações gerais", icon: Info, active: true },
+    { label: "Página do evento", icon: Globe, route: `/organizador/evento/${id}/visualizar` },
+    { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
+    { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/financeiro` },
+    { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/participantes` },
+    { label: "Mensagens", icon: MessageSquare },
+  ];
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] -m-6 p-6 bg-slate-100/70 space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-foreground">{eventName}</h1>
+          <button
+            onClick={() => navigate("/organizador/meus-eventos")}
+            className="text-sm text-muted-foreground hover:text-[#004d00]"
+          >
+            Meus eventos &gt; {eventName}
+          </button>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button
+            variant="outline"
+            className="border-slate-300 text-slate-600 hover:bg-slate-100"
+            onClick={() => navigate(`/organizador/evento/${id}/dashboard`)}
+          >
+            Voltar para o painel do evento
+          </Button>
+          <Button
+            variant="outline"
+            className="border-slate-300 text-slate-600 hover:bg-slate-100"
+            onClick={() => navigate("/organizador/meus-eventos")}
+          >
+            Meus eventos
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-2">
+        {tabs.map((tab) => (
+          <button
+            key={tab.label}
+            type="button"
+            onClick={() => tab.route && navigate(tab.route)}
+            className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${
+              tab.active
+                ? "bg-emerald-50 text-[#004d00]"
+                : "text-slate-500 hover:bg-slate-50 hover:text-[#004d00]"
+            }`}
+          >
+            <tab.icon className={`h-4 w-4 ${tab.active ? "text-[#004d00]" : "text-slate-400"}`} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <Card className="rounded-2xl bg-white shadow-sm">
+        <CardHeader>
+          <CardTitle>Tipo de evento</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RadioGroup value={eventType} onValueChange={setEventType} className="grid gap-3 md:grid-cols-3">
+            {[
+              { value: "presencial", label: "Evento presencial", icon: MapPin },
+              { value: "online", label: "Evento online", icon: Video },
+              { value: "hibrido", label: "Híbrido", icon: Shuffle },
+            ].map((item) => (
+              <label
+                key={item.value}
+                htmlFor={`tipo-${item.value}`}
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-white p-4 transition hover:border-[#004d00]"
+              >
+                <RadioGroupItem id={`tipo-${item.value}`} value={item.value} />
+                <item.icon className="h-5 w-5 text-[#004d00]" />
+                <span className="text-sm font-medium text-foreground">{item.label}</span>
+              </label>
+            ))}
+          </RadioGroup>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl bg-white shadow-sm">
+        <CardHeader>
+          <CardTitle>Organizador</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <Select value={organizer} onValueChange={setOrganizer}>
+              <SelectTrigger className="md:max-w-sm">
+                <SelectValue placeholder="Selecione o organizador" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="guardiao">Guardião Eventos</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button className="bg-[#004d00] text-white hover:bg-[#003a00]">+ Adicionar organizador</Button>
+          </div>
+
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+            Informações de contato serão usadas para notificações de WhatsApp e E-mail sobre vendas e suporte.
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Whatsapp de suporte do evento</label>
+              <div className="flex gap-2">
+                <Select value={ddi} onValueChange={setDdi}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue placeholder="+55" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="+55">+55</SelectItem>
+                    <SelectItem value="+351">+351</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="(00) 00000-0000"
+                  inputMode="tel"
+                  value={whatsapp}
+                  onChange={(event) => setWhatsapp(event.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">E-mail de suporte</label>
+              <Input
+                placeholder="suporte@guardiaoeventos.com"
+                type="email"
+                value={supportEmail}
+                onChange={(event) => setSupportEmail(event.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl bg-white shadow-sm">
+        <CardHeader>
+          <CardTitle>Informações básicas</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Nome do evento</label>
+            <Input
+              placeholder="Informe o nome do evento"
+              value={eventName}
+              onChange={(event) => setEventName(event.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Endereço da página</label>
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <div className="flex flex-1 items-center rounded-md border border-input bg-white">
+                <span className="px-3 text-sm text-muted-foreground">guardiaoeventos.com/</span>
+                <Input
+                  className="border-0 focus-visible:ring-0"
+                  placeholder="meu-evento"
+                  value={slug}
+                  onChange={(event) => setSlug(event.target.value)}
+                />
+              </div>
+              <Button variant="outline" className="border-emerald-600 text-emerald-700 hover:bg-emerald-50">
+                Verificar
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Categoria do evento</label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="religioso">Congressos</SelectItem>
+                  <SelectItem value="seminarios">Seminários</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Visibilidade do evento</label>
+              <RadioGroup value={visibility} onValueChange={setVisibility} className="grid gap-3">
+                <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-slate-200 p-4">
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="publico" />
+                    <span className="text-sm font-medium">Público</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">Aparece para todos na Guardião Eventos.</span>
+                </label>
+                <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-slate-200 p-4">
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="privado" />
+                    <span className="text-sm font-medium">Privado</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">Somente quem tiver o link pode acessar.</span>
+                </label>
+              </RadioGroup>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Início do evento</label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    type="date"
+                    className="pl-9"
+                    value={startDate}
+                    onChange={(event) => setStartDate(event.target.value)}
+                  />
+                </div>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    type="time"
+                    className="pl-9"
+                    value={startTime}
+                    onChange={(event) => setStartTime(event.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Término do evento</label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    type="date"
+                    className="pl-9"
+                    value={endDate}
+                    onChange={(event) => setEndDate(event.target.value)}
+                  />
+                </div>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    type="time"
+                    className="pl-9"
+                    value={endTime}
+                    onChange={(event) => setEndTime(event.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="sticky bottom-0 z-10 -mx-6 border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur">
+        <div className="flex justify-end">
+          <Button
+            className="bg-[#004d00] text-white hover:bg-[#003a00]"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const OrganizerEventCheckinsPage = () => (
   <div className="space-y-4">
