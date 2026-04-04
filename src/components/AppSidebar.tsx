@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   LogOut,
   ChevronDown,
-  ChevronUp,
   Search,
   HelpCircle,
   Calendar,
@@ -23,6 +22,7 @@ import {
   SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarHeader, SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface NavItem {
   title: string;
@@ -62,7 +62,7 @@ const baseNavItems: NavItem[] = [
 
 const buildOrganizerEventItems = (eventId: string): NavItem[] => [
   {
-    title: "Gerenciar",
+    title: "Dashboard",
     url: `/organizador/evento/${eventId}/dashboard`,
     icon: LayoutDashboard,
     roles: ["organizer"],
@@ -71,31 +71,48 @@ const buildOrganizerEventItems = (eventId: string): NavItem[] => [
     title: "Gerenciar ingressos",
     icon: Ticket,
     roles: ["organizer"],
-    children: [{ title: "Visão geral", url: `/organizador/evento/${eventId}/ingressos` }],
+    children: [{ title: "Ingressos", url: `/organizador/evento/${eventId}/ingressos` }],
   },
   {
     title: "Participantes",
     icon: Users,
     roles: ["organizer"],
-    children: [{ title: "Visão geral", url: `/organizador/evento/${eventId}/participantes` }],
+    children: [
+      { title: "Listas de Participantes", url: `/organizador/evento/${eventId}/participantes` },
+      { title: "Fila de Espera", url: `/organizador/evento/${eventId}/participantes/fila` },
+    ],
   },
   {
     title: "Financeiro",
     icon: DollarSign,
     roles: ["organizer"],
-    children: [{ title: "Visão geral", url: `/organizador/evento/${eventId}/financeiro` }],
+    children: [
+      { title: "Histórico de Transações", url: `/organizador/evento/${eventId}/financeiro` },
+      { title: "Cupons de Desconto", url: `/organizador/evento/${eventId}/financeiro/cupons` },
+      { title: "Solicitar Repasse", url: `/organizador/evento/${eventId}/financeiro/repasse` },
+    ],
   },
   {
     title: "Configurações",
     icon: Settings,
     roles: ["organizer"],
-    children: [{ title: "Visão geral", url: `/organizador/evento/${eventId}/configuracoes` }],
+    children: [
+      { title: "Informações Gerais", url: `/organizador/evento/${eventId}/configuracoes` },
+      { title: "Pagina do Evento", url: `/organizador/evento/${eventId}/configuracoes/pagina` },
+      { title: "Pagamento", url: `/organizador/evento/${eventId}/configuracoes/pagamento` },
+      { title: "Formulário de Cadastro", url: `/organizador/evento/${eventId}/configuracoes/formulario` },
+      { title: "Mensagem", url: `/organizador/evento/${eventId}/configuracoes/mensagem` },
+    ],
   },
   {
     title: "Check-ins",
     icon: ClipboardCheck,
     roles: ["organizer"],
-    children: [{ title: "Visão geral", url: `/organizador/evento/${eventId}/checkins` }],
+    children: [
+      { title: "Check-ins", url: `/organizador/evento/${eventId}/checkins` },
+      { title: "Tipos de Check-in", url: `/organizador/evento/${eventId}/checkins/tipos` },
+      { title: "Check-ins realizados", url: `/organizador/evento/${eventId}/checkins/realizados` },
+    ],
   },
 ];
 
@@ -112,10 +129,6 @@ export function AppSidebar() {
   const navItems = isOrganizerEvent ? buildOrganizerEventItems(eventId!) : baseNavItems;
   const filteredNavItems = navItems.filter((item) => item.roles.includes(role || ""));
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-
-  const toggleGroup = (title: string) => {
-    setOpenGroups((prev) => ({ ...prev, [title]: !prev[title] }));
-  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-slate-200 bg-white">
@@ -138,7 +151,7 @@ export function AppSidebar() {
       <SidebarContent className="px-2">
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1.5">
               {filteredNavItems.map((item) => {
                 const hasChildren = item.children && item.children.length > 0;
                 const isItemActive = item.url
@@ -148,47 +161,60 @@ export function AppSidebar() {
 
                 if (hasChildren) {
                   return (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        onClick={() => toggleGroup(item.title)}
-                        tooltip={item.title}
-                        isActive={isItemActive}
-                        className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 data-[active=true]:bg-emerald-50 data-[active=true]:text-emerald-700 rounded-lg transition-colors justify-between"
-                      >
-                        <span className="flex items-center gap-2">
-                          <item.icon className="w-5 h-5 shrink-0" />
-                          {!collapsed && <span>{item.title}</span>}
-                        </span>
-                        {!collapsed && (isOpen ? <ChevronUp className="w-4 h-4 opacity-50" /> : <ChevronDown className="w-4 h-4 opacity-50" />)}
-                      </SidebarMenuButton>
-                      {!collapsed && isOpen && (
-                        <div className="ml-7 mt-1 space-y-0.5 border-l border-sidebar-border pl-3">
-                          {item.children!.map((child) => (
-                            <NavLink
-                              key={child.title}
-                              to={child.url}
-                              className="block text-sm py-1.5 px-2 rounded text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
-                              activeClassName="text-emerald-700 font-medium bg-emerald-50"
-                            >
-                              {child.title}
-                            </NavLink>
-                          ))}
-                        </div>
-                      )}
-                    </SidebarMenuItem>
+                    <Collapsible
+                      key={item.title}
+                      open={isOpen}
+                      onOpenChange={(open) => setOpenGroups((prev) => ({ ...prev, [item.title]: open }))}
+                    >
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
+                            tooltip={item.title}
+                            isActive={isItemActive}
+                            className="py-2.5 text-slate-700 hover:bg-emerald-50 hover:text-[#004d00] data-[active=true]:bg-emerald-50 data-[active=true]:text-[#004d00] rounded-lg transition-colors justify-between"
+                          >
+                            <span className="flex items-center gap-2">
+                              <item.icon className="w-5 h-5 shrink-0 text-[#004d00]" />
+                              {!collapsed && <span>{item.title}</span>}
+                            </span>
+                            {!collapsed && (
+                              <ChevronDown
+                                className={`w-4 h-4 opacity-60 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                              />
+                            )}
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        {!collapsed && (
+                          <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
+                            <div className="ml-7 mt-1 space-y-1 border-l border-slate-200 pl-3">
+                              {item.children!.map((child) => (
+                                <NavLink
+                                  key={child.title}
+                                  to={child.url}
+                                  className="block text-[13px] py-1.5 px-2 rounded text-slate-500 hover:text-[#004d00] hover:bg-emerald-50 transition-colors"
+                                  activeClassName="text-[#004d00] font-medium bg-emerald-50"
+                                >
+                                  {child.title}
+                                </NavLink>
+                              ))}
+                            </div>
+                          </CollapsibleContent>
+                        )}
+                      </SidebarMenuItem>
+                    </Collapsible>
                   );
                 }
 
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild tooltip={item.title}>
+                    <SidebarMenuButton asChild tooltip={item.title} className="py-2.5">
                       <NavLink
                         to={item.url!}
                         end={item.url === "/dashboard"}
-                        className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-colors"
-                        activeClassName="bg-emerald-50 text-emerald-700 font-medium"
+                        className="text-slate-700 hover:bg-emerald-50 hover:text-[#004d00] rounded-lg transition-colors"
+                        activeClassName="bg-emerald-50 text-[#004d00] font-medium"
                       >
-                        <item.icon className="w-5 h-5 shrink-0" />
+                        <item.icon className="w-5 h-5 shrink-0 text-[#004d00]" />
                         {!collapsed && <span>{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>

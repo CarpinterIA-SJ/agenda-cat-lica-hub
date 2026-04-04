@@ -3,7 +3,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import {
   User, LogOut, LayoutGrid, Moon, Sun, MessageCircle,
-  Calendar, Users2, Headset, Home, Ticket, Mail, Users, HelpCircle,
+  Calendar, Users2, Headset, Home, Ticket, Mail, Users, HelpCircle, Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,11 +15,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { useEffect, useState } from "react";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const DashboardLayout = () => {
   const { user, signOut, role, setRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useIsMobile();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") return "light";
     const stored = localStorage.getItem("theme");
@@ -31,6 +35,12 @@ const DashboardLayout = () => {
     document.documentElement.classList.toggle("dark", theme === "dark");
     localStorage.setItem("theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (drawerOpen) {
+      setDrawerOpen(false);
+    }
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     await signOut();
@@ -63,11 +73,23 @@ const DashboardLayout = () => {
 
   const content = (
     <div className="min-h-screen flex w-full">
-      {showSidebar && <AppSidebar />}
+      {showSidebar && !isMobile && <AppSidebar />}
       <div className="flex-1 flex flex-col">
         <header className="h-14 flex items-center justify-between border-b bg-card px-4">
           <div className="flex items-center gap-2">
-            {showSidebar && <SidebarTrigger />}
+            {showSidebar && !isMobile && <SidebarTrigger />}
+            {showSidebar && isMobile && (
+              <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+                <DrawerTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </DrawerTrigger>
+                <DrawerContent className="left-0 right-auto top-0 bottom-0 h-full w-72 rounded-none p-0">
+                  <AppSidebar />
+                </DrawerContent>
+              </Drawer>
+            )}
             <span className="text-sm font-medium text-muted-foreground hidden sm:block">
               {role === "organizer" ? "Painel do Organizador" : "Área do Participante"}
             </span>
