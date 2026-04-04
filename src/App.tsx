@@ -53,6 +53,9 @@ import {
   CheckSquare,
   FileText,
   Filter,
+  CheckCircle2,
+  Percent,
+  HandCoins,
 } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import {
@@ -1219,11 +1222,164 @@ const OrganizerEventCuponsPage = () => {
   );
 };
 
-const OrganizerEventFinanceiroPage = () => (
-  <div className="space-y-4">
-    <h1 className="text-2xl font-semibold text-foreground">Financeiro</h1>
-  </div>
-);
+const OrganizerEventFinanceiroPage = () => {
+  const navigate = useNavigate();
+
+  const stats = [
+    {
+      label: "Total líquido",
+      value: "R$ 0,00",
+      icon: CheckCircle2,
+      colors: "bg-emerald-50 text-emerald-700",
+    },
+    {
+      label: "Total pendentes",
+      value: "R$ 0,00",
+      icon: AlertTriangle,
+      colors: "bg-orange-50 text-orange-600",
+    },
+    {
+      label: "Total cancelados",
+      value: "R$ 0,00",
+      icon: Percent,
+      colors: "bg-red-50 text-red-600",
+    },
+    {
+      label: "Aguardando liberação",
+      value: "R$ 0,00",
+      icon: Clock,
+      colors: "bg-orange-50 text-orange-600",
+    },
+    {
+      label: "Total a receber",
+      value: "R$ 0,00",
+      icon: Wallet,
+      colors: "bg-emerald-50 text-emerald-700",
+    },
+    {
+      label: "Total recebido",
+      value: "R$ 0,00",
+      icon: HandCoins,
+      colors: "bg-emerald-50 text-emerald-700",
+    },
+  ];
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] -m-6 p-6 bg-slate-100/70 space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold uppercase text-foreground">FABRICIO CHRISTIAN DA SILVA CAVALCANTE</h1>
+            <ExternalLink className="h-4 w-4 text-[#004d00]" />
+          </div>
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4 text-[#004d00]" />
+            21/10/2026 às 12:00 até 22/10/2026 às 18:00
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="border-slate-300 text-slate-600 hover:bg-slate-100"
+          onClick={() => navigate("/organizador/meus-eventos")}
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Voltar para os meus eventos
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-4 rounded-2xl border border-orange-200 bg-orange-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-orange-900">
+          Atualize os seus dados cadastrais na Guardião Eventos. Esse cadastro é necessário para solicitar repasses de seu
+          evento...
+        </p>
+        <Button className="bg-orange-500 text-white hover:bg-orange-600">Atualizar dados</Button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {stats.map((stat) => (
+          <Card
+            key={stat.label}
+            className="bg-white rounded-2xl border border-slate-200 shadow-sm transition hover:shadow-md"
+          >
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className={`h-12 w-12 rounded-full flex items-center justify-center ${stat.colors}`}>
+                <stat.icon className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-slate-500">{stat.label}</p>
+                <p className="text-2xl font-semibold text-slate-900">{stat.value}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="bg-white rounded-2xl shadow-sm">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="w-fit border-b-4 border-[#004d00] pb-1">
+              <CardTitle className="text-lg">Histórico de transações</CardTitle>
+            </div>
+          </div>
+          <Button variant="outline" className="border-slate-200 text-slate-600 hover:bg-slate-50">
+            <FileText className="h-4 w-4" />
+            Exportar relatório
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative max-w-sm w-full">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input className="pl-9" placeholder="Buscar..." />
+            </div>
+            <Button variant="outline" className="border-slate-200 text-slate-500 hover:bg-slate-50">
+              <Filter className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-slate-200">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold">Cod Pedido</th>
+                  <th className="px-4 py-3 text-left font-semibold">Nome responsável</th>
+                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold">Data</th>
+                  <th className="px-4 py-3 text-left font-semibold">Forma de pagamento</th>
+                  <th className="px-4 py-3 text-left font-semibold">Valor líquido</th>
+                  <th className="px-4 py-3 text-left font-semibold">Status Pagamento</th>
+                  <th className="px-4 py-3 text-left font-semibold">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colSpan={8} className="bg-slate-50 px-4 py-12 text-center text-slate-500">
+                    Nenhum dado adicionado.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-slate-200 pt-4">
+            <span className="text-xs text-slate-500">Exibindo 1 de 0 páginas</span>
+            <div className="flex items-center gap-2">
+              <button className="h-8 w-8 rounded-full border border-slate-200 text-slate-400 hover:text-[#004d00]">
+                <ChevronLeft className="h-4 w-4 mx-auto" />
+              </button>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#004d00] text-xs font-semibold text-white">
+                1
+              </span>
+              <button className="h-8 w-8 rounded-full border border-slate-200 text-slate-400 hover:text-[#004d00]">
+                <ChevronRight className="h-4 w-4 mx-auto" />
+              </button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 const OrganizerEventConfiguracoesPage = () => (
   <div className="space-y-4">
