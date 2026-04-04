@@ -1381,6 +1381,175 @@ const OrganizerEventFinanceiroPage = () => {
   );
 };
 
+const OrganizerEventRepassePage = () => {
+  const navigate = useNavigate();
+  const [openDialog, setOpenDialog] = useState(false);
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] -m-6 p-6 bg-slate-100/70 space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold uppercase text-foreground">FABRICIO CHRISTIAN DA SILVA CAVALCANTE</h1>
+            <ExternalLink className="h-4 w-4 text-[#004d00]" />
+          </div>
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4 text-[#004d00]" />
+            21/10/2026 às 12:00 até 22/10/2026 às 18:00
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="border-slate-300 text-slate-600 hover:bg-slate-100"
+          onClick={() => navigate("/organizador/meus-eventos")}
+        >
+          Voltar para os meus eventos
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-4 rounded-2xl border border-orange-200 bg-orange-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-orange-900">
+          Atualize os seus dados cadastrais na Guardião Eventos. Esse cadastro é necessário para solicitar repasses de seu evento...
+        </p>
+        <Button className="bg-orange-500 text-white hover:bg-orange-600">Atualizar dados</Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {[
+          { title: "Total a receber", value: "R$ 0,00", icon: Wallet, color: "bg-emerald-50 text-emerald-700" },
+          { title: "Total recebido", value: "R$ 0,00", icon: HandCoins, color: "bg-emerald-50 text-emerald-600" },
+          { title: "Aguardando liberação", value: "R$ 0,00", icon: Clock, color: "bg-orange-50 text-orange-600" },
+        ].map((stat) => (
+          <Card key={stat.title} className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className={`h-12 w-12 rounded-full flex items-center justify-center ${stat.color}`}>
+                <stat.icon className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-slate-500">{stat.title}</p>
+                <p className="text-2xl font-semibold text-slate-900">{stat.value}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="bg-white rounded-2xl shadow-sm">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <span className="text-xs uppercase text-slate-400">Financeiro</span>
+            <div className="w-fit border-b-4 border-[#004d00] pb-1">
+              <CardTitle className="text-lg">Repasses efetuados</CardTitle>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              className="bg-emerald-50 text-[#004d00] hover:bg-emerald-100"
+              onClick={() => setOpenDialog(true)}
+            >
+              Solicitar repasse
+            </Button>
+            <Button
+              variant="outline"
+              className="border-emerald-100 bg-emerald-50 text-emerald-300 cursor-not-allowed"
+            >
+              Solicitar antecipação
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative max-w-sm w-full">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input className="pl-9" placeholder="Pesquisar..." />
+            </div>
+            <Button variant="outline" className="border-slate-200 text-slate-500 hover:bg-slate-50">
+              <Filter className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-slate-200">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold">Solicitação</th>
+                  <th className="px-4 py-3 text-left font-semibold">Data da transferência</th>
+                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold">Valor líquido</th>
+                  <th className="px-4 py-3 text-left font-semibold">Ver Comprovante</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colSpan={5} className="bg-slate-50 px-4 py-12 text-center text-slate-500">
+                    Nenhum dado adicionado.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-slate-200 pt-4">
+            <span className="text-xs text-slate-500">Exibindo 1 de 0 páginas</span>
+            <div className="flex items-center gap-2">
+              <button className="h-8 w-8 rounded-full border border-slate-200 text-slate-400 hover:text-[#004d00]">
+                <ChevronLeft className="h-4 w-4 mx-auto" />
+              </button>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#004d00] text-xs font-semibold text-white">
+                1
+              </span>
+              <button className="h-8 w-8 rounded-full border border-slate-200 text-slate-400 hover:text-[#004d00]">
+                <ChevronRight className="h-4 w-4 mx-auto" />
+              </button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Solicitar repasse</DialogTitle>
+            <DialogDescription>Informe os dados da conta bancária para receber o saldo do evento.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-900">
+              <span>Saldo disponível</span>
+              <span className="font-semibold">R$ 0,00</span>
+            </div>
+            <div className="grid gap-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Banco</label>
+                <Input placeholder="Nome do banco" />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Agência</label>
+                  <Input placeholder="0000" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Conta</label>
+                  <Input placeholder="00000-0" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Titular</label>
+                <Input placeholder="Nome completo" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenDialog(false)}>
+              Cancelar
+            </Button>
+            <Button className="bg-[#004d00] text-white hover:bg-[#003a00]">Enviar solicitação</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
 const OrganizerEventConfiguracoesPage = () => (
   <div className="space-y-4">
     <h1 className="text-2xl font-semibold text-foreground">Configurações</h1>
@@ -1469,6 +1638,7 @@ const App = () => (
                 <Route path="/organizador/evento/:id/fila-de-espera" element={<OrganizerEventFilaDeEsperaPage />} />
                 <Route path="/organizador/evento/:id/financeiro" element={<OrganizerEventFinanceiroPage />} />
                 <Route path="/organizador/evento/:id/financeiro/cupons" element={<OrganizerEventCuponsPage />} />
+                <Route path="/organizador/evento/:id/financeiro/repasse" element={<OrganizerEventRepassePage />} />
                 <Route path="/organizador/evento/:id/configuracoes" element={<OrganizerEventConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/checkins" element={<OrganizerEventCheckinsPage />} />
                 <Route path="/crm" element={<Navigate to="/crm/pessoas" replace />} />
