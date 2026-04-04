@@ -94,6 +94,7 @@ const buildOrganizerEventItems = (eventId: string): NavItem[] => [
   },
   {
     title: "Configurações",
+    url: `/organizador/evento/${eventId}/configuracoes`,
     icon: Settings,
     roles: ["organizer"],
     children: [
@@ -171,6 +172,11 @@ export function AppSidebar() {
                           <SidebarMenuButton
                             tooltip={item.title}
                             isActive={isItemActive}
+                            onClick={() => {
+                              if (collapsed && item.url) {
+                                navigate(item.url);
+                              }
+                            }}
                             className="py-2.5 text-slate-700 hover:bg-emerald-50 hover:text-[#004d00] data-[active=true]:bg-emerald-50 data-[active=true]:text-[#004d00] rounded-lg transition-colors justify-between"
                           >
                             <span className="flex items-center gap-2">
