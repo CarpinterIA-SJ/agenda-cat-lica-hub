@@ -56,6 +56,20 @@ import {
   CheckCircle2,
   Percent,
   HandCoins,
+  Heading1,
+  Heading2,
+  Bold,
+  Italic,
+  Underline,
+  List,
+  ListOrdered,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Link2,
+  Image as ImageIcon,
+  Upload,
+  Info as InfoIcon,
 } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import {
@@ -68,6 +82,13 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import UnderlineExtension from "@tiptap/extension-underline";
+import Link from "@tiptap/extension-link";
+import Image from "@tiptap/extension-image";
+import TextAlign from "@tiptap/extension-text-align";
+import Placeholder from "@tiptap/extension-placeholder";
 
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { session, loading } = useAuth();
@@ -1639,7 +1660,7 @@ const OrganizerEventConfiguracoesPage = () => {
 
   const tabs = [
     { label: "Informações gerais", icon: Info, active: true },
-    { label: "Página do evento", icon: Globe, route: `/organizador/evento/${id}/visualizar` },
+    { label: "Página do evento", icon: Globe, route: `/organizador/evento/${id}/configuracoes/pagina` },
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
     { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/financeiro` },
     { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/participantes` },
@@ -1906,6 +1927,242 @@ const OrganizerEventConfiguracoesPage = () => {
   );
 };
 
+const OrganizerEventPaginaConfiguracoesPage = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const eventName = "FABRICIO CHRISTIAN DA SILVA CAVALCANTE";
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      UnderlineExtension,
+      Link.configure({ openOnClick: false }),
+      Image,
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      Placeholder.configure({ placeholder: "Descreva o evento com detalhes..." }),
+    ],
+    content: "",
+  });
+
+  const tabs = [
+    { label: "Informações gerais", icon: Info, route: `/organizador/evento/${id}/configuracoes` },
+    { label: "Página do evento", icon: Globe, active: true },
+    { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
+    { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/financeiro` },
+    { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/participantes` },
+    { label: "Mensagens", icon: MessageSquare },
+  ];
+
+  const toolbarButton = (active?: boolean) =>
+    `flex items-center justify-center rounded-md border px-2 py-1 text-xs font-medium transition ${
+      active ? "border-emerald-200 bg-emerald-50 text-[#004d00]" : "border-slate-200 text-slate-500 hover:text-[#004d00]"
+    }`;
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] -m-6 p-6 bg-slate-100/70 space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-foreground">{eventName}</h1>
+          <button
+            onClick={() => navigate("/organizador/meus-eventos")}
+            className="text-sm text-muted-foreground hover:text-[#004d00]"
+          >
+            Meus eventos &gt; {eventName}
+          </button>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button
+            variant="outline"
+            className="border-slate-300 text-slate-600 hover:bg-slate-100"
+            onClick={() => navigate(`/organizador/evento/${id}/dashboard`)}
+          >
+            Voltar para o painel do evento
+          </Button>
+          <Button
+            variant="outline"
+            className="border-slate-300 text-slate-600 hover:bg-slate-100"
+            onClick={() => navigate("/organizador/meus-eventos")}
+          >
+            Meus eventos
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-2">
+        {tabs.map((tab) => (
+          <button
+            key={tab.label}
+            type="button"
+            onClick={() => tab.route && navigate(tab.route)}
+            className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${
+              tab.active
+                ? "bg-emerald-50 text-[#004d00]"
+                : "text-slate-500 hover:bg-slate-50 hover:text-[#004d00]"
+            }`}
+          >
+            <tab.icon className={`h-4 w-4 ${tab.active ? "text-[#004d00]" : "text-slate-400"}`} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <Card className="rounded-2xl bg-white shadow-sm">
+        <CardHeader className="space-y-2">
+          <CardTitle>Descrição do evento</CardTitle>
+          <p className="text-sm text-muted-foreground">Conte mais sobre o evento, programação, palestrantes e detalhes.</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2 border border-slate-200 rounded-lg p-2">
+            <button
+              type="button"
+              onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
+              className={toolbarButton(editor?.isActive("heading", { level: 1 }))}
+            >
+              <Heading1 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+              className={toolbarButton(editor?.isActive("heading", { level: 2 }))}
+            >
+              <Heading2 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => editor?.chain().focus().toggleBold().run()}
+              className={toolbarButton(editor?.isActive("bold"))}
+            >
+              <Bold className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => editor?.chain().focus().toggleItalic().run()}
+              className={toolbarButton(editor?.isActive("italic"))}
+            >
+              <Italic className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => editor?.chain().focus().toggleUnderline().run()}
+              className={toolbarButton(editor?.isActive("underline"))}
+            >
+              <Underline className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => editor?.chain().focus().toggleBulletList().run()}
+              className={toolbarButton(editor?.isActive("bulletList"))}
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+              className={toolbarButton(editor?.isActive("orderedList"))}
+            >
+              <ListOrdered className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+              className={toolbarButton(editor?.isActive({ textAlign: "left" }))}
+            >
+              <AlignLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+              className={toolbarButton(editor?.isActive({ textAlign: "center" }))}
+            >
+              <AlignCenter className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+              className={toolbarButton(editor?.isActive({ textAlign: "right" }))}
+            >
+              <AlignRight className="h-4 w-4" />
+            </button>
+            <button type="button" className={toolbarButton()}>
+              <Link2 className="h-4 w-4" />
+            </button>
+            <button type="button" className={toolbarButton()}>
+              <ImageIcon className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="min-h-[220px] rounded-lg border border-slate-200 bg-white p-4">
+            <EditorContent editor={editor} className="prose max-w-none" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl bg-white shadow-sm">
+        <CardHeader className="space-y-2">
+          <CardTitle>Imagens</CardTitle>
+          <p className="text-sm text-muted-foreground">Adicione as imagens de divulgação que aparecerão na página pública.</p>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-2">
+          {[{
+            title: "Imagem da divulgação mobile",
+            details: "400px x 300px · JPEG ou PNG · até 3MB",
+          }, {
+            title: "Imagem da divulgação web",
+            details: "1400px x 733px · JPEG ou PNG · até 5MB",
+          }].map((item) => (
+            <div key={item.title} className="flex flex-col gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-[#004d00]">
+                <Upload className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                <p className="text-xs text-muted-foreground">{item.details}</p>
+              </div>
+              <Button variant="outline" className="mx-auto border-slate-300 text-slate-600 hover:bg-white">
+                Selecionar imagem
+              </Button>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl bg-white shadow-sm">
+        <CardHeader className="space-y-2">
+          <CardTitle>Políticas do evento</CardTitle>
+          <p className="text-sm text-muted-foreground">Defina regras de cancelamento e edição de participantes.</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-3 text-sm text-slate-600">
+            <div className="flex flex-wrap items-center gap-2">
+              <span>Permite solicitar cancelamento de pedido em até</span>
+              <Input type="number" className="h-8 w-20" placeholder="0" />
+              <span>dias após a compra e no mínimo</span>
+              <Input type="number" className="h-8 w-20" placeholder="0" />
+              <span>horas antes do início do evento.</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span>Permite edição de participantes no mínimo</span>
+              <Input type="number" className="h-8 w-20" placeholder="0" />
+              <span>horas antes do início do evento.</span>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 rounded-lg border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
+            <InfoIcon className="mt-0.5 h-4 w-4 text-[#004d00]" />
+            <p>
+              De acordo com o CDC Art. 49, compras online têm direito de arrependimento em até 7 dias. Ajuste as políticas
+              para respeitar esse prazo mínimo.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button className="bg-[#004d00] text-white hover:bg-[#003a00]">Salvar</Button>
+      </div>
+    </div>
+  );
+};
+
 const OrganizerEventCheckinsPage = () => (
   <div className="space-y-4">
     <h1 className="text-2xl font-semibold text-foreground">Check-ins</h1>
@@ -1990,6 +2247,7 @@ const App = () => (
                 <Route path="/organizador/evento/:id/financeiro/cupons" element={<OrganizerEventCuponsPage />} />
                 <Route path="/organizador/evento/:id/financeiro/repasse" element={<OrganizerEventRepassePage />} />
                 <Route path="/organizador/evento/:id/configuracoes" element={<OrganizerEventConfiguracoesPage />} />
+                <Route path="/organizador/evento/:id/configuracoes/pagina" element={<OrganizerEventPaginaConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/checkins" element={<OrganizerEventCheckinsPage />} />
                 <Route path="/crm" element={<Navigate to="/crm/pessoas" replace />} />
                 <Route path="/crm/:section" element={<CRMPage />} />

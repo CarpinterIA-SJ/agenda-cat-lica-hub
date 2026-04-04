@@ -99,7 +99,7 @@ const buildOrganizerEventItems = (eventId: string): NavItem[] => [
     roles: ["organizer"],
     children: [
       { title: "Informações Gerais", url: `/organizador/evento/${eventId}/configuracoes` },
-      { title: "Pagina do Evento", url: `/organizador/evento/${eventId}/configuracoes/pagina` },
+      { title: "Página do Evento", url: `/organizador/evento/${eventId}/configuracoes/pagina` },
       { title: "Pagamento", url: `/organizador/evento/${eventId}/configuracoes/pagamento` },
       { title: "Formulário de Cadastro", url: `/organizador/evento/${eventId}/configuracoes/formulario` },
       { title: "Mensagem", url: `/organizador/evento/${eventId}/configuracoes/mensagem` },
