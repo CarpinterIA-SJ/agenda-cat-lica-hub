@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate, Outlet, useNavigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, Outlet, useNavigate, useParams } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -308,6 +308,7 @@ const OrganizerEventNewPage = () => {
 
 const OrganizerEventDashboardPage = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
   const eventUrl = "https://guardiaoeventos.com/evento/1";
   const chartData = [
     { name: "20/03", value: 0 },
@@ -353,16 +354,28 @@ const OrganizerEventDashboardPage = () => {
         {[
           { icon: Info, label: "Informações gerais" },
           { icon: Globe, label: "Página do evento" },
-          { icon: Ticket, label: "Ingressos" },
+          { icon: Ticket, label: "Ingressos", route: `/organizador/evento/${id}/ingressos` },
           { icon: CreditCard, label: "Pagamento" },
           { icon: ClipboardList, label: "Formulário de inscrição" },
           { icon: MessageSquare, label: "Mensagens" },
-        ].map((item) => (
-          <div key={item.label} className="flex flex-col items-center gap-2 p-4 text-center">
-            <item.icon className="w-5 h-5 text-emerald-700" />
-            <span className="text-xs font-medium text-foreground">{item.label}</span>
-          </div>
-        ))}
+        ].map((item) =>
+          item.route ? (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => navigate(item.route)}
+              className="flex flex-col items-center gap-2 p-4 text-center transition hover:bg-slate-50"
+            >
+              <item.icon className="w-5 h-5 text-emerald-700" />
+              <span className="text-xs font-medium text-foreground">{item.label}</span>
+            </button>
+          ) : (
+            <div key={item.label} className="flex flex-col items-center gap-2 p-4 text-center">
+              <item.icon className="w-5 h-5 text-emerald-700" />
+              <span className="text-xs font-medium text-foreground">{item.label}</span>
+            </div>
+          )
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
