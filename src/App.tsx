@@ -47,6 +47,12 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
+  Users,
+  Tag,
+  CheckSquare,
+  FileText,
+  Filter,
 } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import {
@@ -794,11 +800,179 @@ const OrganizerEventIngressosPage = () => {
   );
 };
 
-const OrganizerEventParticipantesPage = () => (
-  <div className="space-y-4">
-    <h1 className="text-2xl font-semibold text-foreground">Participantes</h1>
-  </div>
-);
+const OrganizerEventParticipantesPage = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const [search, setSearch] = useState("");
+  const participants: {
+    name: string;
+    code: string;
+    date: string;
+    ticket: string;
+    status: string;
+  }[] = [];
+
+  const filteredParticipants = participants.filter((participant) => {
+    const query = search.toLowerCase();
+    return (
+      participant.name.toLowerCase().includes(query) ||
+      participant.code.toLowerCase().includes(query) ||
+      participant.ticket.toLowerCase().includes(query)
+    );
+  });
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] -m-6 p-6 bg-slate-100/70 space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-foreground">FABRICIO CHRISTIAN DA SILVA CAVALCANTE</h1>
+            <ExternalLink className="h-4 w-4 text-[#004d00]" />
+          </div>
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4 text-[#004d00]" />
+            21/10/2026 às 12:00 até 22/10/2026 às 18:00
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="border-slate-300 text-slate-600 hover:bg-slate-100"
+          onClick={() => navigate("/organizador/meus-eventos")}
+        >
+          Voltar para os meus eventos
+        </Button>
+      </div>
+
+      <div className="flex flex-col gap-4 rounded-2xl border border-orange-200 bg-orange-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 rounded-full bg-orange-100 p-2 text-orange-700">
+            <AlertTriangle className="h-4 w-4" />
+          </div>
+          <p className="text-sm text-orange-900">
+            Atualize os seus dados cadastrais na Guardião Eventos. Esse cadastro é necessário para solicitar repasses de
+            seu evento. Em caso de dúvidas, acesse: <button className="font-semibold underline">Central de Ajuda</button>
+          </p>
+        </div>
+        <Button className="bg-orange-500 text-white hover:bg-orange-600">Atualizar dados</Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {[
+          {
+            title: "Participantes confirmados (pagamento realizado)",
+            value: "0",
+            icon: Users,
+            color: "bg-blue-50 text-blue-600",
+          },
+          {
+            title: "Participantes pendentes (aguardando pagamento)",
+            value: "0",
+            icon: Tag,
+            color: "bg-rose-50 text-rose-600",
+          },
+          {
+            title: "Check-ins realizados",
+            value: "0",
+            icon: CheckSquare,
+            color: "bg-emerald-50 text-emerald-600",
+          },
+        ].map((card) => (
+          <Card key={card.title} className="bg-white rounded-2xl border border-slate-200">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className={`h-12 w-12 rounded-full flex items-center justify-center ${card.color}`}>
+                <card.icon className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-slate-500">{card.title}</p>
+                <p className="text-2xl font-semibold text-slate-900">{card.value}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card className="bg-white rounded-2xl border border-slate-200">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="w-fit border-b-4 border-[#004d00] pb-1">
+              <CardTitle className="text-lg">Lista de participantes</CardTitle>
+            </div>
+          </div>
+          <Button variant="outline" className="border-slate-200 text-slate-500 hover:bg-slate-50">
+            <FileText className="h-4 w-4" />
+            Exportar relatório
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative max-w-sm w-full">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                className="pl-9"
+                placeholder="Buscar..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+            <Button variant="outline" className="border-slate-200 text-slate-500 hover:bg-slate-50">
+              <Filter className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-slate-200">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Nome</th>
+                  <th className="px-4 py-3 text-left font-medium">Código</th>
+                  <th className="px-4 py-3 text-left font-medium">Data de inscrição</th>
+                  <th className="px-4 py-3 text-left font-medium">Ingresso</th>
+                  <th className="px-4 py-3 text-left font-medium">Status pedido</th>
+                  <th className="px-4 py-3 text-left font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredParticipants.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="bg-slate-50 px-4 py-12 text-center text-slate-500">
+                      Nenhum dado adicionado.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredParticipants.map((participant) => (
+                    <tr key={participant.code} className="border-t border-slate-100">
+                      <td className="px-4 py-3 text-slate-700">{participant.name}</td>
+                      <td className="px-4 py-3 text-slate-500">{participant.code}</td>
+                      <td className="px-4 py-3 text-slate-500">{participant.date}</td>
+                      <td className="px-4 py-3 text-slate-500">{participant.ticket}</td>
+                      <td className="px-4 py-3 text-slate-500">{participant.status}</td>
+                      <td className="px-4 py-3 text-slate-500">-</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-slate-200 pt-4">
+            <span className="text-xs text-slate-500">Exibindo 1 de 0 páginas</span>
+            <div className="flex items-center gap-2">
+              <button className="h-8 w-8 rounded-full border border-slate-200 text-slate-400 hover:text-[#004d00]">
+                <ChevronLeft className="h-4 w-4 mx-auto" />
+              </button>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#004d00] text-xs font-semibold text-white">
+                1
+              </span>
+              <button className="h-8 w-8 rounded-full border border-slate-200 text-slate-400 hover:text-[#004d00]">
+                <ChevronRight className="h-4 w-4 mx-auto" />
+              </button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 const OrganizerEventFinanceiroPage = () => (
   <div className="space-y-4">

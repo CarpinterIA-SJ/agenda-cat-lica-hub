@@ -78,7 +78,7 @@ const buildOrganizerEventItems = (eventId: string): NavItem[] => [
     icon: Users,
     roles: ["organizer"],
     children: [
-      { title: "Listas de Participantes", url: `/organizador/evento/${eventId}/participantes` },
+      { title: "Lista de Participantes", url: `/organizador/evento/${eventId}/participantes` },
       { title: "Fila de Espera", url: `/organizador/evento/${eventId}/participantes/fila` },
     ],
   },
