@@ -123,10 +123,10 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const eventMatch = location.pathname.match(/^\/organizador\/evento\/([^/]+)/);
-  const eventId = eventMatch?.[1];
-  const isOrganizerEvent = role === "organizer" && !!eventId;
+  const eventId = eventMatch?.[1] ?? "1";
+  const isOrganizerEvent = role === "organizer" && location.pathname.startsWith("/organizador/evento");
 
-  const navItems = isOrganizerEvent ? buildOrganizerEventItems(eventId!) : baseNavItems;
+  const navItems = isOrganizerEvent ? buildOrganizerEventItems(eventId) : baseNavItems;
   const filteredNavItems = navItems.filter((item) => item.roles.includes(role || ""));
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
