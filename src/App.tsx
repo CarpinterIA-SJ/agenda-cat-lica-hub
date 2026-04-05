@@ -2122,7 +2122,7 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
                 Selecionar imagem
               </Button>
             </div>
-          ))
+          ))}
         </CardContent>
       </Card>
 
