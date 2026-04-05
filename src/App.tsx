@@ -87,7 +87,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import UnderlineExtension from "@tiptap/extension-underline";
-import Link from "@tiptap/extension-link";
+import TiptapLink from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import TextAlign from "@tiptap/extension-text-align";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -1938,7 +1938,7 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
     extensions: [
       StarterKit,
       UnderlineExtension,
-      Link.configure({ openOnClick: false }),
+      TiptapLink.configure({ openOnClick: false }),
       Image,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({ placeholder: "Descreva o evento com detalhes..." }),
