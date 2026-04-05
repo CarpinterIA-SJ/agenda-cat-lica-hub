@@ -1596,7 +1596,7 @@ const OrganizerEventConfiguracoesPage = () => {
   useEffect(() => {
     const loadEvent = async () => {
       if (!id) return;
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("events")
         .select("name, slug, category, visibility, start_date, end_date, support_whatsapp, support_email, event_type")
         .eq("id", id)
@@ -1634,7 +1634,7 @@ const OrganizerEventConfiguracoesPage = () => {
     const start = startDate ? new Date(`${startDate}T${startTime || "00:00"}`).toISOString() : null;
     const end = endDate ? new Date(`${endDate}T${endTime || "00:00"}`).toISOString() : null;
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("events")
       .update({
         name: eventName,
@@ -2103,7 +2103,7 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
           <p className="text-sm text-muted-foreground">Adicione as imagens de divulgação que aparecerão na página pública.</p>
         </CardHeader>
         <CardContent className="grid gap-4 lg:grid-cols-2">
-          [{
+          {[{
             title: "Imagem da divulgação mobile",
             details: "400px x 300px · JPEG ou PNG · até 3MB",
           }, {
@@ -2122,7 +2122,7 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
                 Selecionar imagem
               </Button>
             </div>
-          ))
+          ))}
         </CardContent>
       </Card>
 
