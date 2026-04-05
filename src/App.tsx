@@ -25,6 +25,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { QRCodeCanvas } from "qrcode.react";
+import { PatternFormat } from "react-number-format";
 import {
   ExternalLink,
   Pencil,
@@ -668,7 +669,7 @@ const OrganizerEventIngressosPage = () => {
     { label: "Página do evento", icon: Globe },
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos`, active: true },
     { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/configuracoes/pagamento` },
-    { label: "Formulário de inscrição", icon: ClipboardList },
+    { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/configuracoes/formulario` },
     { label: "Mensagens", icon: MessageSquare },
   ];
   const totalPages = 0;
@@ -1664,7 +1665,7 @@ const OrganizerEventConfiguracoesPage = () => {
     { label: "Página do evento", icon: Globe, route: `/organizador/evento/${id}/configuracoes/pagina` },
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
     { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/configuracoes/pagamento` },
-    { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/participantes` },
+    { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/configuracoes/formulario` },
     { label: "Mensagens", icon: MessageSquare },
   ];
 
@@ -1950,7 +1951,7 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
     { label: "Página do evento", icon: Globe, active: true },
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
     { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/configuracoes/pagamento` },
-    { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/participantes` },
+    { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/configuracoes/formulario` },
     { label: "Mensagens", icon: MessageSquare },
   ];
 
@@ -2103,7 +2104,7 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
           <p className="text-sm text-muted-foreground">Adicione as imagens de divulgação que aparecerão na página pública.</p>
         </CardHeader>
         <CardContent className="grid gap-4 lg:grid-cols-2">
-          {[{
+          [{
             title: "Imagem da divulgação mobile",
             details: "400px x 300px · JPEG ou PNG · até 3MB",
           }, {
@@ -2122,7 +2123,7 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
                 Selecionar imagem
               </Button>
             </div>
-          ))}
+          ))
         </CardContent>
       </Card>
 
@@ -2181,7 +2182,7 @@ const OrganizerEventPagamentoConfiguracoesPage = () => {
     { label: "Página do evento", icon: Globe, route: `/organizador/evento/${id}/configuracoes/pagina` },
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
     { label: "Pagamento", icon: CreditCard, active: true },
-    { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/participantes` },
+    { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/configuracoes/formulario` },
     { label: "Mensagens", icon: MessageSquare },
   ];
 
@@ -2347,6 +2348,170 @@ const OrganizerEventPagamentoConfiguracoesPage = () => {
   );
 };
 
+const OrganizerEventFormularioConfiguracoesPage = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const eventName = "FABRICIO CHRISTIAN DA SILVA CAVALCANTE";
+  const [nameEnabled, setNameEnabled] = useState(true);
+  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [cpfEnabled, setCpfEnabled] = useState(true);
+  const [birthEnabled, setBirthEnabled] = useState(false);
+  const [phoneEnabled, setPhoneEnabled] = useState(true);
+
+  const tabs = [
+    { label: "Informações gerais", icon: Info, route: `/organizador/evento/${id}/configuracoes` },
+    { label: "Página do evento", icon: Globe, route: `/organizador/evento/${id}/configuracoes/pagina` },
+    { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
+    { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/configuracoes/pagamento` },
+    { label: "Formulário de inscrição", icon: ClipboardList, active: true },
+    { label: "Mensagens", icon: MessageSquare },
+  ];
+
+  const fields = [
+    {
+      label: "Nome completo",
+      input: <Input disabled placeholder="Nome completo" className="bg-slate-50" />,
+      checked: nameEnabled,
+      onCheckedChange: setNameEnabled,
+    },
+    {
+      label: "E-mail",
+      input: <Input disabled placeholder="email@exemplo.com" className="bg-slate-50" />,
+      checked: emailEnabled,
+      onCheckedChange: setEmailEnabled,
+    },
+    {
+      label: "CPF",
+      input: (
+        <PatternFormat
+          format="###.###.###-##"
+          mask="_"
+          customInput={Input}
+          disabled
+          placeholder="___.___.___-__"
+          className="bg-slate-50"
+        />
+      ),
+      checked: cpfEnabled,
+      onCheckedChange: setCpfEnabled,
+    },
+    {
+      label: "Data de nascimento",
+      input: (
+        <PatternFormat
+          format="##/##/####"
+          mask="_"
+          customInput={Input}
+          disabled
+          placeholder="__/__/____"
+          className="bg-slate-50"
+        />
+      ),
+      checked: birthEnabled,
+      onCheckedChange: setBirthEnabled,
+    },
+    {
+      label: "Telefone (Whatsapp)",
+      input: (
+        <PatternFormat
+          format="(##) #####-####"
+          mask="_"
+          customInput={Input}
+          disabled
+          placeholder="(__) _____-____"
+          className="bg-slate-50"
+        />
+      ),
+      checked: phoneEnabled,
+      onCheckedChange: setPhoneEnabled,
+    },
+  ];
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] -m-6 p-6 bg-slate-100/70 space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-foreground">{eventName}</h1>
+          <button
+            onClick={() => navigate("/organizador/meus-eventos")}
+            className="text-sm text-muted-foreground hover:text-[#004d00]"
+          >
+            Meus eventos &gt; {eventName}
+          </button>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button
+            variant="outline"
+            className="border-slate-300 text-slate-600 hover:bg-slate-100"
+            onClick={() => navigate(`/organizador/evento/${id}/dashboard`)}
+          >
+            Voltar para o painel do evento
+          </Button>
+          <Button
+            variant="outline"
+            className="border-slate-300 text-slate-600 hover:bg-slate-100"
+            onClick={() => navigate("/organizador/meus-eventos")}
+          >
+            Meus eventos
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-2">
+        {tabs.map((tab) => (
+          <button
+            key={tab.label}
+            type="button"
+            onClick={() => tab.route && navigate(tab.route)}
+            className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition ${
+              tab.active
+                ? "bg-emerald-50 text-[#004d00]"
+                : "text-slate-500 hover:bg-slate-50 hover:text-[#004d00]"
+            }`}
+          >
+            <tab.icon className={`h-4 w-4 ${tab.active ? "text-[#004d00]" : "text-slate-400"}`} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <Card className="bg-white rounded-2xl shadow-sm">
+        <CardHeader>
+          <div className="w-fit border-b-4 border-[#004d00] pb-1">
+            <CardTitle className="text-lg">Formulário de inscrição</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {fields.map((field) => (
+            <div key={field.label} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-2 sm:flex-1">
+                <label className="text-sm font-medium text-slate-700">{field.label}</label>
+                {field.input}
+              </div>
+              <Switch
+                checked={field.checked}
+                onCheckedChange={field.onCheckedChange}
+                className="data-[state=checked]:bg-[#004d00]"
+              />
+            </div>
+          ))}
+
+          <Button
+            variant="outline"
+            className="w-fit border-emerald-100 bg-emerald-50 text-[#004d00] hover:bg-emerald-100"
+          >
+            + Adicionar campo
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button className="bg-[#004d00] text-white hover:bg-[#003a00]">Salvar campos customizados</Button>
+      </div>
+    </div>
+  );
+};
+
 const OrganizerEventCheckinsPage = () => (
   <div className="space-y-4">
     <h1 className="text-2xl font-semibold text-foreground">Check-ins</h1>
@@ -2433,6 +2598,7 @@ const App = () => (
                 <Route path="/organizador/evento/:id/configuracoes" element={<OrganizerEventConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/configuracoes/pagina" element={<OrganizerEventPaginaConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/configuracoes/pagamento" element={<OrganizerEventPagamentoConfiguracoesPage />} />
+                <Route path="/organizador/evento/:id/configuracoes/formulario" element={<OrganizerEventFormularioConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/checkins" element={<OrganizerEventCheckinsPage />} />
                 <Route path="/crm" element={<Navigate to="/crm/pessoas" replace />} />
                 <Route path="/crm/:section" element={<CRMPage />} />
