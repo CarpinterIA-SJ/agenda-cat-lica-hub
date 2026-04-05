@@ -2103,7 +2103,7 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
           <p className="text-sm text-muted-foreground">Adicione as imagens de divulgação que aparecerão na página pública.</p>
         </CardHeader>
         <CardContent className="grid gap-4 lg:grid-cols-2">
-          [{
+          {[{
             title: "Imagem da divulgação mobile",
             details: "400px x 300px · JPEG ou PNG · até 3MB",
           }, {
