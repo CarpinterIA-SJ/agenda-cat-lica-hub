@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate, Outlet, useNavigate, useParams } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, Outlet, useNavigate, useParams, Link as RouterLink } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -2432,12 +2432,12 @@ const OrganizerEventFormularioConfiguracoesPage = () => {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-foreground">{eventName}</h1>
-          <button
-            onClick={() => navigate("/organizador/meus-eventos")}
+          <RouterLink
+            to="/organizador/meus-eventos"
             className="text-sm text-muted-foreground hover:text-[#004d00]"
           >
             Meus eventos &gt; {eventName}
-          </button>
+          </RouterLink>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button
