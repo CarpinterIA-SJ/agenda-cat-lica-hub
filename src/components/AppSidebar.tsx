@@ -157,7 +157,7 @@ export function AppSidebar() {
                 const hasChildren = item.children && item.children.length > 0;
                 const isItemActive = item.url
                   ? location.pathname === item.url || location.pathname.startsWith(item.url)
-                  : item.children?.some((child) => location.pathname === child.url);
+                  : item.children?.some((child) => location.pathname.startsWith(child.url));
                 const isOpen = openGroups[item.title] ?? !!isItemActive;
 
                 if (hasChildren) {
