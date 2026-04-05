@@ -1634,7 +1634,7 @@ const OrganizerEventConfiguracoesPage = () => {
     const start = startDate ? new Date(`${startDate}T${startTime || "00:00"}`).toISOString() : null;
     const end = endDate ? new Date(`${endDate}T${endTime || "00:00"}`).toISOString() : null;
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("events")
       .update({
         name: eventName,
