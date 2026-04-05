@@ -1596,7 +1596,7 @@ const OrganizerEventConfiguracoesPage = () => {
   useEffect(() => {
     const loadEvent = async () => {
       if (!id) return;
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("events")
         .select("name, slug, category, visibility, start_date, end_date, support_whatsapp, support_email, event_type")
         .eq("id", id)
