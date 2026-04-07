@@ -15,6 +15,8 @@ import OrganizerEventsPage from "./pages/OrganizerEventsPage";
 import OrganizerEventMensagensPage from "./pages/OrganizerEventMensagensPage";
 import CRMPage from "./pages/CRMPage";
 import NotFound from "./pages/NotFound";
+import CheckinsPage from "./pages/CheckinsPage";
+import FinanceiroRepassePage from "./pages/FinanceiroRepassePage";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -2595,13 +2597,13 @@ const App = () => (
                 <Route path="/organizador/evento/:id/fila-de-espera" element={<OrganizerEventFilaDeEsperaPage />} />
                 <Route path="/organizador/evento/:id/financeiro" element={<OrganizerEventFinanceiroPage />} />
                 <Route path="/organizador/evento/:id/financeiro/cupons" element={<OrganizerEventCuponsPage />} />
-                <Route path="/organizador/evento/:id/financeiro/repasse" element={<OrganizerEventRepassePage />} />
+                <Route path="/organizador/evento/:id/financeiro/repasse" element={<FinanceiroRepassePage />} />
                 <Route path="/organizador/evento/:id/configuracoes" element={<OrganizerEventConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/configuracoes/pagina" element={<OrganizerEventPaginaConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/configuracoes/pagamento" element={<OrganizerEventPagamentoConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/configuracoes/formulario" element={<OrganizerEventFormularioConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/configuracoes/mensagem" element={<OrganizerEventMensagensPage />} />
-                <Route path="/organizador/evento/:id/checkins" element={<OrganizerEventCheckinsPage />} />
+                <Route path="/organizador/evento/:id/checkins" element={<CheckinsPage />} />
                 <Route path="/crm" element={<Navigate to="/crm/pessoas" replace />} />
                 <Route path="/crm/:section" element={<CRMPage />} />
               </Route>
