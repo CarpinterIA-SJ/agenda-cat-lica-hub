@@ -2184,7 +2184,7 @@ const OrganizerEventPagamentoConfiguracoesPage = () => {
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
     { label: "Pagamento", icon: CreditCard, active: true },
     { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/configuracoes/formulario` },
-    { label: "Mensagens", icon: MessageSquare },
+    { label: "Mensagens", icon: MessageSquare, route: `/organizador/evento/${id}/configuracoes/mensagem` },
   ];
 
   return (
