@@ -12,6 +12,7 @@ import MyTicketsPage from "./pages/MyTicketsPage";
 import ExploreEventsPage, { PublicEventPage } from "./pages/ExploreEventsPage";
 import SupportPage from "./pages/SupportPage";
 import OrganizerEventsPage from "./pages/OrganizerEventsPage";
+import OrganizerEventMensagensPage from "./pages/OrganizerEventMensagensPage";
 import CRMPage from "./pages/CRMPage";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
@@ -670,7 +671,7 @@ const OrganizerEventIngressosPage = () => {
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos`, active: true },
     { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/configuracoes/pagamento` },
     { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/configuracoes/formulario` },
-    { label: "Mensagens", icon: MessageSquare },
+    { label: "Mensagens", icon: MessageSquare, route: `/organizador/evento/${id}/configuracoes/mensagem` },
   ];
   const totalPages = 0;
   const currentPage = 1;
@@ -1666,7 +1667,7 @@ const OrganizerEventConfiguracoesPage = () => {
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
     { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/configuracoes/pagamento` },
     { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/configuracoes/formulario` },
-    { label: "Mensagens", icon: MessageSquare },
+    { label: "Mensagens", icon: MessageSquare, route: `/organizador/evento/${id}/configuracoes/mensagem` },
   ];
 
   return (
@@ -1952,7 +1953,7 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
     { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/configuracoes/pagamento` },
     { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/configuracoes/formulario` },
-    { label: "Mensagens", icon: MessageSquare },
+    { label: "Mensagens", icon: MessageSquare, route: `/organizador/evento/${id}/configuracoes/mensagem` },
   ];
 
   const toolbarButton = (active?: boolean) =>
@@ -2183,7 +2184,7 @@ const OrganizerEventPagamentoConfiguracoesPage = () => {
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
     { label: "Pagamento", icon: CreditCard, active: true },
     { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/configuracoes/formulario` },
-    { label: "Mensagens", icon: MessageSquare },
+    { label: "Mensagens", icon: MessageSquare, route: `/organizador/evento/${id}/configuracoes/mensagem` },
   ];
 
   return (
@@ -2364,7 +2365,7 @@ const OrganizerEventFormularioConfiguracoesPage = () => {
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
     { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/configuracoes/pagamento` },
     { label: "Formulário de inscrição", icon: ClipboardList, active: true },
-    { label: "Mensagens", icon: MessageSquare },
+    { label: "Mensagens", icon: MessageSquare, route: `/organizador/evento/${id}/configuracoes/mensagem` },
   ];
 
   const fields = [
@@ -2599,6 +2600,7 @@ const App = () => (
                 <Route path="/organizador/evento/:id/configuracoes/pagina" element={<OrganizerEventPaginaConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/configuracoes/pagamento" element={<OrganizerEventPagamentoConfiguracoesPage />} />
                 <Route path="/organizador/evento/:id/configuracoes/formulario" element={<OrganizerEventFormularioConfiguracoesPage />} />
+                <Route path="/organizador/evento/:id/configuracoes/mensagem" element={<OrganizerEventMensagensPage />} />
                 <Route path="/organizador/evento/:id/checkins" element={<OrganizerEventCheckinsPage />} />
                 <Route path="/crm" element={<Navigate to="/crm/pessoas" replace />} />
                 <Route path="/crm/:section" element={<CRMPage />} />
