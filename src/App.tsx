@@ -12,6 +12,7 @@ import MyTicketsPage from "./pages/MyTicketsPage";
 import ExploreEventsPage, { PublicEventPage } from "./pages/ExploreEventsPage";
 import SupportPage from "./pages/SupportPage";
 import OrganizerEventsPage from "./pages/OrganizerEventsPage";
+import OrganizerEventMensagensPage from "./pages/OrganizerEventMensagensPage";
 import CRMPage from "./pages/CRMPage";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
