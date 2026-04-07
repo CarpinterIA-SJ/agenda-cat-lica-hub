@@ -2618,6 +2618,7 @@ const App = () => (
               {/* Common Routes */}
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/support" element={<SupportPage />} />
+              <Route path="/organizadores" element={<OrganizadoresPage />} />
             </Route>
 
             <Route path="/organizador/dashboard" element={<Navigate to="/organizador/home" replace />} />
