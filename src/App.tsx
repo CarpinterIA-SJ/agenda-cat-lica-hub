@@ -17,6 +17,7 @@ import CRMPage from "./pages/CRMPage";
 import NotFound from "./pages/NotFound";
 import CheckinsPage from "./pages/CheckinsPage";
 import CheckinsTiposPage from "./pages/CheckinsTiposPage";
+import CheckinsRealizadosPage from "./pages/CheckinsRealizadosPage";
 import FinanceiroRepassePage from "./pages/FinanceiroRepassePage";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
@@ -2606,6 +2607,7 @@ const App = () => (
                 <Route path="/organizador/evento/:id/configuracoes/mensagem" element={<OrganizerEventMensagensPage />} />
                 <Route path="/organizador/evento/:id/checkins" element={<CheckinsPage />} />
                 <Route path="/organizador/evento/:id/checkins/tipos" element={<CheckinsTiposPage />} />
+                <Route path="/organizador/evento/:id/checkins/realizados" element={<CheckinsRealizadosPage />} />
                 <Route path="/crm" element={<Navigate to="/crm/pessoas" replace />} />
                 <Route path="/crm/:section" element={<CRMPage />} />
               </Route>
