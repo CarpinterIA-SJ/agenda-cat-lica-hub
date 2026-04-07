@@ -19,6 +19,7 @@ import CheckinsPage from "./pages/CheckinsPage";
 import CheckinsTiposPage from "./pages/CheckinsTiposPage";
 import CheckinsRealizadosPage from "./pages/CheckinsRealizadosPage";
 import FinanceiroRepassePage from "./pages/FinanceiroRepassePage";
+import OrganizadoresPage from "./pages/OrganizadoresPage";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -2618,6 +2619,7 @@ const App = () => (
               {/* Common Routes */}
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/support" element={<SupportPage />} />
+              <Route path="/organizadores" element={<OrganizadoresPage />} />
             </Route>
 
             <Route path="/organizador/dashboard" element={<Navigate to="/organizador/home" replace />} />

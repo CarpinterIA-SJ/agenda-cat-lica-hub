@@ -174,7 +174,7 @@ const OrganizerEventsPage = () => {
                   Convites pendentes
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="gap-2 cursor-pointer">
+                <DropdownMenuItem onClick={() => navigate("/organizadores")} className="gap-2 cursor-pointer">
                   <Users className="w-4 h-4" />
                   Organizadores
                 </DropdownMenuItem>
