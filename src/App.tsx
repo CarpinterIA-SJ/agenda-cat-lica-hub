@@ -627,9 +627,6 @@ const OrganizerEventPreviewPage = () => {
                   <p className="text-xs text-slate-500">vsv\sv\s</p>
                 </div>
               </div>
-              <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/5">
-                Falar com o organizador
-              </Button>
             </div>
           </div>
         </div>
