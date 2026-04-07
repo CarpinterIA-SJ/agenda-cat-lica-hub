@@ -2365,7 +2365,7 @@ const OrganizerEventFormularioConfiguracoesPage = () => {
     { label: "Ingressos", icon: Ticket, route: `/organizador/evento/${id}/ingressos` },
     { label: "Pagamento", icon: CreditCard, route: `/organizador/evento/${id}/configuracoes/pagamento` },
     { label: "Formulário de inscrição", icon: ClipboardList, active: true },
-    { label: "Mensagens", icon: MessageSquare },
+    { label: "Mensagens", icon: MessageSquare, route: `/organizador/evento/${id}/configuracoes/mensagem` },
   ];
 
   const fields = [
