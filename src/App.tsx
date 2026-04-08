@@ -255,8 +255,15 @@ const OrganizerEventNewPage = () => {
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="religioso">Religioso</SelectItem>
-                      <SelectItem value="cultural">Cultural</SelectItem>
+                      <SelectItem value="acampamentos">Acampamentos</SelectItem>
+                      <SelectItem value="catequese">Catequese</SelectItem>
+                      <SelectItem value="congressos">Congressos e Seminários</SelectItem>
+                      <SelectItem value="cursos">Cursos e Workshops</SelectItem>
+                      <SelectItem value="encontros">Encontros de Formação</SelectItem>
+                      <SelectItem value="diversos">Eventos Diversos</SelectItem>
+                      <SelectItem value="palestras">Palestras</SelectItem>
+                      <SelectItem value="retiros">Retiros</SelectItem>
+                      <SelectItem value="shows">Shows Católicos</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
