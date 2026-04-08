@@ -246,16 +246,6 @@ const OrganizerEventNewPage = () => {
                 <Input placeholder="Informe o nome do evento" />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Endereço da página</label>
-                <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                  <div className="flex flex-1 items-center rounded-md border border-input bg-white">
-                    <span className="px-3 text-sm text-muted-foreground">guardiaoeventos.com/</span>
-                    <Input className="border-0 focus-visible:ring-0" placeholder="meu-evento" />
-                  </div>
-                  <Button variant="outline" className="border-emerald-600 text-emerald-700 hover:bg-emerald-50">Verificar</Button>
-                </div>
-              </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
