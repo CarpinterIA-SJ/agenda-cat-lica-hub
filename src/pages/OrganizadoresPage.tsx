@@ -79,19 +79,23 @@ const OrganizadoresPage = () => {
   const paginatedItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleAdd = () => {
-    if (!newNome || !newEmail) {
-      toast({ title: "Preencha todos os campos", variant: "destructive" });
+    if (!newNome || !newEmail || !newDescricao) {
+      toast({ title: "Preencha todos os campos obrigatórios", variant: "destructive" });
       return;
     }
     const novo: Organizador = {
       id: Date.now().toString(),
       nome: newNome.toUpperCase(),
       email: newEmail,
+      descricao: newDescricao,
+      logo: newLogo,
       dataCriacao: new Date().toLocaleDateString("pt-BR"),
     };
     setOrganizadores((prev) => [...prev, novo]);
     setNewNome("");
     setNewEmail("");
+    setNewDescricao("");
+    setNewLogo(null);
     setShowAddDialog(false);
     toast({ title: "Organizador adicionado com sucesso" });
   };
