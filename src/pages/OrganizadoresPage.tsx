@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +10,16 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Plus, Search, Filter, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Plus, Search, Filter, Pencil, Trash2, ChevronLeft, ChevronRight, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Organizador {
   id: string;
   nome: string;
   email: string;
+  descricao: string;
+  logo: string | null;
   dataCriacao: string;
 }
 
@@ -30,6 +33,9 @@ const OrganizadoresPage = () => {
   const [selectedOrganizador, setSelectedOrganizador] = useState<Organizador | null>(null);
   const [newNome, setNewNome] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [newDescricao, setNewDescricao] = useState("");
+  const [newLogo, setNewLogo] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   const [organizadores, setOrganizadores] = useState<Organizador[]>([
@@ -37,9 +43,30 @@ const OrganizadoresPage = () => {
       id: "1",
       nome: "FABRICIO CHRISTIAN DA SILVA CAVALCANTE",
       email: "fabricio.christian@hotmail.com",
+      descricao: "",
+      logo: null,
       dataCriacao: "22/03/2026",
     },
   ]);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setNewLogo(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setNewLogo(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  }, []);
 
   const filtered = organizadores.filter(
     (o) =>
@@ -52,19 +79,23 @@ const OrganizadoresPage = () => {
   const paginatedItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleAdd = () => {
-    if (!newNome || !newEmail) {
-      toast({ title: "Preencha todos os campos", variant: "destructive" });
+    if (!newNome || !newEmail || !newDescricao) {
+      toast({ title: "Preencha todos os campos obrigatórios", variant: "destructive" });
       return;
     }
     const novo: Organizador = {
       id: Date.now().toString(),
       nome: newNome.toUpperCase(),
       email: newEmail,
+      descricao: newDescricao,
+      logo: newLogo,
       dataCriacao: new Date().toLocaleDateString("pt-BR"),
     };
     setOrganizadores((prev) => [...prev, novo]);
     setNewNome("");
     setNewEmail("");
+    setNewDescricao("");
+    setNewLogo(null);
     setShowAddDialog(false);
     toast({ title: "Organizador adicionado com sucesso" });
   };
@@ -117,6 +148,8 @@ const OrganizadoresPage = () => {
             onClick={() => {
               setNewNome("");
               setNewEmail("");
+              setNewDescricao("");
+              setNewLogo(null);
               setShowAddDialog(true);
             }}
             className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
@@ -238,24 +271,63 @@ const OrganizadoresPage = () => {
 
       {/* Add Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Adicionar Organizador</DialogTitle>
-            <DialogDescription>Preencha os dados do novo organizador.</DialogDescription>
+            <DialogTitle>Criar novo organizador</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Logo Upload */}
             <div className="space-y-2">
-              <Label>Nome</Label>
-              <Input value={newNome} onChange={(e) => setNewNome(e.target.value)} placeholder="Nome completo" />
+              <Label><span className="text-destructive">*</span> Logo:</Label>
+              <div
+                className="border-2 border-dashed border-border rounded-lg p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/50 transition-colors"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {newLogo ? (
+                  <img src={newLogo} alt="Logo preview" className="max-h-20 object-contain rounded" />
+                ) : (
+                  <>
+                    <Button type="button" size="sm" className="bg-primary text-primary-foreground">
+                      <Upload className="w-4 h-4 mr-2" />
+                      Selecionar imagem
+                    </Button>
+                    <span className="text-sm text-muted-foreground">Ou arraste e solte a imagem aqui</span>
+                  </>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+              </div>
             </div>
+
+            {/* Nome */}
             <div className="space-y-2">
-              <Label>E-mail</Label>
-              <Input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="email@exemplo.com" type="email" />
+              <Label><span className="text-destructive">*</span> Nome:</Label>
+              <Input value={newNome} onChange={(e) => setNewNome(e.target.value)} placeholder="Escreva aqui..." />
+            </div>
+
+            {/* E-mail */}
+            <div className="space-y-2">
+              <Label><span className="text-destructive">*</span> E-mail:</Label>
+              <Input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="Escreva aqui..." type="email" />
+              <p className="text-xs text-muted-foreground">Esse será o email que receberá os contatos feitos por participantes através do "Fale com o Organizador".</p>
+            </div>
+
+            {/* Descrição */}
+            <div className="space-y-2">
+              <Label><span className="text-destructive">*</span> Descrição:</Label>
+              <Textarea value={newDescricao} onChange={(e) => setNewDescricao(e.target.value)} placeholder="Escreva aqui..." rows={4} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancelar</Button>
-            <Button onClick={handleAdd} className="bg-primary text-primary-foreground">Adicionar</Button>
+            <Button onClick={handleAdd} className="bg-primary text-primary-foreground">Criar organizador</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
