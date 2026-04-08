@@ -33,6 +33,9 @@ const OrganizadoresPage = () => {
   const [selectedOrganizador, setSelectedOrganizador] = useState<Organizador | null>(null);
   const [newNome, setNewNome] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [newDescricao, setNewDescricao] = useState("");
+  const [newLogo, setNewLogo] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   const [organizadores, setOrganizadores] = useState<Organizador[]>([
