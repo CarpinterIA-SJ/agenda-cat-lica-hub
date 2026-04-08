@@ -43,9 +43,30 @@ const OrganizadoresPage = () => {
       id: "1",
       nome: "FABRICIO CHRISTIAN DA SILVA CAVALCANTE",
       email: "fabricio.christian@hotmail.com",
+      descricao: "",
+      logo: null,
       dataCriacao: "22/03/2026",
     },
   ]);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setNewLogo(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setNewLogo(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  }, []);
 
   const filtered = organizadores.filter(
     (o) =>
