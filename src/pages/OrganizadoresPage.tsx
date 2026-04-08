@@ -148,6 +148,8 @@ const OrganizadoresPage = () => {
             onClick={() => {
               setNewNome("");
               setNewEmail("");
+              setNewDescricao("");
+              setNewLogo(null);
               setShowAddDialog(true);
             }}
             className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
