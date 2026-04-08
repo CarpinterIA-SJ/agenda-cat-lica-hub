@@ -205,7 +205,7 @@ const OrganizerEventNewPage = () => {
                     <SelectItem value="guardiao">Guardião Eventos</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" className="border-emerald-600 text-emerald-700 hover:bg-emerald-50">+ Adicionar organizador</Button>
+                <Button variant="outline" className="border-emerald-600 text-emerald-700 hover:bg-emerald-50" onClick={() => navigate("/organizadores")}>+ Adicionar organizador</Button>
               </div>
 
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
