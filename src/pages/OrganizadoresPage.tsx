@@ -10,8 +10,9 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Plus, Search, Filter, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Plus, Search, Filter, Pencil, Trash2, ChevronLeft, ChevronRight, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Organizador {
   id: string;
