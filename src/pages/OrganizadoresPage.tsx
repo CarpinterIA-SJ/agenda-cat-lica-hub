@@ -128,6 +128,8 @@ const OrganizadoresPage = () => {
     setSelectedOrganizador(org);
     setNewNome(org.nome);
     setNewEmail(org.email);
+    setNewDescricao(org.descricao);
+    setNewLogo(org.logo);
     setShowEditDialog(true);
   };
 
