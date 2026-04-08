@@ -104,13 +104,15 @@ const OrganizadoresPage = () => {
     if (!selectedOrganizador || !newNome || !newEmail) return;
     setOrganizadores((prev) =>
       prev.map((o) =>
-        o.id === selectedOrganizador.id ? { ...o, nome: newNome.toUpperCase(), email: newEmail } : o
+        o.id === selectedOrganizador.id ? { ...o, nome: newNome.toUpperCase(), email: newEmail, descricao: newDescricao, logo: newLogo } : o
       )
     );
     setShowEditDialog(false);
     setSelectedOrganizador(null);
     setNewNome("");
     setNewEmail("");
+    setNewDescricao("");
+    setNewLogo(null);
     toast({ title: "Organizador atualizado com sucesso" });
   };
 
