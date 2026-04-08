@@ -1756,7 +1756,7 @@ const OrganizerEventConfiguracoesPage = () => {
                 <SelectItem value="guardiao">Guardião Eventos</SelectItem>
               </SelectContent>
             </Select>
-            <Button className="bg-[#004d00] text-white hover:bg-[#003a00]">+ Adicionar organizador</Button>
+            <Button className="bg-[#004d00] text-white hover:bg-[#003a00]" onClick={() => navigate("/organizadores")}>+ Adicionar organizador</Button>
           </div>
 
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
