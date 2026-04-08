@@ -17,6 +17,8 @@ interface Organizador {
   id: string;
   nome: string;
   email: string;
+  descricao: string;
+  logo: string | null;
   dataCriacao: string;
 }
 
