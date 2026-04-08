@@ -205,7 +205,7 @@ const OrganizerEventNewPage = () => {
                     <SelectItem value="guardiao">Guardião Eventos</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" className="border-emerald-600 text-emerald-700 hover:bg-emerald-50">+ Adicionar organizador</Button>
+                <Button variant="outline" className="border-emerald-600 text-emerald-700 hover:bg-emerald-50" onClick={() => navigate("/organizadores")}>+ Adicionar organizador</Button>
               </div>
 
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
@@ -246,16 +246,6 @@ const OrganizerEventNewPage = () => {
                 <Input placeholder="Informe o nome do evento" />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Endereço da página</label>
-                <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                  <div className="flex flex-1 items-center rounded-md border border-input bg-white">
-                    <span className="px-3 text-sm text-muted-foreground">guardiaoeventos.com/</span>
-                    <Input className="border-0 focus-visible:ring-0" placeholder="meu-evento" />
-                  </div>
-                  <Button variant="outline" className="border-emerald-600 text-emerald-700 hover:bg-emerald-50">Verificar</Button>
-                </div>
-              </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -265,8 +255,15 @@ const OrganizerEventNewPage = () => {
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="religioso">Religioso</SelectItem>
-                      <SelectItem value="cultural">Cultural</SelectItem>
+                      <SelectItem value="acampamentos">Acampamentos</SelectItem>
+                      <SelectItem value="catequese">Catequese</SelectItem>
+                      <SelectItem value="congressos">Congressos e Seminários</SelectItem>
+                      <SelectItem value="cursos">Cursos e Workshops</SelectItem>
+                      <SelectItem value="encontros">Encontros de Formação</SelectItem>
+                      <SelectItem value="diversos">Eventos Diversos</SelectItem>
+                      <SelectItem value="palestras">Palestras</SelectItem>
+                      <SelectItem value="retiros">Retiros</SelectItem>
+                      <SelectItem value="shows">Shows Católicos</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1759,7 +1756,7 @@ const OrganizerEventConfiguracoesPage = () => {
                 <SelectItem value="guardiao">Guardião Eventos</SelectItem>
               </SelectContent>
             </Select>
-            <Button className="bg-[#004d00] text-white hover:bg-[#003a00]">+ Adicionar organizador</Button>
+            <Button className="bg-[#004d00] text-white hover:bg-[#003a00]" onClick={() => navigate("/organizadores")}>+ Adicionar organizador</Button>
           </div>
 
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
@@ -1814,23 +1811,6 @@ const OrganizerEventConfiguracoesPage = () => {
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Endereço da página</label>
-            <div className="flex flex-col gap-2 md:flex-row md:items-center">
-              <div className="flex flex-1 items-center rounded-md border border-input bg-white">
-                <span className="px-3 text-sm text-muted-foreground">guardiaoeventos.com/</span>
-                <Input
-                  className="border-0 focus-visible:ring-0"
-                  placeholder="meu-evento"
-                  value={slug}
-                  onChange={(event) => setSlug(event.target.value)}
-                />
-              </div>
-              <Button variant="outline" className="border-emerald-600 text-emerald-700 hover:bg-emerald-50">
-                Verificar
-              </Button>
-            </div>
-          </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -1840,8 +1820,15 @@ const OrganizerEventConfiguracoesPage = () => {
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="religioso">Congressos</SelectItem>
-                  <SelectItem value="seminarios">Seminários</SelectItem>
+                  <SelectItem value="acampamentos">Acampamentos</SelectItem>
+                  <SelectItem value="catequese">Catequese</SelectItem>
+                  <SelectItem value="congressos">Congressos e Seminários</SelectItem>
+                  <SelectItem value="cursos">Cursos e Workshops</SelectItem>
+                  <SelectItem value="encontros">Encontros de Formação</SelectItem>
+                  <SelectItem value="diversos">Eventos Diversos</SelectItem>
+                  <SelectItem value="palestras">Palestras</SelectItem>
+                  <SelectItem value="retiros">Retiros</SelectItem>
+                  <SelectItem value="shows">Shows Católicos</SelectItem>
                 </SelectContent>
               </Select>
             </div>
