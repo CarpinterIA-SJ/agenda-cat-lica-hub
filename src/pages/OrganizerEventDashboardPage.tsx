@@ -128,8 +128,8 @@ const OrganizerEventDashboardPage = () => {
       </div>
 
       {/* Alert Banner */}
-      <div className="flex flex-col gap-3 rounded-lg border border-orange-200 bg-orange-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-orange-900">
+      <div className="flex flex-col gap-3 rounded-lg border border-orange-200 bg-[hsl(30,100%,97%)] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-[hsl(30,80%,25%)]">
           Atualize os seus dados cadastrais na Guardião Eventos para liberar todos os recursos do painel.
         </p>
         <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => navigate("/minha-conta")}>
@@ -239,7 +239,7 @@ const OrganizerEventDashboardPage = () => {
               <p className="text-sm text-muted-foreground">
                 Envie os dados de inscritos para o seu CRM e mantenha tudo organizado em tempo real.
               </p>
-              <Badge className="border-pink-200 bg-pink-100 text-pink-700">Não sincronizado</Badge>
+              <Badge className="border-[hsl(340,80%,85%)] bg-[hsl(340,80%,95%)] text-[hsl(340,80%,40%)]">Não sincronizado</Badge>
               <Button
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                 onClick={() => setSyncOpen(true)}
