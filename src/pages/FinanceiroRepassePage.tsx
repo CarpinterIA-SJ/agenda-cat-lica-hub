@@ -37,7 +37,7 @@ export default function FinanceiroRepassePage() {
         <p className="text-orange-800 text-sm flex-1">
           Atualize os seus dados cadastrais na Guardião Eventos. Esse cadastro é necessário para solicitar repasses de seu evento...
         </p>
-        <Button className="bg-[#EA580C] hover:bg-[#C2410C] text-white">
+        <Button className="bg-[#EA580C] hover:bg-[#C2410C] text-white" onClick={() => navigate("/minha-conta")}>
           Atualizar dados
         </Button>
       </div>

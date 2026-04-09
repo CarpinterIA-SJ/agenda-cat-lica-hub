@@ -60,7 +60,7 @@ const CheckinsTiposPage = () => {
           </Link>
           .
         </p>
-        <Button className="bg-[#f97316] hover:bg-[#ea580c] text-white shrink-0">
+        <Button className="bg-[#f97316] hover:bg-[#ea580c] text-white shrink-0" onClick={() => navigate("/minha-conta")}>
           Atualizar dados
         </Button>
       </div>
