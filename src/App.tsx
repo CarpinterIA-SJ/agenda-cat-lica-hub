@@ -875,7 +875,7 @@ const OrganizerEventParticipantesPage = () => {
             seu evento. Em caso de dúvidas, acesse: <button className="font-semibold underline">Central de Ajuda</button>
           </p>
         </div>
-        <Button className="bg-orange-500 text-white hover:bg-orange-600">Atualizar dados</Button>
+        <Button className="bg-orange-500 text-white hover:bg-orange-600" onClick={() => navigate("/minha-conta")}>Atualizar dados</Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -1030,7 +1030,7 @@ const OrganizerEventFilaDeEsperaPage = () => {
             Atualize os seus dados cadastrais na Guardião Eventos para liberar todos os recursos do painel.
           </p>
         </div>
-        <Button className="bg-orange-500 text-white hover:bg-orange-600">Atualizar dados</Button>
+        <Button className="bg-orange-500 text-white hover:bg-orange-600" onClick={() => navigate("/minha-conta")}>Atualizar dados</Button>
       </div>
 
       <Card className="bg-white rounded-2xl border border-slate-200">
@@ -1133,7 +1133,7 @@ const OrganizerEventCuponsPage = () => {
           Atualize os seus dados cadastrais na Guardião Eventos. Esse cadastro é necessário para solicitar repasses de seu
           evento. Em caso de dúvidas, acesse: <span className="font-semibold underline">Central de Ajuda</span>
         </p>
-        <Button className="bg-orange-500 text-white hover:bg-orange-600">Atualizar dados</Button>
+        <Button className="bg-orange-500 text-white hover:bg-orange-600" onClick={() => navigate("/minha-conta")}>Atualizar dados</Button>
       </div>
 
       <Card className="bg-white rounded-2xl shadow-sm">
@@ -1311,7 +1311,7 @@ const OrganizerEventFinanceiroPage = () => {
           Atualize os seus dados cadastrais na Guardião Eventos. Esse cadastro é necessário para solicitar repasses de seu
           evento...
         </p>
-        <Button className="bg-orange-500 text-white hover:bg-orange-600">Atualizar dados</Button>
+        <Button className="bg-orange-500 text-white hover:bg-orange-600" onClick={() => navigate("/minha-conta")}>Atualizar dados</Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1430,7 +1430,7 @@ const OrganizerEventRepassePage = () => {
         <p className="text-sm text-orange-900">
           Atualize os seus dados cadastrais na Guardião Eventos. Esse cadastro é necessário para solicitar repasses de seu evento...
         </p>
-        <Button className="bg-orange-500 text-white hover:bg-orange-600">Atualizar dados</Button>
+        <Button className="bg-orange-500 text-white hover:bg-orange-600" onClick={() => navigate("/minha-conta")}>Atualizar dados</Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
