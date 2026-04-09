@@ -396,7 +396,7 @@ const OrganizerEventDashboardPage = () => {
         <p className="text-sm text-orange-900">
           Atualize os seus dados cadastrais na Guardião Eventos para liberar todos os recursos do painel.
         </p>
-        <Button className="bg-emerald-700 text-white hover:bg-emerald-800">Atualizar dados</Button>
+        <Button className="bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => navigate("/minha-conta")}>Atualizar dados</Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-6 border rounded-lg divide-y md:divide-y-0 md:divide-x bg-card">
