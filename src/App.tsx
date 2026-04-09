@@ -406,8 +406,7 @@ const OrganizerEventDashboardPage = () => {
           { icon: CreditCard, label: "Pagamento", route: `/organizador/evento/${id}/configuracoes/pagamento` },
           { icon: ClipboardList, label: "Formulário de inscrição", route: `/organizador/evento/${id}/configuracoes/formulario` },
           { icon: MessageSquare, label: "Mensagens", route: `/organizador/evento/${id}/configuracoes/mensagem` },
-        ].map((item) =>
-          item.route ? (
+        ].map((item) => (
             <button
               key={item.label}
               type="button"
@@ -417,13 +416,7 @@ const OrganizerEventDashboardPage = () => {
               <item.icon className="w-5 h-5 text-emerald-700" />
               <span className="text-xs font-medium text-foreground">{item.label}</span>
             </button>
-          ) : (
-            <div key={item.label} className="flex flex-col items-center gap-2 p-4 text-center">
-              <item.icon className="w-5 h-5 text-emerald-700" />
-              <span className="text-xs font-medium text-foreground">{item.label}</span>
-            </div>
-          )
-        )}
+        ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
