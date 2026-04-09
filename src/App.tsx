@@ -400,12 +400,12 @@ const OrganizerEventDashboardPage = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-6 border rounded-lg divide-y md:divide-y-0 md:divide-x bg-card">
         {[
-          { icon: Info, label: "Informações gerais" },
-          { icon: Globe, label: "Página do evento" },
+          { icon: Info, label: "Informações gerais", route: `/organizador/evento/${id}/configuracoes` },
+          { icon: Globe, label: "Página do evento", route: `/organizador/evento/${id}/configuracoes/pagina` },
           { icon: Ticket, label: "Ingressos", route: `/organizador/evento/${id}/ingressos` },
-          { icon: CreditCard, label: "Pagamento" },
-          { icon: ClipboardList, label: "Formulário de inscrição" },
-          { icon: MessageSquare, label: "Mensagens" },
+          { icon: CreditCard, label: "Pagamento", route: `/organizador/evento/${id}/configuracoes/pagamento` },
+          { icon: ClipboardList, label: "Formulário de inscrição", route: `/organizador/evento/${id}/configuracoes/formulario` },
+          { icon: MessageSquare, label: "Mensagens", route: `/organizador/evento/${id}/configuracoes/mensagem` },
         ].map((item) =>
           item.route ? (
             <button
