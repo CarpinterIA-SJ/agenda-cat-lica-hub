@@ -106,6 +106,28 @@ const OrganizerEventsPage = () => {
             <span className="text-lg font-bold text-slate-900">Guardião Eventos</span>
           </div>
           <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-slate-600 hover:text-primary"
+                    onClick={() => {
+                      const searchInput = document.querySelector<HTMLInputElement>('input[placeholder="Buscar..."]');
+                      if (searchInput) {
+                        searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        searchInput.focus();
+                      }
+                    }}
+                  >
+                    <Search className="w-5 h-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Buscar eventos</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-slate-600 hover:text-primary">
