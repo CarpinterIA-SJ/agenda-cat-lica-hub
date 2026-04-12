@@ -120,7 +120,62 @@ const RoleRoute = ({ children, requiredRole }: { children?: React.ReactNode; req
 
 const OrganizerEventNewPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [tab, setTab] = useState("informacoes");
+  const [saving, setSaving] = useState(false);
+  const [eventType, setEventType] = useState("presencial");
+  const [organizer, setOrganizer] = useState("");
+  const [supportPhone, setSupportPhone] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
+  const [eventName, setEventName] = useState("");
+  const [category, setCategory] = useState("");
+  const [nomenclature, setNomenclature] = useState("");
+  const [visibility, setVisibility] = useState("publico");
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [address, setAddress] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  const handleCreateEvent = async () => {
+    if (!eventName.trim()) {
+      toast({ title: "Erro", description: "Informe o nome do evento.", variant: "destructive" });
+      return;
+    }
+    if (!user) {
+      toast({ title: "Erro", description: "Você precisa estar logado.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    const startDateTime = startDate && startTime ? new Date(`${startDate.split('/').reverse().join('-')}T${startTime}:00`) : null;
+    const endDateTime = endDate && endTime ? new Date(`${endDate.split('/').reverse().join('-')}T${endTime}:00`) : null;
+
+    const { data, error } = await supabase.from("events" as any).insert({
+      user_id: user.id,
+      title: eventName,
+      category: category || null,
+      nomenclature: nomenclature || 'inscricao',
+      event_type: eventType,
+      visibility,
+      start_date: startDateTime?.toISOString() || null,
+      end_date: endDateTime?.toISOString() || null,
+      address: address || null,
+      support_phone: supportPhone || null,
+      support_email: supportEmail || null,
+      organizer_name: organizer || null,
+      status: 'rascunho',
+    } as any).select().single();
+
+    setSaving(false);
+    if (error) {
+      toast({ title: "Erro ao criar evento", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Evento criado!", description: "Seu evento foi criado com sucesso." });
+    navigate(`/organizador/evento/${(data as any).id}/dashboard`);
+  };
 
   return (
     <div className="min-h-screen w-full bg-slate-50">
