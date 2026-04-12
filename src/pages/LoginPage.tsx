@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { SaoJoseIcon } from "@/components/icons/SaoJoseIcon";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/use-auth";
 import authBg from "@/assets/auth-bg.jpg";
 
@@ -61,7 +62,18 @@ const LoginPage = () => {
   };
 
   const handleGoogleLogin = async () => {
-    await supabase.auth.signInWithOAuth({ provider: "google" });
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+
+    if (result.error) {
+      setError("Erro ao entrar com Google. Tente novamente.");
+      return;
+    }
+
+    if (result.redirected) {
+      return;
+    }
   };
 
   return (
