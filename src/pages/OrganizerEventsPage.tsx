@@ -26,6 +26,7 @@ import {
   User,
   MessageCircle,
   MapPin,
+  Trash2,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
