@@ -43,28 +43,35 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
-const mockEvents = [
-  {
-    id: 1,
-    title: "Retiro de Quaresma",
-    status: "Ativo",
-    format: "Presencial",
-    date: "28 Mar 2026",
-    location: "Paróquia São José",
-    attendees: "120 inscritos",
-  },
-];
-
 const OrganizerEventsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const [events] = useState<any[]>(mockEvents);
+  const { user } = useAuth();
+  const [events, setEvents] = useState<any[]>([]);
   const [eventSearch, setEventSearch] = useState("");
   const [isDark, setIsDark] = useState(false);
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [eventOption, setEventOption] = useState("");
   const [tab, setTab] = useState("proximos");
+  const [loadingEvents, setLoadingEvents] = useState(true);
+
+  const fetchEvents = useCallback(async () => {
+    if (!user) return;
+    setLoadingEvents(true);
+    const { data, error } = await supabase
+      .from("events" as any)
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (!error && data) {
+      setEvents(data as any[]);
+    }
+    setLoadingEvents(false);
+  }, [user]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   useEffect(() => {
     if (location.pathname.includes("meus-eventos")) {
@@ -72,9 +79,19 @@ const OrganizerEventsPage = () => {
     }
   }, [location.pathname]);
 
-  const filteredEvents = events.filter((event) =>
+  const filteredEvents = events.filter((event: any) =>
     event.title.toLowerCase().includes(eventSearch.toLowerCase()),
   );
+
+  const handleDeleteEvent = async (eventId: string) => {
+    const { error } = await supabase.from("events" as any).delete().eq("id", eventId);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Evento excluído", description: "O evento foi removido com sucesso." });
+      fetchEvents();
+    }
+  };
 
   const appItems = [
     { label: "Home", icon: Home, route: "/organizador/home" },
@@ -90,11 +107,11 @@ const OrganizerEventsPage = () => {
     setEventOption("");
   };
 
-  const handleViewEvent = (eventId: number) => {
+  const handleViewEvent = (eventId: string) => {
     navigate(`/organizador/evento/${eventId}/visualizar`);
   };
 
-  const handleManageEvent = (eventId: number) => {
+  const handleManageEvent = (eventId: string) => {
     navigate(`/organizador/evento/${eventId}/dashboard`);
   };
 
