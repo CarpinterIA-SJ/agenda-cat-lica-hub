@@ -349,7 +349,14 @@ const OrganizerEventNewPage = () => {
         </div>
 
         <div className="flex justify-end">
-          <Button className="h-12 px-6 bg-emerald-700 text-white hover:bg-emerald-800">Criar evento e continuar</Button>
+          <Button
+            className="h-12 px-6 bg-emerald-700 text-white hover:bg-emerald-800"
+            onClick={() => {
+              navigate("/organizador/evento/1/dashboard");
+            }}
+          >
+            Criar evento e continuar
+          </Button>
         </div>
       </div>
     </div>
