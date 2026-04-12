@@ -62,7 +62,18 @@ const LoginPage = () => {
   };
 
   const handleGoogleLogin = async () => {
-    await supabase.auth.signInWithOAuth({ provider: "google" });
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+
+    if (result.error) {
+      setError("Erro ao entrar com Google. Tente novamente.");
+      return;
+    }
+
+    if (result.redirected) {
+      return;
+    }
   };
 
   return (
