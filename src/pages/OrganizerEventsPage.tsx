@@ -281,65 +281,66 @@ const OrganizerEventsPage = () => {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredEvents.map((event) => (
-            <Card key={event.id} className="border-slate-200 shadow-sm">
-              <CardContent className="p-4 space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
-                    {event.status}
-                  </span>
-                  <span className="text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
-                    {event.format}
-                  </span>
-                </div>
-                <div className="space-y-3 text-left">
-                  <h3 className="text-lg font-semibold text-slate-900 leading-6">{event.title}</h3>
-                  <div className="space-y-2 text-sm text-slate-600">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-emerald-600" />
-                      <span>{event.date}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-emerald-600" />
-                      <span>{event.location}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-emerald-600" />
-                      <span>{event.attendees}</span>
+          {loadingEvents ? (
+            <p className="text-sm text-slate-500 col-span-full">Carregando eventos...</p>
+          ) : filteredEvents.length === 0 ? (
+            <p className="text-sm text-slate-500 col-span-full">Nenhum evento encontrado.</p>
+          ) : (
+            filteredEvents.map((event: any) => (
+              <Card key={event.id} className="border-slate-200 shadow-sm">
+                <CardContent className="p-4 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
+                      {event.status || "Rascunho"}
+                    </span>
+                    <span className="text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+                      {event.event_type || "Presencial"}
+                    </span>
+                  </div>
+                  <div className="space-y-3 text-left">
+                    <h3 className="text-lg font-semibold text-slate-900 leading-6">{event.title}</h3>
+                    <div className="space-y-2 text-sm text-slate-600">
+                      {event.start_date && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-emerald-600" />
+                          <span>{new Date(event.start_date).toLocaleDateString("pt-BR")}</span>
+                        </div>
+                      )}
+                      {event.address && (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-emerald-600" />
+                          <span>{event.address}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-                <div className="flex flex-col sm:flex-row items-center gap-2 border-t border-slate-100 pt-3">
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={() => handleViewEvent(event.id)}
-                  >
-                    Visualizar
-                  </Button>
-                  <Button
-                    className="w-full sm:w-auto bg-primary hover:bg-primary/90"
-                    onClick={() => handleManageEvent(event.id)}
-                  >
-                    Gerenciar
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200">
-          <span className="text-sm text-slate-500">Exibindo 0 de 1 páginas</span>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="text-slate-500">
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" className="border-primary text-primary">1</Button>
-            <Button variant="ghost" size="icon" className="text-slate-500">
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
+                  <div className="flex flex-col sm:flex-row items-center gap-2 border-t border-slate-100 pt-3">
+                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => handleViewEvent(event.id)}
+                    >
+                      Visualizar
+                    </Button>
+                    <Button
+                      className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+                      onClick={() => handleManageEvent(event.id)}
+                    >
+                      Gerenciar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDeleteEvent(event.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </main>
 
