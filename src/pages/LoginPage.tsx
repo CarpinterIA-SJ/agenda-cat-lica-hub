@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { SaoJoseIcon } from "@/components/icons/SaoJoseIcon";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/use-auth";
 import authBg from "@/assets/auth-bg.jpg";
 
