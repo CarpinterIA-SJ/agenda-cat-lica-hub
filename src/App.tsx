@@ -120,7 +120,62 @@ const RoleRoute = ({ children, requiredRole }: { children?: React.ReactNode; req
 
 const OrganizerEventNewPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [tab, setTab] = useState("informacoes");
+  const [saving, setSaving] = useState(false);
+  const [eventType, setEventType] = useState("presencial");
+  const [organizer, setOrganizer] = useState("");
+  const [supportPhone, setSupportPhone] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
+  const [eventName, setEventName] = useState("");
+  const [category, setCategory] = useState("");
+  const [nomenclature, setNomenclature] = useState("");
+  const [visibility, setVisibility] = useState("publico");
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [address, setAddress] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  const handleCreateEvent = async () => {
+    if (!eventName.trim()) {
+      toast({ title: "Erro", description: "Informe o nome do evento.", variant: "destructive" });
+      return;
+    }
+    if (!user) {
+      toast({ title: "Erro", description: "Você precisa estar logado.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    const startDateTime = startDate && startTime ? new Date(`${startDate.split('/').reverse().join('-')}T${startTime}:00`) : null;
+    const endDateTime = endDate && endTime ? new Date(`${endDate.split('/').reverse().join('-')}T${endTime}:00`) : null;
+
+    const { data, error } = await supabase.from("events" as any).insert({
+      user_id: user.id,
+      title: eventName,
+      category: category || null,
+      nomenclature: nomenclature || 'inscricao',
+      event_type: eventType,
+      visibility,
+      start_date: startDateTime?.toISOString() || null,
+      end_date: endDateTime?.toISOString() || null,
+      address: address || null,
+      support_phone: supportPhone || null,
+      support_email: supportEmail || null,
+      organizer_name: organizer || null,
+      status: 'rascunho',
+    } as any).select().single();
+
+    setSaving(false);
+    if (error) {
+      toast({ title: "Erro ao criar evento", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Evento criado!", description: "Seu evento foi criado com sucesso." });
+    navigate(`/organizador/evento/${(data as any).id}/dashboard`);
+  };
 
   return (
     <div className="min-h-screen w-full bg-slate-50">
@@ -173,7 +228,7 @@ const OrganizerEventNewPage = () => {
               <CardTitle>Tipo de evento</CardTitle>
             </CardHeader>
             <CardContent>
-              <RadioGroup defaultValue="presencial" className="grid gap-3 md:grid-cols-3">
+              <RadioGroup value={eventType} onValueChange={setEventType} className="grid gap-3 md:grid-cols-3">
                 {[
                   { value: "presencial", label: "Evento presencial", icon: MapPin },
                   { value: "online", label: "Evento online", icon: Video },
@@ -199,7 +254,7 @@ const OrganizerEventNewPage = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                <Select>
+                <Select value={organizer} onValueChange={setOrganizer}>
                   <SelectTrigger className="md:max-w-sm">
                     <SelectValue placeholder="Selecione o organizador" />
                   </SelectTrigger>
@@ -227,12 +282,12 @@ const OrganizerEventNewPage = () => {
                         <SelectItem value="351">+351</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Input placeholder="(00) 00000-0000" inputMode="tel" />
+                    <Input placeholder="(00) 00000-0000" inputMode="tel" value={supportPhone} onChange={(e) => setSupportPhone(e.target.value)} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">E-mail de suporte</label>
-                  <Input placeholder="suporte@guardiaoeventos.com" type="email" />
+                  <Input placeholder="suporte@guardiaoeventos.com" type="email" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} />
                 </div>
               </div>
             </CardContent>
@@ -245,14 +300,14 @@ const OrganizerEventNewPage = () => {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Nome do evento</label>
-                <Input placeholder="Informe o nome do evento" />
+                <Input placeholder="Informe o nome do evento" value={eventName} onChange={(e) => setEventName(e.target.value)} />
               </div>
 
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Categoria do evento</label>
-                  <Select>
+                  <Select value={category} onValueChange={setCategory}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
@@ -271,7 +326,7 @@ const OrganizerEventNewPage = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Nomenclatura</label>
-                  <Select>
+                  <Select value={nomenclature} onValueChange={setNomenclature}>
                     <SelectTrigger>
                       <SelectValue placeholder="Ex: Inscrição" />
                     </SelectTrigger>
@@ -286,7 +341,7 @@ const OrganizerEventNewPage = () => {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Visibilidade do evento</label>
-                <RadioGroup defaultValue="publico" className="grid gap-3 md:grid-cols-2">
+                <RadioGroup value={visibility} onValueChange={setVisibility} className="grid gap-3 md:grid-cols-2">
                   <label className="flex cursor-pointer flex-col gap-2 rounded-lg border border-slate-200 p-4">
                     <div className="flex items-center gap-2">
                       <RadioGroupItem value="publico" />
@@ -308,15 +363,15 @@ const OrganizerEventNewPage = () => {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Início do evento</label>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <Input placeholder="dd/mm/aaaa" inputMode="numeric" />
-                    <Input placeholder="hh:mm" inputMode="numeric" />
+                    <Input placeholder="dd/mm/aaaa" inputMode="numeric" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                    <Input placeholder="hh:mm" inputMode="numeric" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Término do evento</label>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <Input placeholder="dd/mm/aaaa" inputMode="numeric" />
-                    <Input placeholder="hh:mm" inputMode="numeric" />
+                    <Input placeholder="dd/mm/aaaa" inputMode="numeric" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                    <Input placeholder="hh:mm" inputMode="numeric" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
                   </div>
                 </div>
               </div>
@@ -328,7 +383,7 @@ const OrganizerEventNewPage = () => {
               <CardTitle>Local do evento</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Input placeholder="Buscar endereço" />
+              <Input placeholder="Buscar endereço" value={address} onChange={(e) => setAddress(e.target.value)} />
               <div className="flex h-48 items-center justify-center rounded-lg border border-dashed bg-slate-100">
                 <Locate className="h-8 w-8 text-slate-400" />
               </div>
@@ -341,7 +396,7 @@ const OrganizerEventNewPage = () => {
             </CardHeader>
             <CardContent>
               <label className="flex items-center gap-3 text-sm text-muted-foreground">
-                <Checkbox />
+                <Checkbox checked={termsAccepted} onCheckedChange={(v) => setTermsAccepted(v === true)} />
                 Concordo com os termos de uso e políticas de privacidade da plataforma
               </label>
             </CardContent>
@@ -351,11 +406,10 @@ const OrganizerEventNewPage = () => {
         <div className="flex justify-end">
           <Button
             className="h-12 px-6 bg-emerald-700 text-white hover:bg-emerald-800"
-            onClick={() => {
-              navigate("/organizador/evento/1/dashboard");
-            }}
+            onClick={handleCreateEvent}
+            disabled={saving}
           >
-            Criar evento e continuar
+            {saving ? "Criando..." : "Criar evento e continuar"}
           </Button>
         </div>
       </div>
