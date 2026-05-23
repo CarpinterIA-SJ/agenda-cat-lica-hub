@@ -9,41 +9,15 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Plus, Search, Calendar, MapPin, Users, Ticket, User, Mail, ChevronRight,
-  Phone, Hash, CreditCard, AlertTriangle, Fingerprint, Video, ArrowRight, Lock,
-  Headset, MessageCircle,
+  Phone, CreditCard, AlertTriangle, Fingerprint, Video, ArrowRight, Lock,
+  Headset, MessageCircle, Tag, Building2, ClipboardList, Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { syncCustomEvents } from "@/lib/events-sync";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
-const mockEvents = [
-  {
-    id: 1,
-    name: "Retiro de Quaresma",
-    slug: "retiro-de-quaresma",
-    date: "28 Mar 2026",
-    time: "09:00",
-    startDateTime: "2026-03-28T09:00:00",
-    location: "Paróquia São José",
-    type: "Evento presencial",
-    attendees: 120,
-    status: "Ativo",
-    policies: {
-      title: "Política de cancelamento",
-      text: "Cancelamentos podem ser solicitados até 7 dias antes do evento. Após esse período, entre em contato com a organização.",
-      link: "#",
-    },
-    organizerName: "Guardião Eventos",
-    details: {
-      tickets: [{ id: "1", name: "Inscrição Geral", price: "0" }],
-      formFields: [
-        { id: "1", label: "Nome Completo", type: "text", required: true },
-        { id: "2", label: "E-mail", type: "email", required: true },
-        { id: "3", label: "WhatsApp", type: "tel", required: true },
-      ],
-    },
-  },
-];
 
 const slugify = (value: string) =>
   value
@@ -61,12 +35,11 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
   useEffect(() => {
     if (eventProp) return;
     try {
-      const stored = JSON.parse(localStorage.getItem("custom_events") || "[]");
-      const list = [...stored, ...mockEvents];
-      const found = list.find((item) => (item.slug || slugify(item.name)) === slug);
-      setEventData(found || list[0]);
+      const stored = syncCustomEvents();
+      const found = stored.find((item: any) => (item.slug || slugify(item.name)) === slug);
+      setEventData(found || stored[0] || null);
     } catch {
-      setEventData(mockEvents[0]);
+      setEventData(null);
     }
   }, [eventProp, slug]);
 
@@ -118,20 +91,33 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
           <div className="flex items-center gap-3">
             <a href="#" className="text-sm font-medium text-[#0b3d2e] hover:underline">Sou organizador</a>
             <Button className="h-9 px-5 bg-[#0b3d2e] text-white hover:bg-[#0a3225]">Entrar</Button>
+            <ThemeToggle />
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-10 space-y-10">
+        {eventData?.bannerUrl && (
+          <div className="rounded-3xl overflow-hidden border border-[#dfe8df] bg-white">
+            <img src={eventData.bannerUrl} alt={eventData?.name || "Banner do evento"} className="w-full max-h-80 object-cover" />
+          </div>
+        )}
         <section className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-6">
             <div className="space-y-3">
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#2f5a47]">Evento</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#2f5a47]">Evento</span>
+                {eventData?.category && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[#2f5a47] bg-[#2f5a47]/10 px-2 py-0.5 rounded-full">
+                    {eventData.category}
+                  </span>
+                )}
+              </div>
               <h1 className="text-3xl md:text-4xl font-bold text-[#0b3d2e]">
                 {eventData?.name || "Nome do Evento"}
               </h1>
               <p className="text-sm text-[#4b6355]">
-                {eventData?.description || "Experiência organizada pela Guardião Eventos para sua comunidade."}
+                {eventData?.descriptionText || "Experiência organizada pela Guardião Eventos para sua comunidade."}
               </p>
             </div>
 
@@ -220,9 +206,16 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
         <section className="grid gap-6 md:grid-cols-3">
           <div className="rounded-2xl border border-[#dfe8df] bg-white p-5">
             <h3 className="text-sm font-semibold text-[#0b3d2e]">Sobre o evento</h3>
-            <p className="text-sm text-[#4b6355] mt-2">
-              Este evento foi pensado para proporcionar uma experiência acolhedora, com organização profissional e suporte completo.
-            </p>
+            {eventData?.description ? (
+              <div
+                className="prose prose-sm max-w-none text-[#4b6355] mt-2"
+                dangerouslySetInnerHTML={{ __html: eventData.description }}
+              />
+            ) : (
+              <p className="text-sm text-[#4b6355] mt-2">
+                Este evento foi pensado para proporcionar uma experiência acolhedora, com organização profissional e suporte completo.
+              </p>
+            )}
           </div>
           <div className="rounded-2xl border border-[#dfe8df] bg-white p-5">
             <h3 className="text-sm font-semibold text-[#0b3d2e]">O que está incluso</h3>
@@ -283,29 +276,96 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
   );
 };
 
+type StandardFieldKey = "nome" | "email" | "cpf" | "nascimento" | "whatsapp";
+
+type UnifiedField =
+  | { kind: "standard"; key: StandardFieldKey; id: string; label: string; required: boolean; icon: any; inputType?: string; placeholder?: string; readOnly?: boolean; helper?: string }
+  | { kind: "custom"; id: string; label: string; required: boolean; type?: string };
+
+const buildUnifiedFields = (event: any): UnifiedField[] => {
+  if (!event) return [];
+  const fields: UnifiedField[] = [];
+  if (event.show_nome !== false) {
+    fields.push({ kind: "standard", key: "nome", id: "fixed_nome", label: "Nome completo", required: true, icon: User, placeholder: "Como deseja ser identificado" });
+  }
+  if (event.show_email !== false) {
+    fields.push({ kind: "standard", key: "email", id: "fixed_email", label: "E-mail", required: true, icon: Mail, inputType: "email", readOnly: true, helper: "E-mail da sua conta Guardião." });
+  }
+  if (event.show_cpf !== false) {
+    fields.push({ kind: "standard", key: "cpf", id: "fixed_cpf", label: "CPF", required: true, icon: Fingerprint, placeholder: "000.000.000-00" });
+  }
+  if (event.show_nascimento === true) {
+    fields.push({ kind: "standard", key: "nascimento", id: "fixed_nascimento", label: "Data de nascimento", required: true, icon: Calendar, inputType: "date" });
+  }
+  if (event.show_whatsapp !== false) {
+    fields.push({ kind: "standard", key: "whatsapp", id: "fixed_tel", label: "Telefone (WhatsApp)", required: true, icon: Phone, inputType: "tel", placeholder: "(00) 00000-0000" });
+  }
+  const custom = event.custom_fields || event.details?.formFields || [];
+  custom.forEach((f: any) => {
+    fields.push({ kind: "custom", id: f.id, label: f.label, required: f.required !== false, type: f.type || "text" });
+  });
+  return fields;
+};
+
+const formatTicketPriceRange = (tickets: any[]): string => {
+  if (!tickets || tickets.length === 0) return "Gratuito";
+  const prices = tickets.map((t) => Number(t.price) || 0);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  if (min === 0 && max === 0) return "Gratuito";
+  if (min === max) return `R$ ${min.toFixed(2).replace(".", ",")}`;
+  return `R$ ${min.toFixed(2).replace(".", ",")} – R$ ${max.toFixed(2).replace(".", ",")}`;
+};
+
 const ExploreEventsPage = () => {
   const [search, setSearch] = useState("");
-  const [events, setEvents] = useState<any[]>(mockEvents);
+  const [events, setEvents] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
   const { user } = useAuth();
+  const navigate = useNavigate();
 
-  useEffect(() => {
+  const refreshEvents = () => {
     try {
-      const stored = JSON.parse(localStorage.getItem("custom_events") || "[]");
-      if (stored.length > 0) setEvents([...stored, ...mockEvents]);
+      setEvents(syncCustomEvents());
     } catch {
       // ignore
     }
+  };
+
+  useEffect(() => {
+    refreshEvents();
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key || e.key === "custom_events" || e.key === "eventos_criados") {
+        refreshEvents();
+      }
+    };
+    const onFocus = () => refreshEvents();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
 
   const filtered = events.filter((e) => e.name.toLowerCase().includes(search.toLowerCase()));
 
   const handleOpenRegistration = (event: any) => {
-    setSelectedEvent(event);
+    // Re-sync to make sure the registration modal uses the latest organizer config
+    // (form fields, tickets, etc.) even if it changed after the page was loaded.
+    let latest = event;
+    try {
+      const fresh = syncCustomEvents();
+      setEvents(fresh);
+      latest = fresh.find((e: any) => e.id === event.id) || event;
+    } catch {
+      // ignore
+    }
+    setSelectedEvent(latest);
     setSelectedTicketId(null);
     setSelectedPaymentMethod(null);
     const initialValues: Record<string, any> = {
@@ -315,12 +375,17 @@ const ExploreEventsPage = () => {
       fixed_email: user?.email || "",
       fixed_nascimento: "",
     };
-    const fields = event.custom_fields || event.details?.formFields || [];
+    const fields = latest.custom_fields || latest.details?.formFields || [];
     fields.forEach((f: any) => {
       initialValues[f.id] = f.type === "checkbox" ? false : "";
     });
     setFormValues(initialValues);
     setIsModalOpen(true);
+  };
+
+  const handleViewDetails = (event: any) => {
+    const slug = event.slug || event.id;
+    navigate(`/evento/${slug}`);
   };
 
   const handleFieldChange = (fieldId: string, value: any) => {
@@ -336,15 +401,31 @@ const ExploreEventsPage = () => {
     );
   }, [formValues, selectedEvent]);
 
+  // When the organizer hasn't configured any ticket yet, fall back to a synthetic
+  // free entry so the participant can still submit the form.
+  const modalTickets = useMemo(() => {
+    const configured = selectedEvent?.tickets || selectedEvent?.details?.tickets || [];
+    if (configured.length > 0) return configured;
+    return [{ id: "default-free", name: "Inscrição gratuita", price: "0" }];
+  }, [selectedEvent]);
+
+  useEffect(() => {
+    if (isModalOpen && modalTickets.length > 0 && !selectedTicketId) {
+      setSelectedTicketId(modalTickets[0].id);
+    }
+  }, [isModalOpen, modalTickets, selectedTicketId]);
+
+  const unifiedFields = useMemo(() => buildUnifiedFields(selectedEvent), [selectedEvent]);
+
   const isFormValid = useMemo(() => {
     if (!selectedTicketId || isDuplicate) return false;
-    if (selectedEvent?.show_nome !== false && !formValues["fixed_nome"]?.trim()) return false;
-    if (selectedEvent?.show_cpf !== false && !formValues["fixed_cpf"]?.trim()) return false;
-    if (selectedEvent?.show_whatsapp !== false && !formValues["fixed_tel"]?.trim()) return false;
-    if (selectedEvent?.show_email !== false && !formValues["fixed_email"]?.trim()) return false;
-    if (selectedEvent?.show_nascimento !== false && !formValues["fixed_nascimento"]?.trim()) return false;
-    return true;
-  }, [selectedTicketId, formValues, selectedEvent, isDuplicate]);
+    return unifiedFields.every((f) => {
+      if (!f.required) return true;
+      const raw = formValues[f.id];
+      if (typeof raw === "boolean") return raw;
+      return typeof raw === "string" ? raw.trim().length > 0 : !!raw;
+    });
+  }, [selectedTicketId, formValues, unifiedFields, isDuplicate]);
 
   const handleRegister = () => {
     if (isDuplicate) {
@@ -384,42 +465,83 @@ const ExploreEventsPage = () => {
         <Input placeholder="Buscar eventos..." className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
+      {filtered.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground gap-3">
+          <Calendar className="w-12 h-12 text-primary/30" />
+          <p className="text-lg font-semibold">Nenhum evento disponível</p>
+          <p className="text-sm">Os eventos criados pelos organizadores aparecerão aqui.</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filtered.map((event) => (
-          <Card key={event.id} className="flex flex-col shadow-card hover:shadow-card-hover transition-all group border-l-4 border-l-transparent hover:border-l-primary overflow-hidden bg-card">
-            <CardContent className="p-0 flex-1 flex flex-col">
-              <div className="p-5 flex-1">
-                <div className="flex items-start justify-between mb-4">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                    event.status === "Ativo" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                  }`}>
-                    {event.status}
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold uppercase tracking-wider">
-                    {event.type}
-                  </span>
+        {filtered.map((event) => {
+          const tickets = event.tickets || event.details?.tickets || [];
+          const priceLabel = formatTicketPriceRange(tickets);
+          const descriptionExcerpt = (event.descriptionText || "").trim();
+          return (
+            <Card key={event.id} className="flex flex-col shadow-card hover:shadow-card-hover transition-all group border-l-4 border-l-transparent hover:border-l-primary overflow-hidden bg-card">
+              <CardContent className="p-0 flex-1 flex flex-col">
+                {event.bannerUrl ? (
+                  <div className="h-36 w-full overflow-hidden bg-muted">
+                    <img src={event.bannerUrl} alt={event.name} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="h-28 w-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                    <Calendar className="w-10 h-10 text-primary/50" />
+                  </div>
+                )}
+                <div className="p-5 flex-1 flex flex-col">
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                      event.status === "Ativo" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                    }`}>
+                      {event.status}
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold uppercase tracking-wider">
+                      {event.type}
+                    </span>
+                    {event.category && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-bold uppercase tracking-wider flex items-center gap-1">
+                        <Tag className="w-3 h-3" /> {event.category}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="font-bold text-lg text-card-foreground group-hover:text-primary transition-colors mb-2 line-clamp-2 min-h-[3.5rem]">
+                    {event.name}
+                  </h3>
+                  {descriptionExcerpt && (
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{descriptionExcerpt}</p>
+                  )}
+                  <div className="space-y-2 text-sm text-muted-foreground mt-auto">
+                    <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary" /> {event.date}</div>
+                    <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /><span className="truncate">{event.location}</span></div>
+                    {event.organizerName && (
+                      <div className="flex items-center gap-2"><Building2 className="w-4 h-4 text-primary" /><span className="truncate">{event.organizerName}</span></div>
+                    )}
+                    <div className="flex items-center gap-2 font-medium text-foreground/70"><Users className="w-4 h-4 text-primary" /> {event.attendees || 0} inscritos</div>
+                    <div className="flex items-center gap-2 font-semibold text-primary"><Ticket className="w-4 h-4" /> {priceLabel}</div>
+                  </div>
                 </div>
-                <h3 className="font-bold text-lg text-card-foreground group-hover:text-primary transition-colors mb-4 line-clamp-2 min-h-[3.5rem]">
-                  {event.name}
-                </h3>
-                <div className="space-y-3 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary" /> {event.date}</div>
-                  <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /><span className="truncate">{event.location}</span></div>
-                  <div className="flex items-center gap-2 font-medium text-foreground/70"><Users className="w-4 h-4 text-primary" /> {event.attendees || 0} inscritos</div>
+                <div className="p-5 bg-muted/30 border-t mt-auto flex flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto gap-2"
+                    onClick={() => handleViewDetails(event)}
+                  >
+                    <Eye className="w-4 h-4" /> Ver detalhes
+                  </Button>
+                  <Button
+                    disabled={event.status !== "Ativo"}
+                    onClick={() => handleOpenRegistration(event)}
+                    className="w-full sm:flex-1 gap-2 font-semibold"
+                  >
+                    <Ticket className="w-4 h-4" /> Inscrever-se
+                  </Button>
                 </div>
-              </div>
-              <div className="p-5 bg-muted/30 border-t mt-auto">
-                <Button
-                  disabled={event.status !== "Ativo"}
-                  onClick={() => handleOpenRegistration(event)}
-                  className="w-full gap-2 font-semibold"
-                >
-                  <Ticket className="w-4 h-4" /> Inscrever-se
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Registration Modal */}
@@ -434,6 +556,15 @@ const ExploreEventsPage = () => {
                 {selectedEvent?.name}
               </DialogDescription>
             </DialogHeader>
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-primary-foreground/80">
+              <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {selectedEvent?.date}</span>
+              {selectedEvent?.location && (
+                <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {selectedEvent.location}</span>
+              )}
+              {selectedEvent?.organizerName && (
+                <span className="flex items-center gap-1"><Building2 className="w-3 h-3" /> {selectedEvent.organizerName}</span>
+              )}
+            </div>
           </div>
 
           <div className="p-6 space-y-8 pb-32">
@@ -444,83 +575,45 @@ const ExploreEventsPage = () => {
               </div>
             )}
 
-            {/* Tickets */}
+            {/* Unified registration form configured by the organizer */}
             <div className="space-y-4">
-              <h4 className="font-bold flex items-center gap-2 text-foreground text-sm uppercase tracking-wider">
-                <Hash className="w-4 h-4 text-primary" /> 1. Escolha sua Entrada
-              </h4>
-              <div className="grid gap-3">
-                {(selectedEvent?.tickets || selectedEvent?.details?.tickets)?.map((ticket: any) => (
-                  <div
-                    key={ticket.id}
-                    onClick={() => setSelectedTicketId(ticket.id)}
-                    className={`p-4 border-2 rounded-2xl cursor-pointer transition-all flex items-center justify-between ${
-                      selectedTicketId === ticket.id ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border hover:border-primary/30"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                        selectedTicketId === ticket.id ? "border-primary" : "border-muted-foreground/30"
-                      }`}>
-                        {selectedTicketId === ticket.id && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm">{ticket.name}</p>
-                        <p className="text-[10px] text-muted-foreground">Disponibilidade imediata</p>
-                      </div>
-                    </div>
-                    <p className="font-black text-lg text-primary">
-                      {Number(ticket.price) === 0 ? "GRÁTIS" : `R$ ${ticket.price}`}
-                    </p>
-                  </div>
-                ))}
+              <div>
+                <h4 className="font-bold flex items-center gap-2 text-foreground text-sm uppercase tracking-wider">
+                  <ClipboardList className="w-4 h-4 text-primary" /> Formulário de inscrição
+                </h4>
+                <p className="text-xs text-muted-foreground mt-1">Preencha os campos definidos pelo organizador para concluir sua inscrição.</p>
               </div>
-            </div>
-
-            {/* Form fields */}
-            <div className="space-y-4 pt-6 border-t">
-              <h4 className="font-bold flex items-center gap-2 text-foreground text-sm uppercase tracking-wider">
-                <User className="w-4 h-4 text-primary" /> 2. Suas Informações
-              </h4>
-              <div className="grid gap-5">
-                {selectedEvent?.show_nome !== false && (
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
-                      <User className="w-3 h-3" /> Nome Completo *
-                    </Label>
-                    <Input placeholder="Como deseja ser identificado" className="h-11" value={formValues["fixed_nome"] || ""} onChange={(e) => handleFieldChange("fixed_nome", e.target.value)} />
-                  </div>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedEvent?.show_cpf !== false && (
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1"><Fingerprint className="w-3 h-3" /> CPF *</Label>
-                      <Input placeholder="000.000.000-00" className="h-11" value={formValues["fixed_cpf"] || ""} onChange={(e) => handleFieldChange("fixed_cpf", e.target.value)} />
-                    </div>
-                  )}
-                  {selectedEvent?.show_nascimento !== false && (
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1"><Calendar className="w-3 h-3" /> Data de Nascimento *</Label>
-                      <Input type="date" className="h-11" value={formValues["fixed_nascimento"] || ""} onChange={(e) => handleFieldChange("fixed_nascimento", e.target.value)} />
-                    </div>
-                  )}
+              {unifiedFields.length === 0 ? (
+                <p className="text-sm text-muted-foreground">O organizador ainda não configurou campos para este formulário.</p>
+              ) : (
+                <div className="grid gap-5">
+                  {unifiedFields.map((field) => {
+                    const Icon = field.kind === "standard" ? field.icon : ClipboardList;
+                    const value = formValues[field.id];
+                    const inputType = field.kind === "standard" ? field.inputType : field.type;
+                    const placeholder = field.kind === "standard" ? field.placeholder : field.label;
+                    const readOnly = field.kind === "standard" && field.readOnly;
+                    return (
+                      <div key={field.id} className="space-y-2">
+                        <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
+                          <Icon className="w-3 h-3" /> {field.label}{field.required ? " *" : ""}
+                        </Label>
+                        <Input
+                          type={inputType || "text"}
+                          placeholder={placeholder || ""}
+                          className={`h-11 ${readOnly ? "bg-muted/30 cursor-not-allowed" : ""}`}
+                          value={typeof value === "string" ? value : value ? String(value) : ""}
+                          readOnly={readOnly}
+                          onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                        />
+                        {field.kind === "standard" && field.helper && (
+                          <p className="text-[10px] text-muted-foreground italic">{field.helper}</p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedEvent?.show_whatsapp !== false && (
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" /> Telefone (WhatsApp) *</Label>
-                      <Input type="tel" placeholder="(00) 00000-0000" className="h-11" value={formValues["fixed_tel"] || ""} onChange={(e) => handleFieldChange("fixed_tel", e.target.value)} />
-                    </div>
-                  )}
-                  {selectedEvent?.show_email !== false && (
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1"><Mail className="w-3 h-3" /> E-mail *</Label>
-                      <Input type="email" readOnly className="h-11 bg-muted/30 cursor-not-allowed" value={formValues["fixed_email"] || ""} />
-                      <p className="text-[10px] text-muted-foreground italic">E-mail da sua conta Guardião.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
           </div>
 

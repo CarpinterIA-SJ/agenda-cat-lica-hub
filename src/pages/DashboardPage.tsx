@@ -3,42 +3,30 @@ import { useAuth } from "@/hooks/use-auth";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Calendar,
   LayoutGrid,
   Moon,
   Sun,
   Home,
+  Users,
   Users2,
   HandHeart,
   HeartCrack,
   Headset,
-  Ticket,
-  Mail,
-  Users,
-  HelpCircle,
-  LogOut,
-  User,
   Heart,
   CalendarDays,
   MessageCircle,
+  Ticket,
 } from "lucide-react";
+import { UserAvatarMenu } from "@/components/UserAvatarMenu";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const DashboardPage = () => {
   const { role } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isDark, setIsDark] = useState(false);
   const [eventCount, setEventCount] = useState(1);
   const [registrationCount, setRegistrationCount] = useState(0);
 
@@ -126,66 +114,9 @@ const DashboardPage = () => {
               </PopoverContent>
             </Popover>
 
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-slate-600 hover:text-primary"
-                    onClick={() => setIsDark((prev) => !prev)}
-                  >
-                    {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Alterar tema</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <ThemeToggle className="text-slate-600 hover:text-primary" />
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="outline-none">
-                  <Avatar className="h-9 w-9">
-                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">FC</AvatarFallback>
-                  </Avatar>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 border-gray-100 shadow-sm">
-                <DropdownMenuLabel className="font-normal text-[11px] text-slate-400">
-                  fabricio.christian@gmail.com
-                </DropdownMenuLabel>
-                <DropdownMenuItem className="gap-2 cursor-pointer">
-                  <LayoutGrid className="w-4 h-4" />
-                  Ver aplicações
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer">
-                  <User className="w-4 h-4" />
-                  Minha conta
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer">
-                  <Ticket className="w-4 h-4" />
-                  Meus ingressos
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer">
-                  <Mail className="w-4 h-4" />
-                  Convites pendentes
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/organizadores")} className="gap-2 cursor-pointer">
-                  <Users className="w-4 h-4" />
-                  Organizadores
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer">
-                  <HelpCircle className="w-4 h-4" />
-                  Ajuda
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="gap-2 cursor-pointer text-destructive focus:text-destructive">
-                  <LogOut className="w-4 h-4" />
-                  Sair
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <UserAvatarMenu />
           </div>
         </div>
       </header>

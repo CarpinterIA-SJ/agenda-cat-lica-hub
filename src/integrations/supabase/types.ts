@@ -6,24 +6,88 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+export type OrgMemberRole = 'owner' | 'admin' | 'member'
+export type ProjectStatus  = 'active' | 'archived' | 'draft'
+
+// ─── Row types ──────────────────────────────────────────────────────────────
+
+export interface Profile {
+  id:          string
+  name:        string | null
+  avatar_url:  string | null
+  created_at:  string
+  updated_at:  string
+}
+
+export interface Organization {
+  id:         string
+  name:       string
+  slug:       string
+  owner_id:   string
+  created_at: string
+}
+
+export interface OrganizationMember {
+  id:              string
+  organization_id: string
+  user_id:         string
+  role:            OrgMemberRole
+  joined_at:       string
+}
+
+export interface Project {
+  id:              string
+  organization_id: string
+  name:            string
+  description:     string | null
+  status:          ProjectStatus
+  created_at:      string
+  updated_at:      string
+}
+
+// ─── Database type (usado pelo createClient<Database>) ──────────────────────
+
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4"
+    PostgrestVersion: '14.4'
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row:    Profile
+        Insert: Omit<Profile, 'created_at' | 'updated_at'> & { created_at?: string; updated_at?: string }
+        Update: Partial<Omit<Profile, 'id'>>
+      }
+      organizations: {
+        Row:    Organization
+        Insert: Omit<Organization, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<Pick<Organization, 'name' | 'slug'>>
+      }
+      organization_members: {
+        Row:    OrganizationMember
+        Insert: Omit<OrganizationMember, 'id' | 'joined_at'> & { id?: string; joined_at?: string }
+        Update: Pick<OrganizationMember, 'role'>
+      }
+      projects: {
+        Row:    Project
+        Insert: Omit<Project, 'id' | 'created_at' | 'updated_at'> & { id?: string; created_at?: string; updated_at?: string }
+        Update: Partial<Pick<Project, 'name' | 'description' | 'status'>>
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      user_org_ids: {
+        Args:    Record<PropertyKey, never>
+        Returns: string[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      org_member_role: OrgMemberRole
+      project_status:  ProjectStatus
     }
     CompositeTypes: {
       [_ in never]: never
@@ -31,125 +95,32 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+// ─── Helpers genéricos (compatíveis com o padrão Supabase CLI) ───────────────
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof DatabaseWithoutInternals, 'public'>]
 
 export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
-    }
-    ? R
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
+  TableName extends keyof DefaultSchema['Tables'],
+> = DefaultSchema['Tables'][TableName]['Row']
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
+  TableName extends keyof DefaultSchema['Tables'],
+> = DefaultSchema['Tables'][TableName]['Insert']
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
+  TableName extends keyof DefaultSchema['Tables'],
+> = DefaultSchema['Tables'][TableName]['Update']
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+  EnumName extends keyof DefaultSchema['Enums'],
+> = DefaultSchema['Enums'][EnumName]
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      org_member_role: ['owner', 'admin', 'member'] as const,
+      project_status:  ['active', 'archived', 'draft'] as const,
+    },
   },
 } as const

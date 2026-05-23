@@ -16,56 +16,55 @@ import {
   Home,
   Users2,
   Headset,
-  Ticket,
-  Mail,
-  Users,
-  HelpCircle,
-  LogOut,
-  User,
   MessageCircle,
   MapPin,
+  Users,
+  Trash2,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UserAvatarMenu } from "@/components/UserAvatarMenu";
 import { useToast } from "@/hooks/use-toast";
+import {
+  ORGANIZER_EVENTS_KEY,
+  getOrganizerEvents,
+  syncCustomEvents,
+} from "@/lib/events-sync";
 
-const mockEvents = [
-  {
-    id: 1,
-    title: "Retiro de Quaresma",
-    status: "Ativo",
-    format: "Presencial",
-    date: "28 Mar 2026",
-    location: "Paróquia São José",
-    attendees: "120 inscritos",
-  },
-];
+const loadEvents = () => {
+  // Keep participant-facing custom_events reconciled on every load.
+  syncCustomEvents();
+  return getOrganizerEvents();
+};
 
 const OrganizerEventsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const [events] = useState<any[]>(mockEvents);
+  const [events, setEvents] = useState<any[]>(loadEvents);
   const [eventSearch, setEventSearch] = useState("");
   const [isDark, setIsDark] = useState(false);
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [eventOption, setEventOption] = useState("");
   const [tab, setTab] = useState("proximos");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
     if (location.pathname.includes("meus-eventos")) {
       setTab("proximos");
+      setEvents(loadEvents());
     }
   }, [location.pathname]);
 
@@ -87,12 +86,27 @@ const OrganizerEventsPage = () => {
     setEventOption("");
   };
 
-  const handleViewEvent = (eventId: number) => {
+  const handleViewEvent = (eventId: string) => {
     navigate(`/organizador/evento/${eventId}/visualizar`);
   };
 
-  const handleManageEvent = (eventId: number) => {
+  const handleManageEvent = (eventId: string) => {
     navigate(`/organizador/evento/${eventId}/dashboard`);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return;
+    try {
+      const stored: any[] = JSON.parse(localStorage.getItem(ORGANIZER_EVENTS_KEY) || "[]");
+      const updated = stored.filter((e) => e.id !== deleteTarget.id);
+      localStorage.setItem(ORGANIZER_EVENTS_KEY, JSON.stringify(updated));
+    } catch {
+      // ignora erros de parse
+    }
+    // Reconciling custom_events after organizer events change drops the deleted one.
+    setEvents(loadEvents());
+    toast({ title: "Evento excluído", description: `"${deleteTarget.title}" foi removido permanentemente.` });
+    setDeleteTarget(null);
   };
 
   return (
@@ -145,50 +159,7 @@ const OrganizerEventsPage = () => {
               </Tooltip>
             </TooltipProvider>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="outline-none">
-                  <Avatar className="h-9 w-9">
-                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">FC</AvatarFallback>
-                  </Avatar>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 border-gray-100 shadow-sm">
-                <DropdownMenuLabel className="font-normal text-[11px] text-slate-400">
-                  fabricio.christian@gmail.com
-                </DropdownMenuLabel>
-                <DropdownMenuItem className="gap-2 cursor-pointer">
-                  <LayoutGrid className="w-4 h-4" />
-                  Ver aplicações
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer">
-                  <User className="w-4 h-4" />
-                  Minha conta
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer">
-                  <Ticket className="w-4 h-4" />
-                  Meus ingressos
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer">
-                  <Mail className="w-4 h-4" />
-                  Convites pendentes
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/organizadores")} className="gap-2 cursor-pointer">
-                  <Users className="w-4 h-4" />
-                  Organizadores
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer">
-                  <HelpCircle className="w-4 h-4" />
-                  Ajuda
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="gap-2 cursor-pointer text-destructive focus:text-destructive">
-                  <LogOut className="w-4 h-4" />
-                  Sair
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <UserAvatarMenu />
           </div>
         </div>
       </header>
@@ -281,6 +252,15 @@ const OrganizerEventsPage = () => {
                   >
                     Gerenciar
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-slate-400 hover:text-destructive hover:bg-destructive/10 sm:ml-auto"
+                    onClick={() => setDeleteTarget({ id: event.id, title: event.title })}
+                    title="Excluir evento"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -323,6 +303,29 @@ const OrganizerEventsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir evento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir permanentemente o evento{" "}
+              <span className="font-semibold text-slate-900">"{deleteTarget?.title}"</span>?
+              <br />
+              Todos os registros relacionados serão removidos e essa ação não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir permanentemente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <a
         href="https://wa.me/5500000000000"

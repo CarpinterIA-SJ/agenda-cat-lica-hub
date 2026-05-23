@@ -1,73 +1,128 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { User, Session } from "@supabase/supabase-js";
+import { User, Session, AuthError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  role: 'organizer' | 'participant' | null;
-  setRole: (role: 'organizer' | 'participant' | null) => void;
-  signOut: () => Promise<void>;
+// ─── Tipos ──────────────────────────────────────────────────────────────────
+
+interface SignInResult {
+  error: AuthError | null;
 }
 
+export type UserRole = "organizer" | "participant" | "admin";
+
+interface AuthContextType {
+  user:             User | null;
+  session:          Session | null;
+  loading:          boolean;
+  role:             UserRole | null;
+  setRole:          (role: UserRole | null) => void;
+  signIn:           (email: string, password: string) => Promise<SignInResult>;
+  signUp:           (email: string, password: string, fullName?: string) => Promise<SignInResult>;
+  signOut:          () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+}
+
+// ─── Contexto ────────────────────────────────────────────────────────────────
+
 const AuthContext = createContext<AuthContextType>({
-  user: null,
-  session: null,
-  loading: true,
-  role: null,
-  setRole: () => {},
-  signOut: async () => {},
+  user:             null,
+  session:          null,
+  loading:          true,
+  role:             null,
+  setRole:          () => {},
+  signIn:           async () => ({ error: null }),
+  signUp:           async () => ({ error: null }),
+  signOut:          async () => {},
+  signInWithGoogle: async () => {},
 });
 
+// ─── Provider ────────────────────────────────────────────────────────────────
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user,    setUser]    = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [role, setRoleState] = useState<'organizer' | 'participant' | null>(() => {
-    return localStorage.getItem('user_role') as 'organizer' | 'participant' | null;
-  });
+  const [role, setRoleState]  = useState<UserRole | null>(
+    () => localStorage.getItem("user_role") as UserRole | null,
+  );
 
-  const setRole = (newRole: 'organizer' | 'participant' | null) => {
+  const setRole = (newRole: UserRole | null) => {
     setRoleState(newRole);
-    if (newRole) {
-      localStorage.setItem('user_role', newRole);
-    } else {
-      localStorage.removeItem('user_role');
-    }
+    if (newRole) localStorage.setItem("user_role", newRole);
+    else         localStorage.removeItem("user_role");
   };
 
   useEffect(() => {
+    // Resolve a sessão atual (incluindo tokens de redirecionamento OAuth)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
+    // Escuta mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
-      if (_event === 'SIGNED_OUT') {
+
+      if (_event === "SIGNED_OUT") {
         setRoleState(null);
-        localStorage.removeItem('user_role');
+        localStorage.removeItem("user_role");
       }
-      
+
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // ─── Funções de autenticação ───────────────────────────────
+
+  const signIn = async (email: string, password: string): Promise<SignInResult> => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error };
+  };
+
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName?: string,
+  ): Promise<SignInResult> => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName ?? "" },
+      },
+    });
+    return { error };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
+  /**
+   * Inicia o fluxo OAuth com Google.
+   * Após a autenticação o Supabase redireciona para /login,
+   * onde a LoginPage detecta o provider e roteia adequadamente.
+   */
+  const signInWithGoogle = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/login` },
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, role, setRole, signOut }}>
+    <AuthContext.Provider
+      value={{ user, session, loading, role, setRole, signIn, signUp, signOut, signInWithGoogle }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
+
+// ─── Hook ────────────────────────────────────────────────────────────────────
 
 export const useAuth = () => useContext(AuthContext);

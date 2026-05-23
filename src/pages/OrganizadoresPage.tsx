@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,7 @@ const OrganizadoresPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [organizadores, setOrganizadores] = useState<Organizador[]>([
+  const defaultOrganizadores: Organizador[] = [
     {
       id: "1",
       nome: "FABRICIO CHRISTIAN DA SILVA CAVALCANTE",
@@ -47,7 +47,20 @@ const OrganizadoresPage = () => {
       logo: null,
       dataCriacao: "22/03/2026",
     },
-  ]);
+  ];
+
+  const [organizadores, setOrganizadores] = useState<Organizador[]>(() => {
+    try {
+      const stored = localStorage.getItem("organizadores");
+      return stored ? JSON.parse(stored) : defaultOrganizadores;
+    } catch {
+      return defaultOrganizadores;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("organizadores", JSON.stringify(organizadores));
+  }, [organizadores]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

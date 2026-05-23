@@ -153,7 +153,12 @@ const MyTicketsPage = () => {
                   <div className="text-xs text-slate-400 font-medium">
                     ID: <span className="font-mono bg-slate-50 px-1.5 py-0.5 rounded uppercase tracking-tighter">{ticket.id.toString().slice(-8)}</span>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-primary font-bold hover:bg-primary/5 gap-1.5 h-9 rounded-lg">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-primary font-bold hover:bg-primary/5 gap-1.5 h-9 rounded-lg"
+                    onClick={() => navigate(`/participante/meus-ingressos/${ticket.id}`)}
+                  >
                     Ver detalhes <ArrowRight className="w-3.5 h-3.5" />
                   </Button>
                 </div>

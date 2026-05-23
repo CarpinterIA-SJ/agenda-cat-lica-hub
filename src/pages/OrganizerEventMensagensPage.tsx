@@ -23,7 +23,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { useToast } from "@/hooks/use-toast";
 
 /* ──────────────── toolbar ──────────────── */
-const EditorToolbar = ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
+export const EditorToolbar = ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
   if (!editor) return null;
   const btn = (active: boolean) =>
     `p-1.5 rounded transition ${active ? "bg-[#004d00]/10 text-[#004d00]" : "text-slate-500 hover:bg-slate-100"}`;
@@ -49,7 +49,7 @@ const EditorToolbar = ({ editor }: { editor: ReturnType<typeof useEditor> }) => 
 };
 
 /* ──────────────── editor wrapper ──────────────── */
-const MessageEditor = ({
+export const MessageEditor = ({
   defaultContent,
   placeholder,
 }: {
@@ -78,7 +78,7 @@ const MessageEditor = ({
 };
 
 /* ──────────────── card section ──────────────── */
-const MessageSection = ({
+export const MessageSection = ({
   title,
   infoBanner,
   defaultContent,
