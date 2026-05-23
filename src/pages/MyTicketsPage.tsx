@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Ticket, Search, Calendar, MapPin, ArrowRight, ExternalLink } from "lucide-react";
+import { Ticket, Search, Calendar, MapPin, ArrowRight, ExternalLink, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 
@@ -153,14 +153,28 @@ const MyTicketsPage = () => {
                   <div className="text-xs text-slate-400 font-medium">
                     ID: <span className="font-mono bg-slate-50 px-1.5 py-0.5 rounded uppercase tracking-tighter">{ticket.id.toString().slice(-8)}</span>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-primary font-bold hover:bg-primary/5 gap-1.5 h-9 rounded-lg"
-                    onClick={() => navigate(`/participante/meus-ingressos/${ticket.id}`)}
-                  >
-                    Ver detalhes <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-lg text-[#25D366] hover:bg-[#25D366]/10"
+                      title="Compartilhar no WhatsApp"
+                      onClick={() => {
+                        const msg = `Meu ingresso: ${ticket.eventName} — ${ticket.eventDate} em ${ticket.eventLocation}. Confirmado! 🎉`;
+                        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+                      }}
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-primary font-bold hover:bg-primary/5 gap-1.5 h-9 rounded-lg"
+                      onClick={() => navigate(`/participante/meus-ingressos/${ticket.id}`)}
+                    >
+                      Ver detalhes <ArrowRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -7,16 +7,19 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Plus, Search, Calendar, MapPin, Users, Ticket, User, Mail, ChevronRight,
   Phone, CreditCard, AlertTriangle, Fingerprint, Video, ArrowRight, Lock,
-  Headset, MessageCircle, Tag, Building2, ClipboardList, Eye,
+  Headset, MessageCircle, Tag, Building2, ClipboardList, Eye, Filter, X, Percent,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate, useParams } from "react-router-dom";
 import { syncCustomEvents } from "@/lib/events-sync";
 import { ThemeToggle } from "@/components/ThemeToggle";
+
+const CUPONS_KEY = "cupons_desconto";
 
 
 const slugify = (value: string) =>
@@ -317,14 +320,37 @@ const formatTicketPriceRange = (tickets: any[]): string => {
   return `R$ ${min.toFixed(2).replace(".", ",")} – R$ ${max.toFixed(2).replace(".", ",")}`;
 };
 
+const EVENT_CATEGORIES = [
+  { value: "acampamentos", label: "Acampamentos" },
+  { value: "catequese", label: "Catequese" },
+  { value: "congressos", label: "Congressos e Seminários" },
+  { value: "cursos", label: "Cursos e Workshops" },
+  { value: "encontros", label: "Encontros de Formação" },
+  { value: "diversos", label: "Eventos Diversos" },
+  { value: "palestras", label: "Palestras" },
+  { value: "retiros", label: "Retiros" },
+  { value: "shows", label: "Shows Católicos" },
+];
+
+const EVENT_TYPES = [
+  { value: "Evento presencial", label: "Presencial" },
+  { value: "Evento online", label: "Online" },
+  { value: "Evento híbrido", label: "Híbrido" },
+];
+
 const ExploreEventsPage = () => {
   const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedType, setSelectedType] = useState("all");
   const [events, setEvents] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
+  const [couponCode, setCouponCode] = useState("");
+  const [couponDiscount, setCouponDiscount] = useState<{ modo: "percentual" | "fixo"; valor: string; codigo: string } | null>(null);
+  const [couponError, setCouponError] = useState("");
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -352,7 +378,44 @@ const ExploreEventsPage = () => {
     };
   }, []);
 
-  const filtered = events.filter((e) => e.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = events.filter((e) => {
+    if (!e.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (selectedCategory !== "all" && e.category !== selectedCategory) return false;
+    if (selectedType !== "all" && e.type !== selectedType) return false;
+    return true;
+  });
+
+  const activeFilters = (selectedCategory !== "all" ? 1 : 0) + (selectedType !== "all" ? 1 : 0);
+
+  const validateCoupon = () => {
+    if (!couponCode.trim() || !selectedEvent) return;
+    try {
+      const cupons = JSON.parse(localStorage.getItem(`${CUPONS_KEY}_${selectedEvent.id}`) || "[]");
+      const found = cupons.find((c: any) => c.codigo === couponCode.trim().toUpperCase() && c.ativo);
+      if (!found) {
+        setCouponError("Cupom inválido ou inativo.");
+        setCouponDiscount(null);
+        return;
+      }
+      if (found.maximo !== "∞" && found.usos >= parseInt(found.maximo, 10)) {
+        setCouponError("Cupom esgotado.");
+        setCouponDiscount(null);
+        return;
+      }
+      setCouponDiscount({ modo: found.modo, valor: found.valor, codigo: found.codigo });
+      setCouponError("");
+    } catch {
+      setCouponError("Erro ao validar cupom.");
+    }
+  };
+
+  const calcDiscountedPrice = (price: number) => {
+    if (!couponDiscount || price === 0) return price;
+    if (couponDiscount.modo === "percentual") {
+      return Math.max(0, price - price * (parseFloat(couponDiscount.valor) / 100));
+    }
+    return Math.max(0, price - parseFloat(couponDiscount.valor));
+  };
 
   const handleOpenRegistration = (event: any) => {
     // Re-sync to make sure the registration modal uses the latest organizer config
@@ -368,6 +431,9 @@ const ExploreEventsPage = () => {
     setSelectedEvent(latest);
     setSelectedTicketId(null);
     setSelectedPaymentMethod(null);
+    setCouponCode("");
+    setCouponDiscount(null);
+    setCouponError("");
     const initialValues: Record<string, any> = {
       fixed_nome: user?.user_metadata?.full_name || "",
       fixed_cpf: "",
@@ -460,9 +526,41 @@ const ExploreEventsPage = () => {
         <p className="text-muted-foreground mt-1">Descubra e inscreva-se nos eventos da sua comunidade</p>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Buscar eventos..." className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="relative max-w-sm flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Buscar eventos..." className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger className="w-[200px]">
+            <Tag className="w-4 h-4 mr-1 text-muted-foreground" />
+            <SelectValue placeholder="Categoria" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as categorias</SelectItem>
+            {EVENT_CATEGORIES.map((c) => (
+              <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={selectedType} onValueChange={setSelectedType}>
+          <SelectTrigger className="w-[160px]">
+            <Video className="w-4 h-4 mr-1 text-muted-foreground" />
+            <SelectValue placeholder="Modalidade" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            {EVENT_TYPES.map((t) => (
+              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {activeFilters > 0 && (
+          <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground"
+            onClick={() => { setSelectedCategory("all"); setSelectedType("all"); }}>
+            <X className="w-3 h-3" /> Limpar filtros ({activeFilters})
+          </Button>
+        )}
       </div>
 
       {filtered.length === 0 && (
@@ -615,6 +713,31 @@ const ExploreEventsPage = () => {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="px-6 pb-4 space-y-2">
+            <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
+              <Percent className="w-3 h-3" /> Cupom de desconto
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Digite o código do cupom"
+                value={couponCode}
+                onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); if (!e.target.value) setCouponDiscount(null); }}
+                className="h-10 font-mono uppercase"
+              />
+              <Button variant="outline" size="sm" className="h-10 px-4 shrink-0" onClick={validateCoupon} disabled={!couponCode.trim()}>
+                Aplicar
+              </Button>
+            </div>
+            {couponError && <p className="text-xs text-destructive">{couponError}</p>}
+            {couponDiscount && (
+              <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+                <Percent className="w-3 h-3" />
+                Cupom "{couponDiscount.codigo}" aplicado —{" "}
+                {couponDiscount.modo === "percentual" ? `${couponDiscount.valor}% de desconto` : `R$ ${couponDiscount.valor} de desconto`}
+              </p>
+            )}
           </div>
 
           <DialogFooter className="sticky bottom-0 bg-card border-t p-4">

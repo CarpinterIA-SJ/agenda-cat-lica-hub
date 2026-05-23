@@ -22,6 +22,7 @@ import CheckinsRealizadosPage from "./pages/CheckinsRealizadosPage";
 import FinanceiroRepassePage from "./pages/FinanceiroRepassePage";
 import OrganizadoresPage from "./pages/OrganizadoresPage";
 import MinhaContaPage from "./pages/MinhaContaPage";
+import PlansPage from "./pages/PlansPage";
 import OrganizerEventDashboardPage from "./pages/OrganizerEventDashboardPage";
 import AdminLayout from "./components/AdminLayout";
 import AdminHomePage from "./pages/admin/AdminHomePage";
@@ -3968,6 +3969,7 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/role-select" element={<ProtectedRoute><RoleSelectPage /></ProtectedRoute>} />
             <Route path="/evento/:slug" element={<PublicEventPage />} />
+            <Route path="/planos" element={<PlansPage />} />
 
             <Route
               path="/organizador/meus-eventos"
