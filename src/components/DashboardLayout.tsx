@@ -38,7 +38,7 @@ const DashboardLayout = () => {
     }
   }
 
-  const showSidebar = role !== "organizer" || location.pathname.startsWith("/organizador/evento/");
+  const showSidebar = true;
 
   const appItems = [
     { label: "Home", icon: Home, route: "/organizador/home" },
@@ -67,7 +67,7 @@ const DashboardLayout = () => {
               </Drawer>
             )}
             <span className="text-sm font-medium text-muted-foreground hidden sm:block">
-              {role === "organizer" ? "Painel do Organizador" : "Área do Participante"}
+              {role === "organizer" ? "Painel do Organizador" : role === "admin" ? "Administrador" : "Área do Participante"}
             </span>
           </div>
           <div className="flex items-center gap-2">

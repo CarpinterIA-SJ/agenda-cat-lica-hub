@@ -8,20 +8,12 @@ import {
   Plus,
   Search,
   Calendar,
-  LayoutGrid,
-  Moon,
-  Sun,
   ChevronLeft,
   ChevronRight,
-  Home,
-  Users2,
-  Headset,
-  MessageCircle,
   MapPin,
   Users,
   Trash2,
 } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,10 +24,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserAvatarMenu } from "@/components/UserAvatarMenu";
 import { useToast } from "@/hooks/use-toast";
 import {
   ORGANIZER_EVENTS_KEY,
@@ -55,7 +45,6 @@ const OrganizerEventsPage = () => {
   const { toast } = useToast();
   const [events, setEvents] = useState<any[]>(loadEvents);
   const [eventSearch, setEventSearch] = useState("");
-  const [isDark, setIsDark] = useState(false);
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [eventOption, setEventOption] = useState("");
   const [tab, setTab] = useState("proximos");
@@ -71,13 +60,6 @@ const OrganizerEventsPage = () => {
   const filteredEvents = events.filter((event) =>
     event.title.toLowerCase().includes(eventSearch.toLowerCase()),
   );
-
-  const appItems = [
-    { label: "Home", icon: Home, route: "/organizador/home" },
-    { label: "Guardião Eventos", icon: Calendar, route: "/organizador/meus-eventos" },
-    { label: "CRM", icon: Users2, route: "/crm/pessoas" },
-    { label: "Atendimento", icon: Headset, route: "/support" },
-  ].filter((item) => item.label.toLowerCase() !== "dizimo" && item.label.toLowerCase() !== "dízimo");
 
   const handleEventSave = () => {
     if (!eventOption) return;
@@ -110,61 +92,7 @@ const OrganizerEventsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="w-full border-b bg-white">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-sm">
-              <Calendar className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-bold text-slate-900">Guardião Eventos</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-slate-600 hover:text-primary">
-                  <LayoutGrid className="w-5 h-5" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-80 border-gray-100 shadow-sm">
-                <div className="text-sm font-semibold text-slate-900 mb-3">Aplicações</div>
-                <div className="grid grid-cols-2 gap-3">
-                  {appItems.map((item) => (
-                    <button
-                      key={item.label}
-                      onClick={() => navigate(item.route)}
-                      className="flex flex-col items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white p-3 text-center shadow-sm hover:shadow-md transition cursor-pointer"
-                    >
-                      <item.icon className="w-5 h-5 text-primary" />
-                      <span className="text-xs font-medium text-slate-700">{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-slate-600 hover:text-primary"
-                    onClick={() => setIsDark((prev) => !prev)}
-                  >
-                    {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Alterar tema</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <UserAvatarMenu />
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+    <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Meus eventos</h1>
@@ -279,8 +207,6 @@ const OrganizerEventsPage = () => {
             </Button>
           </div>
         </div>
-      </main>
-
       <Dialog open={eventDialogOpen} onOpenChange={setEventDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -327,13 +253,6 @@ const OrganizerEventsPage = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <a
-        href="https://wa.me/5500000000000"
-        className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700"
-        aria-label="WhatsApp"
-      >
-        <MessageCircle className="w-5 h-5" />
-      </a>
     </div>
   );
 };

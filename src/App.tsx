@@ -531,21 +531,18 @@ const OrganizerEventNewPage = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-50">
-      <div className="w-full border-b bg-white">
-        <div className="w-full px-6 py-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">Meus eventos &gt; Criar evento</p>
-            <h1 className="text-2xl font-semibold text-foreground">Criar evento</h1>
-          </div>
-          <Button variant="outline" className="border-slate-300 text-slate-600 hover:bg-slate-100" onClick={() => navigate("/organizador/meus-eventos")}
-          >
-            Voltar para os eventos
-          </Button>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">Meus eventos &gt; Criar evento</p>
+          <h1 className="text-2xl font-semibold text-foreground">Criar evento</h1>
         </div>
+        <Button variant="outline" className="border-slate-300 text-slate-600 hover:bg-slate-100 w-fit" onClick={() => navigate("/organizador/meus-eventos")}>
+          Voltar para os eventos
+        </Button>
       </div>
 
-      <div className="w-full px-6 py-8 space-y-6">
+      <div className="space-y-6">
         <Tabs value={tab} onValueChange={setTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 bg-white border rounded-lg">
             <TabsTrigger value="informacoes" className="gap-2 data-[state=active]:text-emerald-800">
@@ -1614,22 +1611,15 @@ const OrganizerEventPreviewPage = () => {
     : location || "Evento presencial";
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="w-full border-b bg-white">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <Ticket className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-semibold text-slate-900">Visualização do evento</span>
-          </div>
-          <Button variant="outline" className="border-slate-300 text-slate-600 hover:bg-slate-100" onClick={() => navigate("/organizador/meus-eventos")}>
-            Voltar para meus eventos
-          </Button>
-        </div>
-      </header>
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-foreground">Visualização do evento</h1>
+        <Button variant="outline" className="border-slate-300 text-slate-600 hover:bg-slate-100" onClick={() => navigate("/organizador/meus-eventos")}>
+          Voltar para meus eventos
+        </Button>
+      </div>
 
-      <main className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+      <div className="space-y-8">
         <div className="rounded-2xl border border-slate-200 bg-white p-8 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-6">
             <div className="space-y-2">
@@ -1694,7 +1684,7 @@ const OrganizerEventPreviewPage = () => {
             <p className="text-xs text-slate-500">Seus dados protegidos e transações seguras.</p>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 };
@@ -3971,61 +3961,14 @@ const App = () => (
             <Route path="/evento/:slug" element={<PublicEventPage />} />
             <Route path="/planos" element={<PlansPage />} />
 
-            <Route
-              path="/organizador/meus-eventos"
-              element={
-                <ProtectedRoute>
-                  <RoleRoute requiredRole="organizer">
-                    <OrganizerEventsPage />
-                  </RoleRoute>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/organizador/eventos/categorias"
-              element={
-                <ProtectedRoute>
-                  <RoleRoute requiredRole="organizer">
-                    <OrganizerEventsPage />
-                  </RoleRoute>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/organizador/evento/novo"
-              element={
-                <ProtectedRoute>
-                  <RoleRoute requiredRole="organizer">
-                    <OrganizerEventNewPage />
-                  </RoleRoute>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/organizador/evento/:id/visualizar"
-              element={
-                <ProtectedRoute>
-                  <RoleRoute requiredRole="organizer">
-                    <OrganizerEventPreviewPage />
-                  </RoleRoute>
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/organizador/home"
-              element={
-                <ProtectedRoute>
-                  <RoleRoute requiredRole="organizer">
-                    <DashboardPage />
-                  </RoleRoute>
-                </ProtectedRoute>
-              }
-            />
-            
             <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
               {/* Organizer Routes */}
               <Route element={<RoleRoute requiredRole="organizer" />}>
+                <Route path="/organizador/home" element={<DashboardPage />} />
+                <Route path="/organizador/meus-eventos" element={<OrganizerEventsPage />} />
+                <Route path="/organizador/eventos/categorias" element={<OrganizerEventsPage />} />
+                <Route path="/organizador/evento/novo" element={<OrganizerEventNewPage />} />
+                <Route path="/organizador/evento/:id/visualizar" element={<OrganizerEventPreviewPage />} />
                 <Route path="/organizador/evento/:id/dashboard" element={<OrganizerEventDashboardPage />} />
                 <Route path="/organizador/evento/:id/ingressos" element={<OrganizerEventIngressosPage />} />
                 <Route path="/organizador/evento/:id/participantes" element={<OrganizerEventParticipantesPage />} />

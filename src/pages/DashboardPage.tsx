@@ -1,27 +1,16 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Calendar,
-  LayoutGrid,
-  Moon,
-  Sun,
-  Home,
   Users,
   Users2,
   HandHeart,
-  HeartCrack,
   Headset,
   Heart,
   CalendarDays,
-  MessageCircle,
   Ticket,
 } from "lucide-react";
-import { UserAvatarMenu } from "@/components/UserAvatarMenu";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 const DashboardPage = () => {
   const { role } = useAuth();
@@ -57,14 +46,6 @@ const DashboardPage = () => {
     return <Navigate to="/organizador/home" replace />;
   }
 
-  const appItems = [
-    { label: "Home", icon: Home, route: "/organizador/home" },
-    { label: "Guardião Eventos", icon: Calendar, route: "/organizador/meus-eventos" },
-    { label: "CRM", icon: Users2, route: "/crm" },
-    
-    { label: "Atendimento", icon: Headset, route: "/support" },
-  ];
-
   const stats = [
     { label: "Total de eventos", value: eventCount, icon: Calendar, color: "text-primary" },
     { label: "Total de campanhas de doações", value: 0, icon: Heart, color: "text-orange-500" },
@@ -81,96 +62,47 @@ const DashboardPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="w-full border-b bg-white">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-sm">
-              <Calendar className="w-5 h-5 text-primary-foreground" />
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+          Olá, Seja bem-vindo(a) ao painel Guardião Eventos!
+        </h1>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {stats.map((item) => (
+          <div
+            key={item.label}
+            className="bg-card rounded-2xl border border-border shadow-sm p-4 flex items-center gap-4"
+          >
+            <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center">
+              <item.icon className={`w-5 h-5 ${item.color}`} />
             </div>
-            <span className="text-lg font-bold text-slate-900">Guardião Eventos</span>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
+              <p className="text-lg font-bold text-foreground">{item.value}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-slate-600 hover:text-primary">
-                  <LayoutGrid className="w-5 h-5" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-80 border-gray-100 shadow-sm">
-                <div className="text-sm font-semibold text-slate-900 mb-3">Aplicações</div>
-                <div className="grid grid-cols-2 gap-3">
-                  {appItems.map((item) => (
-                    <button
-                      key={item.label}
-                      onClick={() => navigate(item.route)}
-                      className="flex flex-col items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white p-3 text-center shadow-sm hover:shadow-md transition cursor-pointer"
-                    >
-                      <item.icon className="w-5 h-5 text-primary" />
-                      <span className="text-xs font-medium text-slate-700">{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+        ))}
+      </div>
 
-            <ThemeToggle className="text-slate-600 hover:text-primary" />
-
-            <UserAvatarMenu />
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-            Olá, Seja bem-vindo(a) ao painel Guardião Eventos!
-          </h1>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {stats.map((item) => (
-            <div
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Acesso rápido</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {quickAccess.map((item) => (
+            <button
               key={item.label}
-              className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-4"
+              onClick={() => navigate(item.route)}
+              className="bg-card rounded-2xl border border-border shadow-sm p-6 flex flex-col items-center justify-center gap-3 text-center hover:shadow-md hover:-translate-y-0.5 transition"
             >
-              <div className="w-11 h-11 rounded-xl bg-slate-50 flex items-center justify-center">
-                <item.icon className={`w-5 h-5 ${item.color}`} />
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <item.icon className="w-6 h-6 text-primary" />
               </div>
-              <div>
-                <p className="text-xs font-medium text-slate-500">{item.label}</p>
-                <p className="text-lg font-bold text-slate-900">{item.value}</p>
-              </div>
-            </div>
+              <span className="text-sm font-semibold text-foreground">{item.label}</span>
+            </button>
           ))}
         </div>
-
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-slate-900">Acesso rápido</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickAccess.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => navigate(item.route)}
-                className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col items-center justify-center gap-3 text-center hover:shadow-md hover:-translate-y-0.5 transition"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <item.icon className="w-6 h-6 text-primary" />
-                </div>
-                <span className="text-sm font-semibold text-slate-800">{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </main>
-
-      <a
-        href="https://wa.me/5500000000000"
-        className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700"
-        aria-label="WhatsApp"
-      >
-        <MessageCircle className="w-5 h-5" />
-      </a>
+      </div>
     </div>
   );
 };
