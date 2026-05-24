@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Users, Calendar, ArrowRight, ShieldCheck } from "lucide-react";
+import { Users, Calendar, ArrowRight, ShieldCheck, ArrowLeft } from "lucide-react";
 import { SaoJoseIcon } from "@/components/icons/SaoJoseIcon";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth, UserRole } from "@/hooks/use-auth";
@@ -21,6 +21,15 @@ const RoleSelectPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 relative">
+      <div className="absolute top-4 left-4 z-10">
+        <button
+          onClick={() => navigate("/")}
+          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Voltar ao início
+        </button>
+      </div>
       <div className="absolute top-4 right-4 z-10">
         <ThemeToggle />
       </div>

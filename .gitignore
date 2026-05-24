@@ -12,6 +12,15 @@ dist
 dist-ssr
 *.local
 
+# Playwright
+/playwright-report/
+/test-results/
+/playwright/.cache/
+
+# Claude Code local config / Supabase CLI temp
+.claude/
+supabase/.temp/
+
 # Environment variables with secrets
 .env
 .env.local

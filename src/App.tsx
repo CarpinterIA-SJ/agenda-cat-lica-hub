@@ -23,6 +23,7 @@ import FinanceiroRepassePage from "./pages/FinanceiroRepassePage";
 import OrganizadoresPage from "./pages/OrganizadoresPage";
 import MinhaContaPage from "./pages/MinhaContaPage";
 import PlansPage from "./pages/PlansPage";
+import LandingPage from "./pages/LandingPage";
 import OrganizerEventDashboardPage from "./pages/OrganizerEventDashboardPage";
 import AdminLayout from "./components/AdminLayout";
 import AdminHomePage from "./pages/admin/AdminHomePage";
@@ -1524,7 +1525,17 @@ const OrganizerEventNewPage = () => {
               <Button variant="outline" className="h-12 px-6" onClick={() => setTab("formulario")}>
                 Voltar
               </Button>
-              <Button className="h-12 px-6 bg-emerald-700 text-white hover:bg-emerald-800">
+              <Button
+                className="h-12 px-6 bg-emerald-700 text-white hover:bg-emerald-800"
+                onClick={() => {
+                  toast({ title: "Mensagens salvas!", description: "Evento criado com sucesso." });
+                  if (eventoId) {
+                    navigate(`/organizador/evento/${eventoId}/dashboard`);
+                  } else {
+                    navigate("/organizador/meus-eventos");
+                  }
+                }}
+              >
                 Salvar mensagens
               </Button>
             </div>
@@ -3955,7 +3966,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/role-select" element={<ProtectedRoute><RoleSelectPage /></ProtectedRoute>} />
             <Route path="/evento/:slug" element={<PublicEventPage />} />

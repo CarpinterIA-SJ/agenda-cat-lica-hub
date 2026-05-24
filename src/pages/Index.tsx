@@ -1,17 +1,19 @@
 import { Calendar, Monitor, MessageCircle, PhoneCall } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Link, useNavigate } from "react-router-dom";
 
 const Index = () => {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       {/* Top Bar */}
       <header className="bg-white border-b border-slate-200">
         <div className="container mx-auto flex items-center justify-end gap-6 py-4">
-          <a href="#" className="text-sm text-slate-600 hover:text-blue-600">
+          <Link to="/login" className="text-sm text-slate-600 hover:text-blue-600">
             Cadastre-se
-          </a>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white">Entrar</Button>
+          </Link>
+          <Button onClick={() => navigate("/login")} className="bg-blue-600 hover:bg-blue-700 text-white">Entrar</Button>
         </div>
       </header>
 

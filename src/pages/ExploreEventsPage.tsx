@@ -32,6 +32,7 @@ const slugify = (value: string) =>
 
 export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const [eventData, setEventData] = useState<any>(eventProp || null);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
@@ -92,8 +93,8 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="text-sm font-semibold text-[#0b3d2e]">Guardião Eventos</div>
           <div className="flex items-center gap-3">
-            <a href="#" className="text-sm font-medium text-[#0b3d2e] hover:underline">Sou organizador</a>
-            <Button className="h-9 px-5 bg-[#0b3d2e] text-white hover:bg-[#0a3225]">Entrar</Button>
+            <button onClick={() => navigate("/login")} className="text-sm font-medium text-[#0b3d2e] hover:underline">Sou organizador</button>
+            <Button onClick={() => navigate("/login")} className="h-9 px-5 bg-[#0b3d2e] text-white hover:bg-[#0a3225]">Entrar</Button>
             <ThemeToggle />
           </div>
         </div>
@@ -260,10 +261,10 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
 
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-[#0b3d2e]">Precisa de ajuda?</h4>
-            <a href="#" className="flex items-center gap-3 rounded-lg border border-[#dfe8df] bg-[#f6f8f6] px-4 py-3 text-sm font-medium text-[#0b3d2e] hover:border-[#0b3d2e]">
+            <button onClick={() => navigate("/support")} className="flex items-center gap-3 rounded-lg border border-[#dfe8df] bg-[#f6f8f6] px-4 py-3 text-sm font-medium text-[#0b3d2e] hover:border-[#0b3d2e] w-full text-left">
               <Headset className="w-5 h-5 text-[#0b3d2e]" />
               Central de atendimento - Tire suas dúvidas aqui
-            </a>
+            </button>
           </div>
         </div>
       </footer>

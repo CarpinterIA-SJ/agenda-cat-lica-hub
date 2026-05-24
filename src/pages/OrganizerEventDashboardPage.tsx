@@ -68,8 +68,8 @@ const OrganizerEventDashboardPage = () => {
     try {
       await navigator.clipboard.writeText(eventUrl);
       toast({ title: "Link copiado!", description: "O link do evento foi copiado para a área de transferência." });
-    } catch (error) {
-      console.error(error);
+    } catch {
+      toast({ title: "Não foi possível copiar", description: "Copie manualmente o link.", variant: "destructive" });
     }
   };
 

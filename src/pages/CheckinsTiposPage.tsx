@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { 
-  ExternalLink, Calendar, ChevronLeft, Search, 
+  Calendar, ChevronLeft, Search, 
   Pencil, Trash2, ChevronRight 
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -30,9 +30,6 @@ const CheckinsTiposPage = () => {
             <h1 className="text-2xl font-bold uppercase text-slate-900">
               FABRICIO CHRISTIAN DA SILVA CAVALCANTE
             </h1>
-            <a href="#" className="text-muted-foreground hover:text-slate-900 transition-colors">
-              <ExternalLink className="w-5 h-5" />
-            </a>
           </div>
           <div className="flex items-center gap-2 text-slate-500 font-medium">
             <Calendar className="w-4 h-4" />
