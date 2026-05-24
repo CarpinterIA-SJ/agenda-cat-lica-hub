@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session, AuthError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { useAppRoles } from "@/hooks/use-app-roles";
+import type { AppRole } from "@/integrations/supabase/types";
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -16,6 +18,11 @@ interface AuthContextType {
   loading:          boolean;
   role:             UserRole | null;
   setRole:          (role: UserRole | null) => void;
+  appRoles:         AppRole[];
+  isSuperAdmin:     boolean;
+  isPlatformAdmin:  boolean;
+  rolesLoading:     boolean;
+  refreshRoles:     () => Promise<void>;
   signIn:           (email: string, password: string) => Promise<SignInResult>;
   signUp:           (email: string, password: string, fullName?: string) => Promise<SignInResult>;
   signOut:          () => Promise<void>;
@@ -30,6 +37,11 @@ const AuthContext = createContext<AuthContextType>({
   loading:          true,
   role:             null,
   setRole:          () => {},
+  appRoles:         [],
+  isSuperAdmin:     false,
+  isPlatformAdmin:  false,
+  rolesLoading:     false,
+  refreshRoles:     async () => {},
   signIn:           async () => ({ error: null }),
   signUp:           async () => ({ error: null }),
   signOut:          async () => {},
@@ -45,6 +57,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [role, setRoleState]  = useState<UserRole | null>(
     () => localStorage.getItem("user_role") as UserRole | null,
   );
+
+  const {
+    roles: appRoles,
+    loading: rolesLoading,
+    isSuperAdmin,
+    isPlatformAdmin,
+    refresh: refreshRoles,
+  } = useAppRoles(user?.id ?? null);
 
   const setRole = (newRole: UserRole | null) => {
     setRoleState(newRole);
@@ -116,7 +136,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, role, setRole, signIn, signUp, signOut, signInWithGoogle }}
+      value={{
+        user, session, loading, role, setRole,
+        appRoles, isSuperAdmin, isPlatformAdmin, rolesLoading, refreshRoles,
+        signIn, signUp, signOut, signInWithGoogle,
+      }}
     >
       {children}
     </AuthContext.Provider>

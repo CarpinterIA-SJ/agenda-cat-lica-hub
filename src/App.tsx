@@ -31,6 +31,7 @@ import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminEventsPage from "./pages/admin/AdminEventsPage";
 import AdminFinancialPage from "./pages/admin/AdminFinancialPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 import { ThemeProvider } from "./hooks/use-theme";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -151,6 +152,21 @@ const AdminRoute = ({ children }: { children?: React.ReactNode }) => {
   if (role !== 'admin') {
     return <Navigate to="/organizador/home" replace />;
   }
+  return children ? <>{children}</> : <Outlet />;
+};
+
+/**
+ * Gatekeeper para rotas do SuperAdmin. Lê a role 'superadmin' (ou 'admin')
+ * da tabela user_roles via AuthProvider — server-side, não localStorage.
+ * Qualquer usuário comum é redirecionado para a área do organizador.
+ */
+const SuperAdminRoute = ({ children }: { children?: React.ReactNode }) => {
+  const { session, loading, rolesLoading, isPlatformAdmin } = useAuth();
+  if (loading || rolesLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+  }
+  if (!session) return <Navigate to="/login" replace />;
+  if (!isPlatformAdmin) return <Navigate to="/organizador/home" replace />;
   return children ? <>{children}</> : <Outlet />;
 };
 
@@ -4030,6 +4046,19 @@ const App = () => (
               <Route path="/admin/eventos" element={<AdminEventsPage />} />
               <Route path="/admin/financeiro" element={<AdminFinancialPage />} />
               <Route path="/admin/configuracoes" element={<AdminSettingsPage />} />
+            </Route>
+
+            {/* SuperAdmin Dashboard — gate adicional via user_roles (server-side) */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <SuperAdminRoute>
+                    <AdminLayout />
+                  </SuperAdminRoute>
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

@@ -22,6 +22,9 @@ export type PaymentMethod       = 'credit_card' | 'pix' | 'boleto' | 'free'
 export type DiscountKind        = 'percent' | 'fixed'
 export type MessageChannel      = 'email' | 'whatsapp' | 'system'
 
+// Migration 004
+export type AppRole             = 'superadmin' | 'admin' | 'support' | 'organizer' | 'participant'
+
 // ─── Row types ──────────────────────────────────────────────────────────────
 
 export interface Profile {
@@ -175,6 +178,14 @@ export interface CrmContact {
   updated_at:      string
 }
 
+export interface UserRole {
+  id:          string
+  user_id:     string
+  role:        AppRole
+  granted_by:  string | null
+  granted_at:  string
+}
+
 export interface Payment {
   id:                      string
   organization_id:         string
@@ -313,6 +324,15 @@ export type Database = {
         }
         Update: Partial<Omit<CrmContact, 'id' | 'organization_id' | 'created_at'>>
       }
+      user_roles: {
+        Row:    UserRole
+        Insert: Omit<UserRole, 'id' | 'granted_at'> & {
+          id?: string
+          granted_at?: string
+          granted_by?: string | null
+        }
+        Update: Partial<Pick<UserRole, 'role'>>
+      }
       payments: {
         Row:    Payment
         // Insert/Update normalmente bloqueados via RLS para authenticated/anon.
@@ -349,6 +369,18 @@ export type Database = {
         Args:    { p_event_id: string }
         Returns: boolean
       }
+      has_role: {
+        Args:    { p_role: AppRole }
+        Returns: boolean
+      }
+      is_superadmin: {
+        Args:    Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_platform_admin: {
+        Args:    Record<PropertyKey, never>
+        Returns: boolean
+      }
       validate_coupon: {
         Args:    { p_event_id: string; p_code: string }
         Returns: {
@@ -370,6 +402,7 @@ export type Database = {
       payment_method:      PaymentMethod
       discount_kind:       DiscountKind
       message_channel:     MessageChannel
+      app_role:            AppRole
     }
     CompositeTypes: {
       [_ in never]: never
@@ -412,6 +445,7 @@ export const Constants = {
       payment_method:      ['credit_card', 'pix', 'boleto', 'free'] as const,
       discount_kind:       ['percent', 'fixed'] as const,
       message_channel:     ['email', 'whatsapp', 'system'] as const,
+      app_role:            ['superadmin', 'admin', 'support', 'organizer', 'participant'] as const,
     },
   },
 } as const
