@@ -305,6 +305,14 @@ const LandingPage = () => {
             >
               Explorar Eventos
             </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="h-12 px-8 bg-white/5 hover:bg-white/15 text-white font-semibold border-2 border-white/40 backdrop-blur-sm"
+              onClick={() => navigate("/login")}
+            >
+              Entrar
+            </Button>
           </div>
         </div>
 
