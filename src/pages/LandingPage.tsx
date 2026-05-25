@@ -347,7 +347,7 @@ const LandingPage = () => {
         </div>
 
         {/* Search bar */}
-        <div className="relative max-w-3xl mx-auto px-4 md:px-6 pb-0 -mb-6">
+        <div className="relative max-w-3xl mx-auto px-4 md:px-6 -mt-8 md:-mt-14 pb-0 -mb-6">
           <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-xl border border-slate-100 flex items-center gap-2 p-2">
             <Search className="w-5 h-5 text-slate-400 ml-2 shrink-0" />
             <Input
