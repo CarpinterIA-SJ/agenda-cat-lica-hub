@@ -300,8 +300,7 @@ const LandingPage = () => {
             </Button>
             <Button
               size="lg"
-              variant="outline"
-              className="h-12 px-8 border-white/30 text-white hover:bg-white/10 font-semibold"
+              className="h-12 px-8 bg-[#004d00] hover:bg-[#003300] text-white font-bold shadow-lg shadow-emerald-900/30 border border-emerald-400/30"
               onClick={() => navigate("/participante/explorar")}
             >
               Explorar Eventos
