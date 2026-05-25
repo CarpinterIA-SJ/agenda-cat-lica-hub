@@ -80,43 +80,58 @@ class MockSupabaseClient {
   auth = {
     getSession: () => Promise.resolve({ data: { session: this.getMockSession() }, error: null }),
     onAuthStateChange: (cb: any) => {
-      setTimeout(() => cb('SIGNED_IN', this.getMockSession()), 0);
+      const session = this.getMockSession();
+      setTimeout(() => cb(session ? 'SIGNED_IN' : 'SIGNED_OUT', session), 0);
       return { data: { subscription: { unsubscribe: () => {} } } };
     },
     signInWithPassword: ({ email }: any) => {
-      const session = { 
-        user: { 
-          id: 'user-1', 
-          email, 
+      const session = {
+        user: {
+          id: 'user-1',
+          email,
           user_metadata: { full_name: 'Usuário Local' },
           role: 'authenticated'
-        }, 
-        access_token: 'mock-token' 
+        },
+        access_token: 'mock-token'
       };
       localStorage.setItem('supabase_mock_session', JSON.stringify(session));
+      localStorage.removeItem('supabase_mock_signed_out');
       return Promise.resolve({ data: session, error: null });
     },
     signOut: () => {
+      // Flag persistente: barra o fallback de "default session" do getMockSession,
+      // garantindo que a próxima visita a /login renderize o formulário em vez
+      // de redirecionar para /role-select por já ter sessão.
+      localStorage.setItem('supabase_mock_signed_out', '1');
       localStorage.removeItem('supabase_mock_session');
       localStorage.removeItem('user_role');
+      localStorage.removeItem('app_roles_mock');
       return Promise.resolve({ error: null });
     },
     signUp: ({ email }: any) => {
       const session = { user: { id: 'user-1', email }, access_token: 'mock-token' };
+      localStorage.removeItem('supabase_mock_signed_out');
       return Promise.resolve({ data: session, error: null });
     },
-    signInWithOAuth: () => Promise.resolve({ error: null })
+    signInWithOAuth: () => {
+      localStorage.removeItem('supabase_mock_signed_out');
+      return Promise.resolve({ error: null });
+    }
   };
 
   private getMockSession() {
     if (typeof window === 'undefined') return null;
+
+    // Logout explícito tem prioridade sobre tudo (default session inclusive).
+    if (localStorage.getItem('supabase_mock_signed_out') === '1') return null;
+
     const session = localStorage.getItem('supabase_mock_session');
     if (session) return JSON.parse(session);
-    
-    // Default session for local access
-    return { 
-      user: INITIAL_MOCK_DATA.profiles[0], 
-      access_token: 'mock-token' 
+
+    // Default session apenas para acesso "primeiro carregamento" local.
+    return {
+      user: INITIAL_MOCK_DATA.profiles[0],
+      access_token: 'mock-token'
     };
   }
 }
