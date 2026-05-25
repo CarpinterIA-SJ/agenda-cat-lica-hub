@@ -322,7 +322,7 @@ const LandingPage = () => {
           </span>
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white leading-tight max-w-4xl mx-auto">
             A Maior Plataforma de{" "}
-            <span className="text-amber-400">Eventos Católicos</span>{" "}
+            <span className="text-amber-400">Eventos</span>{" "}
             do Brasil
           </h1>
           <p className="text-base md:text-lg text-emerald-100/80 max-w-2xl mx-auto">
@@ -522,7 +522,7 @@ const LandingPage = () => {
         <div className="max-w-4xl mx-auto px-4 md:px-6 text-center space-y-6">
           <h2 className="text-2xl md:text-4xl font-black text-white leading-tight">
             Organize seu evento na maior plataforma de{" "}
-            <span className="text-amber-400">Eventos Católicos</span> do Brasil
+            <span className="text-amber-400">Eventos</span> do Brasil
           </h2>
           <p className="text-emerald-100/80 text-base max-w-xl mx-auto">
             Crie sua conta gratuitamente e comece a organizar seus eventos em minutos. Sem mensalidade, sem cartão.
