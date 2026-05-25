@@ -110,6 +110,94 @@
   }
 }
 
+/* ============================================================
+   Dark mode overrides — cobre hardcoded Tailwind colors
+   (bg-white, slate-*) sem precisar refatorar 50+ páginas.
+   Quando .dark estiver em <html>, valores claros viram escuros.
+   ============================================================ */
+.dark body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+/* Backgrounds claros → escuros */
+.dark .bg-white          { background-color: hsl(215 50% 12%); }
+.dark .bg-white\/5       { background-color: hsl(215 50% 12% / 0.4); }
+.dark .bg-white\/10      { background-color: hsl(215 50% 12% / 0.5); }
+.dark .bg-white\/15      { background-color: hsl(215 50% 12% / 0.55); }
+.dark .bg-white\/80      { background-color: hsl(215 50% 12% / 0.85); }
+.dark .bg-slate-50       { background-color: hsl(215 50% 10%); }
+.dark .bg-slate-50\/70   { background-color: hsl(215 50% 10% / 0.7); }
+.dark .bg-slate-50\/50   { background-color: hsl(215 50% 10% / 0.5); }
+.dark .bg-slate-100      { background-color: hsl(215 50% 14%); }
+.dark .bg-slate-200      { background-color: hsl(215 45% 18%); }
+.dark .bg-muted          { background-color: hsl(var(--muted)); }
+.dark .bg-\[\#F9FAFB\]   { background-color: hsl(215 55% 8%); }
+.dark .bg-\[\#f6f8f6\]   { background-color: hsl(215 55% 8%); }
+
+/* Hover backgrounds */
+.dark .hover\:bg-slate-50:hover    { background-color: hsl(215 45% 16%); }
+.dark .hover\:bg-slate-50\/50:hover{ background-color: hsl(215 45% 16% / 0.6); }
+.dark .hover\:bg-slate-100:hover   { background-color: hsl(215 45% 18%); }
+.dark .hover\:bg-white:hover       { background-color: hsl(215 45% 16%); }
+
+/* Textos slate-* → claros */
+.dark .text-slate-900    { color: hsl(210 20% 92%); }
+.dark .text-slate-800    { color: hsl(210 20% 90%); }
+.dark .text-slate-700    { color: hsl(210 18% 82%); }
+.dark .text-slate-600    { color: hsl(210 15% 72%); }
+.dark .text-slate-500    { color: hsl(210 12% 62%); }
+.dark .text-slate-400    { color: hsl(210 10% 55%); }
+.dark .text-foreground   { color: hsl(var(--foreground)); }
+
+/* Hovers em texto */
+.dark .hover\:text-slate-900:hover { color: hsl(210 20% 95%); }
+.dark .hover\:text-slate-800:hover { color: hsl(210 20% 92%); }
+.dark .hover\:text-foreground:hover{ color: hsl(var(--foreground)); }
+
+/* Bordas claras → escuras */
+.dark .border-slate-100  { border-color: hsl(215 40% 18%); }
+.dark .border-slate-200  { border-color: hsl(215 40% 22%); }
+.dark .border-slate-300  { border-color: hsl(215 35% 28%); }
+.dark .border-white\/30  { border-color: hsl(215 50% 30% / 0.5); }
+.dark .border-white\/40  { border-color: hsl(215 50% 35% / 0.6); }
+.dark .border-border     { border-color: hsl(var(--border)); }
+
+/* Ring */
+.dark .ring-slate-200    { --tw-ring-color: hsl(215 40% 22%); }
+
+/* Placeholder e divide */
+.dark .placeholder\:text-slate-400::placeholder { color: hsl(210 10% 50%); }
+.dark .divide-slate-200 > * + * { border-color: hsl(215 40% 22%); }
+
+/* Cards/inputs custom usando white em backgrounds verde-escuros */
+.dark .bg-emerald-50     { background-color: hsl(150 35% 14%); }
+.dark .bg-emerald-50\/70 { background-color: hsl(150 35% 14% / 0.7); }
+.dark .text-emerald-900  { color: hsl(150 50% 80%); }
+.dark .text-emerald-800  { color: hsl(150 50% 75%); }
+.dark .text-emerald-700  { color: hsl(150 55% 65%); }
+
+.dark .bg-blue-50        { background-color: hsl(215 50% 18%); }
+.dark .text-blue-900     { color: hsl(215 60% 82%); }
+.dark .text-blue-800     { color: hsl(215 60% 78%); }
+.dark .text-blue-700     { color: hsl(215 60% 72%); }
+.dark .border-blue-200   { border-color: hsl(215 40% 28%); }
+
+.dark .bg-amber-50       { background-color: hsl(40 40% 16%); }
+.dark .text-amber-900    { color: hsl(40 80% 80%); }
+.dark .text-amber-800    { color: hsl(40 80% 75%); }
+.dark .text-amber-700    { color: hsl(40 80% 65%); }
+
+.dark .bg-rose-50        { background-color: hsl(0 30% 16%); }
+.dark .text-rose-700     { color: hsl(0 70% 70%); }
+.dark .border-rose-200   { border-color: hsl(0 40% 30%); }
+
+/* Code/pre legível */
+.dark code,
+.dark .bg-slate-100 code { background-color: hsl(215 45% 18%); color: hsl(210 18% 85%); }
+
+/* Inputs/forms shadcn já usam tokens semânticos; nada a fazer */
+
 @keyframes accordion-down {
   from {
     height: 0;
