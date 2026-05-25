@@ -156,17 +156,37 @@ const AdminRoute = ({ children }: { children?: React.ReactNode }) => {
 };
 
 /**
- * Gatekeeper para rotas do SuperAdmin. Lê a role 'superadmin' (ou 'admin')
- * da tabela user_roles via AuthProvider — server-side, não localStorage.
- * Qualquer usuário comum é redirecionado para a área do organizador.
+ * Gatekeeper para rotas do SuperAdmin. Lê a role 'superadmin'/'admin' da
+ * tabela user_roles via AuthProvider (server-side). NÃO usa o legado
+ * `role` do localStorage para decidir — esse gate é independente.
+ *
+ * Sem sessão: redireciona para /login.
+ * Com sessão mas sem role de plataforma: 403 inline (não redireciona para
+ * /organizador/home, pra evitar interferir com fluxos legados de role).
  */
 const SuperAdminRoute = ({ children }: { children?: React.ReactNode }) => {
   const { session, loading, rolesLoading, isPlatformAdmin } = useAuth();
+
   if (loading || rolesLoading) {
     return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   }
   if (!session) return <Navigate to="/login" replace />;
-  if (!isPlatformAdmin) return <Navigate to="/organizador/home" replace />;
+
+  if (!isPlatformAdmin) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-50 p-6 text-center">
+        <h1 className="text-2xl font-semibold text-slate-900">403 — Acesso restrito</h1>
+        <p className="text-sm text-slate-600 max-w-md">
+          Esta área é exclusiva para administradores da plataforma. Sua conta
+          não possui a role <code>superadmin</code> ou <code>admin</code>.
+        </p>
+        <Link to="/" className="text-sm text-emerald-700 underline mt-2">
+          Voltar para a página inicial
+        </Link>
+      </div>
+    );
+  }
+
   return children ? <>{children}</> : <Outlet />;
 };
 
