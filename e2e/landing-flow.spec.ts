@@ -40,7 +40,7 @@ test.describe("Landing → Login → Explorar", () => {
     expect(real, real.join("\n")).toEqual([]);
   });
 
-  test('Clicar "Entrar" inicia fluxo de autenticação', async ({ page }, testInfo) => {
+  test('Clicar "Entrar" (ou "Sair") inicia fluxo de autenticação', async ({ page }, testInfo) => {
     await page.goto("/");
 
     if (isMobile(testInfo)) {
@@ -49,16 +49,19 @@ test.describe("Landing → Login → Explorar", () => {
       await menuToggle.click();
     }
 
-    const entrarBtn = page.getByRole("button", { name: /^Entrar$/ }).first();
-    await expect(entrarBtn).toBeVisible();
-    await entrarBtn.click();
+    // Mock-client sempre devolve sessão default → landing renderiza "Sair" no header.
+    // Quando deslogado de verdade, mostra "Entrar". Ambos navegam para o fluxo de auth.
+    const entrarBtn = page.getByRole("button", { name: /^Entrar$/ });
+    const sairBtn   = page.getByRole("button", { name: /^Sair( e voltar ao login)?$/ });
+    const authBtn   = entrarBtn.or(sairBtn).first();
 
-    // Mock-client gera sessão automática → /login pode pular direto pra /role-select.
+    await expect(authBtn).toBeVisible();
+    await authBtn.click();
+
     await expect(page).toHaveURL(AUTH_FLOW_URL, { timeout: 10_000 });
 
-    // Confere visualmente: ou formulário login, ou seletor de perfil.
     const loginHeading = page.getByRole("heading", { name: /acesse sua conta|guardião eventos/i });
-    const roleHeading = page.getByRole("heading", { name: /como você deseja acessar/i });
+    const roleHeading  = page.getByRole("heading", { name: /como você deseja acessar/i });
     await expect(loginHeading.or(roleHeading).first()).toBeVisible();
   });
 

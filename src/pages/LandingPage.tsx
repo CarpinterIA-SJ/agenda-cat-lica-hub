@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { syncCustomEvents } from "@/lib/events-sync";
+import { useAuth } from "@/hooks/use-auth";
+import { UserAvatarMenu } from "@/components/UserAvatarMenu";
+import { LogOut } from "lucide-react";
 import {
   Search, Calendar, MapPin, Users, ChevronRight, ChevronLeft,
   Music, BookOpen, Tent, Mountain, Heart, Star, Mic2, Sparkles,
@@ -170,6 +173,14 @@ const LandingPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [registrations, setRegistrations] = useState(0);
+  const { session, signOut } = useAuth();
+  const isLoggedIn = !!session;
+
+  const handleLogoutLanding = async () => {
+    await signOut();
+    setMobileMenuOpen(false);
+    navigate("/login");
+  };
 
   useEffect(() => {
     try {
@@ -240,15 +251,31 @@ const LandingPage = () => {
 
           {/* Auth buttons */}
           <div className="hidden md:flex items-center gap-2 shrink-0">
-            <Button variant="ghost" size="sm" className="text-slate-600 hover:text-[#004d00]" onClick={() => navigate("/login")}>
-              <Ticket className="w-4 h-4 mr-1" /> Meus Ingressos
-            </Button>
-            <Button variant="outline" size="sm" className="border-slate-200 text-slate-700" onClick={() => navigate("/login")}>
-              Entrar
-            </Button>
-            <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white font-semibold px-4" onClick={() => navigate("/login")}>
-              Criar Seu Evento
-            </Button>
+            {isLoggedIn ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-rose-200 text-rose-700 hover:bg-rose-50"
+                  onClick={handleLogoutLanding}
+                >
+                  <LogOut className="w-4 h-4 mr-1" /> Sair
+                </Button>
+                <UserAvatarMenu />
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" className="text-slate-600 hover:text-[#004d00]" onClick={() => navigate("/login")}>
+                  <Ticket className="w-4 h-4 mr-1" /> Meus Ingressos
+                </Button>
+                <Button variant="outline" size="sm" className="border-slate-200 text-slate-700" onClick={() => navigate("/login")}>
+                  Entrar
+                </Button>
+                <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white font-semibold px-4" onClick={() => navigate("/login")}>
+                  Criar Seu Evento
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile menu toggle */}
@@ -264,10 +291,21 @@ const LandingPage = () => {
               <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar eventos..." className="flex-1 h-9 text-sm" />
               <Button size="sm" type="submit" className="bg-[#004d00] text-white">Buscar</Button>
             </form>
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" size="sm" className="w-full" onClick={() => { navigate("/login"); setMobileMenuOpen(false); }}>Entrar</Button>
-              <Button size="sm" className="w-full bg-amber-500 hover:bg-amber-600 text-white" onClick={() => { navigate("/login"); setMobileMenuOpen(false); }}>Criar Evento</Button>
-            </div>
+            {isLoggedIn ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-rose-200 text-rose-700 hover:bg-rose-50"
+                onClick={handleLogoutLanding}
+              >
+                <LogOut className="w-4 h-4 mr-1" /> Sair e voltar ao login
+              </Button>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" size="sm" className="w-full" onClick={() => { navigate("/login"); setMobileMenuOpen(false); }}>Entrar</Button>
+                <Button size="sm" className="w-full bg-amber-500 hover:bg-amber-600 text-white" onClick={() => { navigate("/login"); setMobileMenuOpen(false); }}>Criar Evento</Button>
+              </div>
+            )}
           </div>
         )}
       </header>
@@ -304,14 +342,6 @@ const LandingPage = () => {
               onClick={() => navigate("/participante/explorar")}
             >
               Explorar Eventos
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="h-12 px-8 bg-white/5 hover:bg-white/15 text-white font-semibold border-2 border-white/40 backdrop-blur-sm"
-              onClick={() => navigate("/login")}
-            >
-              Entrar
             </Button>
           </div>
         </div>
