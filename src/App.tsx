@@ -165,7 +165,8 @@ const AdminRoute = ({ children }: { children?: React.ReactNode }) => {
  * /organizador/home, pra evitar interferir com fluxos legados de role).
  */
 const SuperAdminRoute = ({ children }: { children?: React.ReactNode }) => {
-  const { session, loading, rolesLoading, isPlatformAdmin } = useAuth();
+  const { session, loading, rolesLoading, isPlatformAdmin, signOut } = useAuth();
+  const navigate = useNavigate();
 
   if (loading || rolesLoading) {
     return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
@@ -173,16 +174,29 @@ const SuperAdminRoute = ({ children }: { children?: React.ReactNode }) => {
   if (!session) return <Navigate to="/login" replace />;
 
   if (!isPlatformAdmin) {
+    const handleBackToLogin = async () => {
+      await signOut();
+      navigate("/login", { replace: true });
+    };
+
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-50 p-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center">
         <h1 className="text-2xl font-semibold text-slate-900">403 — Acesso restrito</h1>
         <p className="text-sm text-slate-600 max-w-md">
           Esta área é exclusiva para administradores da plataforma. Sua conta
           não possui a role <code>superadmin</code> ou <code>admin</code>.
         </p>
-        <Link to="/" className="text-sm text-emerald-700 underline mt-2">
-          Voltar para a página inicial
-        </Link>
+        <div className="flex flex-col sm:flex-row items-center gap-3 mt-2">
+          <Button
+            onClick={handleBackToLogin}
+            className="bg-emerald-700 hover:bg-emerald-800 text-white"
+          >
+            Voltar para o login
+          </Button>
+          <Link to="/" className="text-sm text-emerald-700 underline">
+            Ir para a página inicial
+          </Link>
+        </div>
       </div>
     );
   }
