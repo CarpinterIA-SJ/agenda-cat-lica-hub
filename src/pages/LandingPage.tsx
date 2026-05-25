@@ -318,7 +318,7 @@ const LandingPage = () => {
         </div>
         <div className="relative max-w-7xl mx-auto px-4 md:px-6 py-20 md:py-28 text-center space-y-6">
           <span className="inline-block text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-300 bg-emerald-900/40 px-3 py-1 rounded-full border border-emerald-700/40">
-            Plataforma de Eventos Católicos
+            Plataforma de Eventos
           </span>
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white leading-tight max-w-4xl mx-auto">
             A Maior Plataforma de{" "}
