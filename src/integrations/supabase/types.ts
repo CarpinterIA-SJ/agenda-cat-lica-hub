@@ -239,6 +239,15 @@ export interface UserRole {
   granted_at:  string
 }
 
+// Migration 007 — configurações globais da plataforma
+export interface PlatformSetting {
+  id:         string
+  key:        string
+  value:      string
+  updated_by: string | null
+  updated_at: string
+}
+
 export interface Payment {
   id:                      string
   organization_id:         string
@@ -417,6 +426,15 @@ export type Database = {
           granted_by?: string | null
         }
         Update: Partial<Pick<UserRole, 'role'>>
+      }
+      platform_settings: {
+        Row:    PlatformSetting
+        Insert: Omit<PlatformSetting, 'id' | 'updated_at'> & {
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: Partial<Pick<PlatformSetting, 'value' | 'updated_by' | 'updated_at'>>
       }
       payments: {
         Row:    Payment

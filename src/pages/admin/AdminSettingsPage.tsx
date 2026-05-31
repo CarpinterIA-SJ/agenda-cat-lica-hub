@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,12 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { usePlatformSettings, useUpdatePlatformSetting } from "@/hooks/use-platform-settings";
 
 const AdminSettingsPage = () => {
   const { toast } = useToast();
+  const { isSuperAdmin } = useAuth();
+  const { data: settings } = usePlatformSettings();
+  const updateSetting = useUpdatePlatformSetting();
   const [nomePlataforma, setNomePlataforma] = useState("Guardião Eventos");
   const [emailSuporte, setEmailSuporte] = useState("suporte@guardiao.app");
-  const [taxaPlataforma, setTaxaPlataforma] = useState("5.0");
+  const [taxaPlataforma, setTaxaPlataforma] = useState("5");
   const [mensagemBoasVindas, setMensagemBoasVindas] = useState(
     "Bem-vindo ao Guardião Eventos, a plataforma para gestão de eventos católicos.",
   );
@@ -19,8 +24,27 @@ const AdminSettingsPage = () => {
   const [novosCadastros, setNovosCadastros] = useState(true);
   const [aprovacaoAutomatica, setAprovacaoAutomatica] = useState(false);
 
+  useEffect(() => {
+    const v = settings?.map?.taxa_plataforma_percent;
+    if (v != null) setTaxaPlataforma(v);
+  }, [settings?.map?.taxa_plataforma_percent]);
+
   const handleSave = () => {
     toast({ title: "Configurações salvas", description: "As alterações foram aplicadas." });
+  };
+
+  const handleSaveTaxa = async () => {
+    const num = Number(taxaPlataforma);
+    if (Number.isNaN(num) || num < 0 || num > 100) {
+      toast({ title: "Valor inválido", description: "Informe uma taxa entre 0 e 100.", variant: "destructive" });
+      return;
+    }
+    try {
+      await updateSetting.mutateAsync({ key: "taxa_plataforma_percent", value: String(num) });
+      toast({ title: "Taxa atualizada", description: `Nova taxa da plataforma: ${num}%.` });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar taxa", description: e.message, variant: "destructive" });
+    }
   };
 
   return (
@@ -49,15 +73,6 @@ const AdminSettingsPage = () => {
               <Label>E-mail de suporte</Label>
               <Input value={emailSuporte} onChange={(e) => setEmailSuporte(e.target.value)} />
             </div>
-            <div className="space-y-1.5">
-              <Label>Taxa da plataforma (%)</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={taxaPlataforma}
-                onChange={(e) => setTaxaPlataforma(e.target.value)}
-              />
-            </div>
           </div>
           <div className="space-y-1.5">
             <Label>Mensagem de boas-vindas</Label>
@@ -67,6 +82,45 @@ const AdminSettingsPage = () => {
               onChange={(e) => setMensagemBoasVindas(e.target.value)}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-slate-200 rounded-2xl">
+        <CardHeader>
+          <CardTitle className="text-base font-semibold text-slate-900">
+            Configurações financeiras
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <div className="space-y-1.5">
+              <Label>Taxa da plataforma (%)</Label>
+              <Input
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={taxaPlataforma}
+                onChange={(e) => setTaxaPlataforma(e.target.value)}
+                disabled={!isSuperAdmin}
+              />
+              <p className="text-xs text-slate-500">
+                Cobrada do comprador sobre cada ingresso pago. Atual: {settings?.map?.taxa_plataforma_percent ?? "5"}%.
+              </p>
+            </div>
+            <div>
+              <Button
+                onClick={handleSaveTaxa}
+                disabled={!isSuperAdmin || updateSetting.isPending}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {updateSetting.isPending ? "Salvando..." : "Salvar taxa"}
+              </Button>
+            </div>
+          </div>
+          {!isSuperAdmin && (
+            <p className="text-xs text-amber-600">Apenas superadmin pode alterar a taxa da plataforma.</p>
+          )}
         </CardContent>
       </Card>
 

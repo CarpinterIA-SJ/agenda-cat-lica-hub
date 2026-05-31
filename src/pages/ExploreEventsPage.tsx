@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEvents } from "@/hooks/use-events";
 import { useCreateRegistration } from "@/hooks/use-registrations";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { CheckoutModal } from "@/components/CheckoutModal";
 
 const formatLabelMap: Record<string, string> = {
   presencial: "Evento presencial",
@@ -68,7 +69,11 @@ const eventToVM = (e: any) => {
 export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const createRegistration = useCreateRegistration();
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [checkout, setCheckout] = useState<{ ticketId: string; name: string; quantity: number } | null>(null);
+  const [registering, setRegistering] = useState(false);
 
   const { data: fetched } = useQuery({
     queryKey: ["events", "public-slug", slug],
@@ -139,6 +144,38 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
   };
   const tickets = eventData?.tickets || eventData?.details?.tickets || [];
   const primaryTicket = tickets[0];
+
+  const handleBuy = async () => {
+    if (!eventData?.id) return;
+    if (!user) {
+      toast.info("Entre na sua conta para se inscrever.");
+      navigate("/login");
+      return;
+    }
+    const priceCents = primaryTicket ? Math.round(Number(primaryTicket.price || 0) * 100) : 0;
+    // Ingresso pago → checkout Stripe; gratuito → inscrição direta.
+    if (primaryTicket && priceCents > 0) {
+      setCheckout({ ticketId: primaryTicket.id, name: primaryTicket.name, quantity: 1 });
+      return;
+    }
+    setRegistering(true);
+    try {
+      await createRegistration.mutateAsync({
+        event_id: eventData.id,
+        ticket_id: primaryTicket?.id ?? null,
+        user_id: user.id,
+        full_name: (user.user_metadata?.full_name as string) || "Participante",
+        email: user.email || "",
+        status: "confirmed",
+      } as any);
+      toast.success("Inscrição confirmada!");
+      navigate("/participante/meus-ingressos");
+    } catch (e: any) {
+      toast.error("Erro ao confirmar inscrição", { description: e.message });
+    } finally {
+      setRegistering(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#f6f8f6] font-sans">
@@ -239,8 +276,12 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
                 ))}
               </div>
 
-              <Button className="mt-6 w-full h-12 bg-[#0b3d2e] text-white hover:bg-[#0a3225]">
-                Garantir minha inscrição
+              <Button
+                className="mt-6 w-full h-12 bg-[#0b3d2e] text-white hover:bg-[#0a3225]"
+                onClick={handleBuy}
+                disabled={registering}
+              >
+                {registering ? "Processando..." : "Garantir minha inscrição"}
               </Button>
               <p className="mt-3 text-xs text-[#7a8c81]">Pagamento seguro e confirmação imediata.</p>
             </div>
@@ -329,6 +370,16 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
       >
         <MessageCircle className="w-6 h-6" />
       </a>
+
+      {checkout && eventData?.id && (
+        <CheckoutModal
+          eventId={eventData.id}
+          ticketId={checkout.ticketId}
+          ticketName={checkout.name}
+          quantity={checkout.quantity}
+          onClose={() => setCheckout(null)}
+        />
+      )}
     </div>
   );
 };
