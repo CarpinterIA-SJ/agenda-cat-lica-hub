@@ -13,54 +13,30 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Search, Plus, Pencil, Trash2, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMyOrganization } from "@/hooks/use-organizations";
-import { useCrmContacts, useCreateCrmContact, useDeleteCrmContact } from "@/hooks/use-crm";
-
-interface Group {
-  id: number;
-  name: string;
-  people: number;
-  createdAt: string;
-}
-
-interface SimpleItem {
-  id: number;
-  name: string;
-  description?: string;
-  createdAt?: string;
-}
-
-interface TagItem {
-  id: number;
-  name: string;
-  people: number;
-  createdAt: string;
-  color: string;
-}
-
-const mockGroups: Group[] = [
-  { id: 1, name: "Grupo de Jovens", people: 32, createdAt: "10/02/2026" },
-  { id: 2, name: "Ministério de Música", people: 18, createdAt: "18/03/2026" },
-];
-
-const mockSectors: SimpleItem[] = [
-  { id: 1, name: "Liturgia", description: "Equipe de apoio nas celebrações", createdAt: "04/01/2026" },
-  { id: 2, name: "Acolhida", description: "Recepção e orientação", createdAt: "20/01/2026" },
-];
-
-const mockTags: TagItem[] = [
-  { id: 1, name: "VIP", people: 5, createdAt: "01/02/2026", color: "#22c55e" },
-  { id: 2, name: "Equipe", people: 12, createdAt: "08/02/2026", color: "#f97316" },
-];
-
-const mockCategories: SimpleItem[] = [
-  { id: 1, name: "Inscrições" },
-  { id: 2, name: "Voluntários" },
-];
+import {
+  useCrmContacts, useCreateCrmContact, useDeleteCrmContact,
+  useCrmTags, useCreateCrmTag, useDeleteCrmTag,
+  useCrmGroups, useCreateCrmGroup, useDeleteCrmGroup,
+  useCrmSectors, useCreateCrmSector, useDeleteCrmSector,
+  useCrmCategories, useCreateCrmCategory, useDeleteCrmCategory,
+} from "@/hooks/use-crm";
 
 const tagColors = ["#22c55e", "#3b82f6", "#f97316", "#ec4899", "#a855f7", "#0ea5e9", "#facc15"];
+
+type DeleteTarget = { kind: "tag" | "group" | "sector" | "category"; id: string; name: string };
 
 const CRMPage = () => {
   const location = useLocation();
@@ -110,7 +86,9 @@ const CRMPage = () => {
     notes: "",
   });
 
-  const [groups, setGroups] = useState<Group[]>(mockGroups);
+  const { data: groups = [] } = useCrmGroups(org?.id);
+  const createCrmGroup = useCreateCrmGroup();
+  const deleteCrmGroup = useDeleteCrmGroup();
   const [groupOpen, setGroupOpen] = useState(false);
   const [groupForm, setGroupForm] = useState({
     name: "",
@@ -125,17 +103,25 @@ const CRMPage = () => {
     address: "",
   });
 
-  const [sectors, setSectors] = useState<SimpleItem[]>(mockSectors);
+  const { data: sectors = [] } = useCrmSectors(org?.id);
+  const createCrmSector = useCreateCrmSector();
+  const deleteCrmSector = useDeleteCrmSector();
   const [sectorOpen, setSectorOpen] = useState(false);
   const [sectorForm, setSectorForm] = useState({ name: "", description: "" });
 
-  const [tags, setTags] = useState<TagItem[]>(mockTags);
+  const { data: tags = [] } = useCrmTags(org?.id);
+  const createCrmTag = useCreateCrmTag();
+  const deleteCrmTag = useDeleteCrmTag();
   const [tagOpen, setTagOpen] = useState(false);
   const [tagForm, setTagForm] = useState({ name: "", color: tagColors[0] });
 
-  const [categories, setCategories] = useState<SimpleItem[]>(mockCategories);
+  const { data: categories = [] } = useCrmCategories(org?.id);
+  const createCrmCategory = useCreateCrmCategory();
+  const deleteCrmCategory = useDeleteCrmCategory();
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [categoryForm, setCategoryForm] = useState({ name: "" });
+
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
   const filteredPeople = useMemo(() =>
     people.filter((p) =>
@@ -193,56 +179,95 @@ const CRMPage = () => {
     }
   };
 
-  const handleGroupSave = () => {
-    if (!groupForm.name.trim()) return;
-    setGroups((prev) => [
-      { id: Date.now(), name: groupForm.name, people: 0, createdAt: new Date().toLocaleDateString() },
-      ...prev,
-    ]);
-    setGroupForm({
-      name: "",
-      sector: "",
-      day: "",
-      time: "",
-      duration: "",
-      frequency: "",
-      approval: false,
-      status: "Ativo",
-      description: "",
-      address: "",
-    });
-    setGroupOpen(false);
-    toast({ title: "Grupo salvo", description: "Grupo cadastrado com sucesso." });
+  const requireOrg = () => {
+    if (!org?.id) {
+      toast({ title: "Organização não encontrada", description: "Aguarde a criação da sua organização.", variant: "destructive" });
+      return false;
+    }
+    return true;
   };
 
-  const handleSectorSave = () => {
-    if (!sectorForm.name.trim()) return;
-    setSectors((prev) => [
-      { id: Date.now(), name: sectorForm.name, description: sectorForm.description, createdAt: new Date().toLocaleDateString() },
-      ...prev,
-    ]);
-    setSectorForm({ name: "", description: "" });
-    setSectorOpen(false);
-    toast({ title: "Setor salvo", description: "Setor cadastrado com sucesso." });
+  const handleGroupSave = async () => {
+    if (!groupForm.name.trim() || !requireOrg()) return;
+    try {
+      await createCrmGroup.mutateAsync({
+        organization_id: org!.id,
+        name: groupForm.name.trim(),
+        description: groupForm.description || null,
+        color: null,
+      });
+      setGroupForm({ name: "", sector: "", day: "", time: "", duration: "", frequency: "", approval: false, status: "Ativo", description: "", address: "" });
+      setGroupOpen(false);
+      toast({ title: "Grupo salvo", description: "Grupo cadastrado com sucesso." });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar grupo", description: e.message, variant: "destructive" });
+    }
   };
 
-  const handleTagSave = () => {
-    if (!tagForm.name.trim()) return;
-    setTags((prev) => [
-      { id: Date.now(), name: tagForm.name, people: 0, createdAt: new Date().toLocaleDateString(), color: tagForm.color },
-      ...prev,
-    ]);
-    setTagForm({ name: "", color: tagColors[0] });
-    setTagOpen(false);
-    toast({ title: "Tag salva", description: "Tag criada com sucesso." });
+  const handleSectorSave = async () => {
+    if (!sectorForm.name.trim() || !requireOrg()) return;
+    try {
+      await createCrmSector.mutateAsync({
+        organization_id: org!.id,
+        name: sectorForm.name.trim(),
+        description: sectorForm.description || null,
+        color: null,
+      });
+      setSectorForm({ name: "", description: "" });
+      setSectorOpen(false);
+      toast({ title: "Setor salvo", description: "Setor cadastrado com sucesso." });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar setor", description: e.message, variant: "destructive" });
+    }
   };
 
-  const handleCategorySave = () => {
-    if (!categoryForm.name.trim()) return;
-    setCategories((prev) => [{ id: Date.now(), name: categoryForm.name }, ...prev]);
-    setCategoryForm({ name: "" });
-    setCategoryOpen(false);
-    toast({ title: "Categoria salva", description: "Categoria criada com sucesso." });
+  const handleTagSave = async () => {
+    if (!tagForm.name.trim() || !requireOrg()) return;
+    try {
+      await createCrmTag.mutateAsync({
+        organization_id: org!.id,
+        name: tagForm.name.trim(),
+        description: null,
+        color: tagForm.color,
+      });
+      setTagForm({ name: "", color: tagColors[0] });
+      setTagOpen(false);
+      toast({ title: "Tag salva", description: "Tag criada com sucesso." });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar tag", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleCategorySave = async () => {
+    if (!categoryForm.name.trim() || !requireOrg()) return;
+    try {
+      await createCrmCategory.mutateAsync({
+        organization_id: org!.id,
+        name: categoryForm.name.trim(),
+        description: null,
+        color: null,
+      });
+      setCategoryForm({ name: "" });
+      setCategoryOpen(false);
+      toast({ title: "Categoria salva", description: "Categoria criada com sucesso." });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar categoria", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const { kind, id } = deleteTarget;
+    try {
+      if (kind === "tag") await deleteCrmTag.mutateAsync(id);
+      else if (kind === "group") await deleteCrmGroup.mutateAsync(id);
+      else if (kind === "sector") await deleteCrmSector.mutateAsync(id);
+      else if (kind === "category") await deleteCrmCategory.mutateAsync(id);
+      toast({ title: "Removido", description: `"${deleteTarget.name}" foi excluído.` });
+    } catch (e: any) {
+      toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
+    }
+    setDeleteTarget(null);
   };
 
   const sectionTitle = sections.find((section) => section.key === currentSection)?.label || "Pessoas";
@@ -402,7 +427,7 @@ const CRMPage = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
-                      <TableHead>Pessoas</TableHead>
+                      <TableHead>Descrição</TableHead>
                       <TableHead>Adicionado em</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -411,20 +436,20 @@ const CRMPage = () => {
                     {filteredGroups.map((group) => (
                       <TableRow key={group.id}>
                         <TableCell className="font-medium">{group.name}</TableCell>
-                        <TableCell>{group.people}</TableCell>
-                        <TableCell>{group.createdAt}</TableCell>
+                        <TableCell className="text-muted-foreground">{group.description || "-"}</TableCell>
+                        <TableCell>{new Date(group.created_at).toLocaleDateString("pt-BR")}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-primary">
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-destructive">
+                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-destructive" onClick={() => setDeleteTarget({ kind: "group", id: group.id, name: group.name })}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>
                       </TableRow>
                     ))}
+                    {filteredGroups.length === 0 && (
+                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum grupo cadastrado.</TableCell></TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -440,16 +465,27 @@ const CRMPage = () => {
                       <TableHead>Nome</TableHead>
                       <TableHead>Descrição</TableHead>
                       <TableHead>Adicionado em</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredSectors.map((sector) => (
                       <TableRow key={sector.id}>
                         <TableCell className="font-medium">{sector.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{sector.description}</TableCell>
-                        <TableCell>{sector.createdAt}</TableCell>
+                        <TableCell className="text-muted-foreground">{sector.description || "-"}</TableCell>
+                        <TableCell>{new Date(sector.created_at).toLocaleDateString("pt-BR")}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-destructive" onClick={() => setDeleteTarget({ kind: "sector", id: sector.id, name: sector.name })}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
+                    {filteredSectors.length === 0 && (
+                      <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum setor cadastrado.</TableCell></TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -463,7 +499,6 @@ const CRMPage = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
-                      <TableHead>Pessoas</TableHead>
                       <TableHead>Adicionado em</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -473,24 +508,23 @@ const CRMPage = () => {
                       <TableRow key={tag.id}>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
-                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: tag.color }} />
+                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: tag.color || "#94a3b8" }} />
                             {tag.name}
                           </div>
                         </TableCell>
-                        <TableCell>{tag.people}</TableCell>
-                        <TableCell>{tag.createdAt}</TableCell>
+                        <TableCell>{new Date(tag.created_at).toLocaleDateString("pt-BR")}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-primary">
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-destructive">
+                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-destructive" onClick={() => setDeleteTarget({ kind: "tag", id: tag.id, name: tag.name })}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>
                       </TableRow>
                     ))}
+                    {filteredTags.length === 0 && (
+                      <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">Nenhuma tag cadastrada.</TableCell></TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -513,16 +547,16 @@ const CRMPage = () => {
                         <TableCell className="font-medium">{category.name}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-primary">
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-destructive">
+                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-destructive" onClick={() => setDeleteTarget({ kind: "category", id: category.id, name: category.name })}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>
                       </TableRow>
                     ))}
+                    {filteredCategories.length === 0 && (
+                      <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-8">Nenhuma categoria cadastrada.</TableCell></TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -709,6 +743,24 @@ const CRMPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir item</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir permanentemente{" "}
+              <span className="font-semibold text-slate-900">"{deleteTarget?.name}"</span>? Esta ação não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir permanentemente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

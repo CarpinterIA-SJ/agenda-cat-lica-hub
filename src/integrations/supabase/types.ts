@@ -174,8 +174,61 @@ export interface CrmContact {
   tags:            Json
   source:          string | null
   notes:           string | null
+  sector_id:       string | null
+  category_id:     string | null
   created_at:      string
   updated_at:      string
+}
+
+// Migration 006 — CRM expandido
+export interface CrmTag {
+  id:              string
+  organization_id: string
+  name:            string
+  description:     string | null
+  color:           string | null
+  created_at:      string
+}
+
+export interface CrmGroup {
+  id:              string
+  organization_id: string
+  name:            string
+  description:     string | null
+  color:           string | null
+  created_at:      string
+}
+
+export interface CrmSector {
+  id:              string
+  organization_id: string
+  name:            string
+  description:     string | null
+  color:           string | null
+  created_at:      string
+}
+
+export interface CrmCategory {
+  id:              string
+  organization_id: string
+  name:            string
+  description:     string | null
+  color:           string | null
+  created_at:      string
+}
+
+export interface CrmContactTag {
+  id:         string
+  contact_id: string
+  tag_id:     string
+  created_at: string
+}
+
+export interface CrmContactGroup {
+  id:         string
+  contact_id: string
+  group_id:   string
+  created_at: string
 }
 
 export interface UserRole {
@@ -316,13 +369,45 @@ export type Database = {
       }
       crm_contacts: {
         Row:    CrmContact
-        Insert: Omit<CrmContact, 'id' | 'created_at' | 'updated_at'> & {
+        Insert: Omit<CrmContact, 'id' | 'created_at' | 'updated_at' | 'sector_id' | 'category_id'> & {
           id?: string
           created_at?: string
           updated_at?: string
           tags?: Json
+          sector_id?: string | null
+          category_id?: string | null
         }
         Update: Partial<Omit<CrmContact, 'id' | 'organization_id' | 'created_at'>>
+      }
+      crm_tags: {
+        Row:    CrmTag
+        Insert: Omit<CrmTag, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<Omit<CrmTag, 'id' | 'organization_id' | 'created_at'>>
+      }
+      crm_groups: {
+        Row:    CrmGroup
+        Insert: Omit<CrmGroup, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<Omit<CrmGroup, 'id' | 'organization_id' | 'created_at'>>
+      }
+      crm_sectors: {
+        Row:    CrmSector
+        Insert: Omit<CrmSector, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<Omit<CrmSector, 'id' | 'organization_id' | 'created_at'>>
+      }
+      crm_categories: {
+        Row:    CrmCategory
+        Insert: Omit<CrmCategory, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<Omit<CrmCategory, 'id' | 'organization_id' | 'created_at'>>
+      }
+      crm_contact_tags: {
+        Row:    CrmContactTag
+        Insert: Omit<CrmContactTag, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<Pick<CrmContactTag, 'contact_id' | 'tag_id'>>
+      }
+      crm_contact_groups: {
+        Row:    CrmContactGroup
+        Insert: Omit<CrmContactGroup, 'id' | 'created_at'> & { id?: string; created_at?: string }
+        Update: Partial<Pick<CrmContactGroup, 'contact_id' | 'group_id'>>
       }
       user_roles: {
         Row:    UserRole
@@ -380,6 +465,16 @@ export type Database = {
       is_platform_admin: {
         Args:    Record<PropertyKey, never>
         Returns: boolean
+      }
+      get_admin_user_list: {
+        Args:    Record<PropertyKey, never>
+        Returns: {
+          user_id:    string
+          email:      string
+          name:       string | null
+          avatar_url: string | null
+          created_at: string
+        }[]
       }
       validate_coupon: {
         Args:    { p_event_id: string; p_code: string }

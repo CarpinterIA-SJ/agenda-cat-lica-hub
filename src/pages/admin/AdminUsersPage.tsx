@@ -32,8 +32,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Search, Eye, Pencil, Ban } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useAdminUsers } from "@/hooks/use-admin-users";
 
 interface AdminUser {
   id: string;
@@ -52,34 +51,19 @@ const AdminUsersPage = () => {
   const [editEmail, setEditEmail] = useState("");
   const [suspendUser, setSuspendUser] = useState<AdminUser | null>(null);
 
-  const { data: users = [] } = useQuery({
-    queryKey: ["admin-users"],
-    queryFn: async (): Promise<AdminUser[]> => {
-      const [{ data: profiles, error: e1 }, { data: roles, error: e2 }] = await Promise.all([
-        supabase.from("profiles").select("*"),
-        supabase.from("user_roles").select("*"),
-      ]);
-      if (e1) throw e1;
-      if (e2) throw e2;
-      const rolesByUser = new Map<string, string[]>();
-      (roles ?? []).forEach((r: any) => {
-        const arr = rolesByUser.get(r.user_id) ?? [];
-        arr.push(r.role);
-        rolesByUser.set(r.user_id, arr);
-      });
-      return (profiles ?? []).map((p: any) => {
-        const rs = rolesByUser.get(p.id) ?? [];
-        const isOrganizer = rs.some((r) => ["organizer", "admin", "superadmin"].includes(r));
-        return {
-          id: p.id,
-          nome: p.name ?? "—",
-          email: "—",
-          tipo: isOrganizer ? "Organizador" : "Participante",
-          status: "Ativo",
-        };
-      });
-    },
-  });
+  const { data: rawUsers = [] } = useAdminUsers();
+
+  const users = useMemo<AdminUser[]>(
+    () =>
+      rawUsers.map((u) => ({
+        id: u.user_id,
+        nome: u.name ?? "—",
+        email: u.email,
+        tipo: "Participante",
+        status: "Ativo",
+      })),
+    [rawUsers]
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
