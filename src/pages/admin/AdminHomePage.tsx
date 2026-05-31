@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, Calendar, UserPlus, Wallet, TrendingUp } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   LineChart,
   Line,
@@ -25,38 +27,57 @@ const salesData = [
   { mes: "Dez", vendas: 52300 },
 ];
 
-const metrics = [
-  {
-    label: "Total de Vendas Acumulado",
-    value: "R$ 372.000,00",
-    icon: DollarSign,
-    color: "text-emerald-700",
-    bg: "bg-emerald-50",
-  },
-  {
-    label: "Total de Eventos Ativos",
-    value: "128",
-    icon: Calendar,
-    color: "text-blue-700",
-    bg: "bg-blue-50",
-  },
-  {
-    label: "Novos Usuários (Mês)",
-    value: "412",
-    icon: UserPlus,
-    color: "text-purple-700",
-    bg: "bg-purple-50",
-  },
-  {
-    label: "Solicitações de Repasse Pendentes",
-    value: "17",
-    icon: Wallet,
-    color: "text-amber-700",
-    bg: "bg-amber-50",
-  },
-];
-
 const AdminHomePage = () => {
+  const { data: stats } = useQuery({
+    queryKey: ["admin-home-stats"],
+    queryFn: async () => {
+      const [paidEvents, activeEvents, users, pendingPayments] = await Promise.all([
+        supabase.from("payments").select("net_cents").eq("status", "paid"),
+        supabase.from("events").select("id", { count: "exact", head: true }).eq("status", "active"),
+        supabase.from("profiles").select("id", { count: "exact", head: true }),
+        supabase.from("payments").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      ]);
+      const totalSales = (paidEvents.data ?? []).reduce((sum: number, p: any) => sum + (p.net_cents ?? 0), 0);
+      return {
+        totalSales,
+        activeEvents: activeEvents.count ?? 0,
+        users: users.count ?? 0,
+        pendingPayments: pendingPayments.count ?? 0,
+      };
+    },
+  });
+
+  const metrics = [
+    {
+      label: "Total de Vendas (líquido)",
+      value: ((stats?.totalSales ?? 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+      icon: DollarSign,
+      color: "text-emerald-700",
+      bg: "bg-emerald-50",
+    },
+    {
+      label: "Total de Eventos Ativos",
+      value: String(stats?.activeEvents ?? 0),
+      icon: Calendar,
+      color: "text-blue-700",
+      bg: "bg-blue-50",
+    },
+    {
+      label: "Usuários cadastrados",
+      value: String(stats?.users ?? 0),
+      icon: UserPlus,
+      color: "text-purple-700",
+      bg: "bg-purple-50",
+    },
+    {
+      label: "Pagamentos pendentes",
+      value: String(stats?.pendingPayments ?? 0),
+      icon: Wallet,
+      color: "text-amber-700",
+      bg: "bg-amber-50",
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div>

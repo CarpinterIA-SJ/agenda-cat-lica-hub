@@ -40,11 +40,15 @@ import {
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
+import { useEvent } from "@/hooks/use-events";
+import { useRegistrations } from "@/hooks/use-registrations";
 
 const OrganizerEventDashboardPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { toast } = useToast();
+  const { data: event } = useEvent(id);
+  const { data: registrations = [] } = useRegistrations(id);
   const [duplicateOpen, setDuplicateOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [duplicateName, setDuplicateName] = useState("");
@@ -52,7 +56,12 @@ const OrganizerEventDashboardPage = () => {
   const [syncCategory, setSyncCategory] = useState("");
   const [syncField, setSyncField] = useState("");
 
-  const eventUrl = "https://guardiaoeventos.com/evento/1";
+  const eventName = event?.name ?? "Evento";
+  const eventDateLabel = event?.start_at
+    ? new Date(event.start_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+    : "Data a definir";
+  const eventUrl = event?.slug ? `${window.location.origin}/evento/${event.slug}` : "";
+  const totalParticipants = registrations.length;
 
   const chartData = [
     { name: "20/03", value: 0 },
@@ -112,11 +121,11 @@ const OrganizerEventDashboardPage = () => {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold text-foreground tracking-wide">
-              FABRICIO CHRISTIAN DA SILVA CAVALCANTE
+              {eventName}
             </h1>
             <ExternalLink className="w-4 h-4 text-primary" />
           </div>
-          <p className="text-sm text-muted-foreground">21/10/2026 às 12:00 até 22/10/2026 às 18:00</p>
+          <p className="text-sm text-muted-foreground">{eventDateLabel}</p>
         </div>
         <Button
           variant="outline"
@@ -278,7 +287,7 @@ const OrganizerEventDashboardPage = () => {
             <History className="w-5 h-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-semibold text-foreground">0</p>
+            <p className="text-3xl font-semibold text-foreground">{totalParticipants}</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm">

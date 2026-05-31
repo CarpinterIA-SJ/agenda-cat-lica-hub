@@ -8,6 +8,7 @@ import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, User, CheckCircle } from
 import { SaoJoseIcon } from "@/components/icons/SaoJoseIcon";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 import authBg from "@/assets/auth-bg.jpg";
 
 const LoginPage = () => {
@@ -30,9 +31,9 @@ const LoginPage = () => {
     const provider = session.user.app_metadata?.provider;
 
     if (provider === "google") {
-      // Google users go straight to the organizer dashboard
+      // Google users go straight to the organizer area (org is ensured by the layout)
       setRole("organizer");
-      navigate("/organizador/evento/1/dashboard", { replace: true });
+      navigate("/organizador/meus-eventos", { replace: true });
     } else {
       // Email users pick their role first
       navigate("/role-select", { replace: true });
@@ -78,6 +79,22 @@ const LoginPage = () => {
     clearMessages();
     await signInWithGoogle();
     // On success the browser navigates away; no need to reset loading
+  };
+
+  const handleForgotPassword = async () => {
+    clearMessages();
+    if (!email) {
+      setError("Informe seu e-mail no campo acima para redefinir a senha.");
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    if (error) {
+      setError(translateError(error.message));
+    } else {
+      setSuccess("Enviamos um link de redefinição de senha para o seu e-mail.");
+    }
   };
 
   return (
@@ -186,6 +203,7 @@ const LoginPage = () => {
                       <Label htmlFor="login-password">Senha</Label>
                       <button
                         type="button"
+                        onClick={handleForgotPassword}
                         className="text-xs text-primary hover:underline font-medium"
                       >
                         Esqueceu a senha?

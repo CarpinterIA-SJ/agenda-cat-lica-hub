@@ -2857,28 +2857,26 @@ const OrganizerEventConfiguracoesPage = () => {
   useEffect(() => {
     const loadEvent = async () => {
       if (!id) return;
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("events")
-        .select("name, slug, category, visibility, start_date, end_date, support_whatsapp, support_email, event_type")
+        .select("name, slug, category, visibility, format, start_at, end_at")
         .eq("id", id)
         .maybeSingle();
       if (error || !data) return;
       if (data.name) setEventName(data.name);
       if (data.slug) setSlug(data.slug);
       if (data.category) setCategory(data.category);
-      if (data.visibility) setVisibility(data.visibility);
-      if (data.event_type) setEventType(data.event_type);
-      if (data.support_email) setSupportEmail(data.support_email);
-      if (data.support_whatsapp) setWhatsapp(data.support_whatsapp.replace("+", ""));
-      if (data.start_date) {
-        const start = new Date(data.start_date);
+      if (data.visibility) setVisibility(data.visibility === "private" ? "privado" : "publico");
+      if (data.format) setEventType(data.format);
+      if (data.start_at) {
+        const start = new Date(data.start_at);
         if (!Number.isNaN(start.getTime())) {
           setStartDate(start.toISOString().slice(0, 10));
           setStartTime(start.toISOString().slice(11, 16));
         }
       }
-      if (data.end_date) {
-        const end = new Date(data.end_date);
+      if (data.end_at) {
+        const end = new Date(data.end_at);
         if (!Number.isNaN(end.getTime())) {
           setEndDate(end.toISOString().slice(0, 10));
           setEndTime(end.toISOString().slice(11, 16));
@@ -2895,25 +2893,23 @@ const OrganizerEventConfiguracoesPage = () => {
     const start = startDate ? new Date(`${startDate}T${startTime || "00:00"}`).toISOString() : null;
     const end = endDate ? new Date(`${endDate}T${endTime || "00:00"}`).toISOString() : null;
 
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("events")
       .update({
         name: eventName,
         slug,
         category,
-        visibility,
-        event_type: eventType,
-        support_whatsapp: whatsapp ? `${ddi}${whatsapp}` : null,
-        support_email: supportEmail,
-        start_date: start,
-        end_date: end,
+        visibility: visibility === "privado" ? "private" : "public",
+        format: eventType as any,
+        start_at: start,
+        end_at: end,
       })
       .eq("id", id);
 
     setSaving(false);
 
     if (error) {
-      toast({ title: "Erro ao salvar", description: "Não foi possível atualizar o evento." });
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
       return;
     }
 

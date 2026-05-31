@@ -1,13 +1,55 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ArrowLeft, Pencil, Lock, AlertTriangle, Info, Plus } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/hooks/use-profile";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const MinhaContaPage = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { profile, updateProfile, isUpdating } = useProfile();
   const [activeTab, setActiveTab] = useState("perfil");
+  const [nameOpen, setNameOpen] = useState(false);
+  const [nameValue, setNameValue] = useState("");
+
+  useEffect(() => {
+    if (profile?.name) setNameValue(profile.name);
+  }, [profile?.name]);
+
+  const email = user?.email ?? "—";
+  const displayName = profile?.name || "Sem nome";
+
+  const handleSaveName = async () => {
+    if (!nameValue.trim()) return;
+    try {
+      await updateProfile({ name: nameValue.trim() });
+      toast({ title: "Perfil atualizado", description: "Seu nome foi salvo." });
+      setNameOpen(false);
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!user?.email) return;
+    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "E-mail enviado", description: "Enviamos um link para redefinir sua senha." });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-muted/30 p-4 md:p-8">
@@ -32,29 +74,25 @@ const MinhaContaPage = () => {
               <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center">
                 <span className="text-4xl text-muted-foreground">👤</span>
               </div>
-              <p className="text-sm text-muted-foreground">fabricio.christian@gmail.com</p>
+              <p className="text-sm text-muted-foreground">{email}</p>
 
               <div className="w-full border-t pt-4 space-y-4 text-left">
                 <div>
                   <p className="text-xs text-muted-foreground">Nome</p>
                   <div className="flex items-center gap-2">
-                    <Pencil className="w-4 h-4 text-muted-foreground" />
+                    <p className="text-sm font-medium">{displayName}</p>
+                    <button onClick={() => setNameOpen(true)} title="Editar nome">
+                      <Pencil className="w-4 h-4 text-muted-foreground hover:text-blue-600" />
+                    </button>
                   </div>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Email</p>
-                  <p className="text-sm font-medium">fabricio.christian@gmail.com</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Telefone</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium">+55 77998611981</p>
-                    <Pencil className="w-4 h-4 text-muted-foreground" />
-                  </div>
+                  <p className="text-sm font-medium">{email}</p>
                 </div>
               </div>
 
-              <Button className="w-full bg-blue-100 text-blue-700 hover:bg-blue-200 border-0">
+              <Button className="w-full bg-blue-100 text-blue-700 hover:bg-blue-200 border-0" onClick={handleChangePassword}>
                 <Lock className="w-4 h-4 mr-2" />
                 Alterar senha
               </Button>
@@ -148,6 +186,24 @@ const MinhaContaPage = () => {
           </div>
         </div>
       </div>
+
+      <Dialog open={nameOpen} onOpenChange={setNameOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Editar nome</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Nome completo</Label>
+            <Input value={nameValue} onChange={(e) => setNameValue(e.target.value)} placeholder="Seu nome" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNameOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveName} disabled={!nameValue.trim() || isUpdating}>
+              {isUpdating ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
