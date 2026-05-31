@@ -10,7 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAuth } from "@/hooks/use-auth";
 import { UserAvatarMenu } from "@/components/UserAvatarMenu";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useEnsureOrganization } from "@/hooks/use-organizations";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -20,12 +21,21 @@ const DashboardLayout = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { ensure } = useEnsureOrganization();
+  const ensuredRef = useRef(false);
 
   useEffect(() => {
     if (drawerOpen) {
       setDrawerOpen(false);
     }
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (role === 'organizer' && !ensuredRef.current) {
+      ensure();
+      ensuredRef.current = true;
+    }
+  }, [role, ensure]);
 
   const handleSwitchProfile = () => {
     setRole(null);

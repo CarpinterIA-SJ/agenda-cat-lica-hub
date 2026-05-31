@@ -16,36 +16,89 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate, useParams } from "react-router-dom";
-import { syncCustomEvents } from "@/lib/events-sync";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useEvents } from "@/hooks/use-events";
+import { useCreateRegistration } from "@/hooks/use-registrations";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-const CUPONS_KEY = "cupons_desconto";
+const formatLabelMap: Record<string, string> = {
+  presencial: "Evento presencial",
+  online: "Evento online",
+  hibrido: "Evento híbrido",
+};
 
+const locationToString = (loc: any): string => {
+  if (!loc) return "Local a definir";
+  if (typeof loc === "string") return loc;
+  return loc.name || loc.city || loc.address || "Local a definir";
+};
 
-const slugify = (value: string) =>
-  value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-");
+// Mapeia uma linha de `events` do Supabase para o view-model usado pela UI legada.
+const eventToVM = (e: any) => {
+  const sf: any = e.show_fields ?? {};
+  return {
+    id: e.id,
+    name: e.name,
+    slug: e.slug,
+    date: e.start_at
+      ? new Date(e.start_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })
+      : "A definir",
+    time: e.start_at ? new Date(e.start_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "",
+    startDateTime: e.start_at || "",
+    location: locationToString(e.location),
+    type: formatLabelMap[e.format] || "Evento presencial",
+    category: e.category || "",
+    status: e.status === "active" ? "Ativo" : e.status,
+    bannerUrl: e.banner_url || "",
+    descriptionText: e.description_text || "",
+    description: e.description || "",
+    organizerName: "",
+    attendees: 0,
+    show_nome: sf.nome ?? true,
+    show_email: sf.email ?? true,
+    show_cpf: sf.cpf ?? true,
+    show_nascimento: sf.nascimento ?? false,
+    show_whatsapp: sf.whatsapp ?? true,
+    custom_fields: Array.isArray(e.custom_fields) ? e.custom_fields : [],
+    tickets: [] as any[],
+  };
+};
 
 export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const [eventData, setEventData] = useState<any>(eventProp || null);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
-  useEffect(() => {
-    if (eventProp) return;
-    try {
-      const stored = syncCustomEvents();
-      const found = stored.find((item: any) => (item.slug || slugify(item.name)) === slug);
-      setEventData(found || stored[0] || null);
-    } catch {
-      setEventData(null);
-    }
-  }, [eventProp, slug]);
+  const { data: fetched } = useQuery({
+    queryKey: ["events", "public-slug", slug],
+    queryFn: async () => {
+      if (!slug) return null;
+      const { data: ev, error } = await supabase
+        .from("events")
+        .select("*")
+        .eq("slug", slug)
+        .maybeSingle();
+      if (error) throw error;
+      if (!ev) return null;
+      const { data: tickets } = await supabase
+        .from("event_tickets")
+        .select("*")
+        .eq("event_id", ev.id)
+        .order("sort_order");
+      const vm: any = eventToVM(ev);
+      vm.tickets = (tickets ?? []).map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        price: String((t.price_cents ?? 0) / 100),
+        type: t.type,
+      }));
+      return vm;
+    },
+    enabled: !eventProp && !!slug,
+  });
+
+  const eventData = eventProp || fetched || null;
 
   const eventDate = useMemo(() => {
     if (!eventData) return null;
@@ -330,6 +383,7 @@ const EVENT_CATEGORIES = [
   { value: "diversos", label: "Eventos Diversos" },
   { value: "palestras", label: "Palestras" },
   { value: "retiros", label: "Retiros" },
+  { value: "seminario-espirito", label: "Seminário de Vida no Espírito Santo" },
   { value: "shows", label: "Shows Católicos" },
 ];
 
@@ -354,30 +408,13 @@ const ExploreEventsPage = () => {
   const [couponError, setCouponError] = useState("");
   const { user } = useAuth();
   const navigate = useNavigate();
+  const createRegistration = useCreateRegistration();
 
-  const refreshEvents = () => {
-    try {
-      setEvents(syncCustomEvents());
-    } catch {
-      // ignore
-    }
-  };
+  const { data: rawEvents = [] } = useEvents({ visibility: "public", status: "active" });
 
   useEffect(() => {
-    refreshEvents();
-    const onStorage = (e: StorageEvent) => {
-      if (!e.key || e.key === "custom_events" || e.key === "eventos_criados") {
-        refreshEvents();
-      }
-    };
-    const onFocus = () => refreshEvents();
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", onFocus);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, []);
+    setEvents(rawEvents.map(eventToVM));
+  }, [rawEvents]);
 
   const filtered = events.filter((e) => {
     if (!e.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -388,22 +425,32 @@ const ExploreEventsPage = () => {
 
   const activeFilters = (selectedCategory !== "all" ? 1 : 0) + (selectedType !== "all" ? 1 : 0);
 
-  const validateCoupon = () => {
+  const validateCoupon = async () => {
     if (!couponCode.trim() || !selectedEvent) return;
     try {
-      const cupons = JSON.parse(localStorage.getItem(`${CUPONS_KEY}_${selectedEvent.id}`) || "[]");
-      const found = cupons.find((c: any) => c.codigo === couponCode.trim().toUpperCase() && c.ativo);
+      const { data: found, error } = await supabase
+        .from("coupons")
+        .select("*")
+        .eq("event_id", selectedEvent.id)
+        .eq("code", couponCode.trim().toUpperCase())
+        .eq("active", true)
+        .maybeSingle();
+      if (error) throw error;
       if (!found) {
         setCouponError("Cupom inválido ou inativo.");
         setCouponDiscount(null);
         return;
       }
-      if (found.maximo !== "∞" && found.usos >= parseInt(found.maximo, 10)) {
+      if (found.max_uses != null && found.used_count >= found.max_uses) {
         setCouponError("Cupom esgotado.");
         setCouponDiscount(null);
         return;
       }
-      setCouponDiscount({ modo: found.modo, valor: found.valor, codigo: found.codigo });
+      setCouponDiscount({
+        modo: found.discount_kind === "percent" ? "percentual" : "fixo",
+        valor: String(found.discount_value),
+        codigo: found.code,
+      });
       setCouponError("");
     } catch {
       setCouponError("Erro ao validar cupom.");
@@ -418,14 +465,24 @@ const ExploreEventsPage = () => {
     return Math.max(0, price - parseFloat(couponDiscount.valor));
   };
 
-  const handleOpenRegistration = (event: any) => {
-    // Re-sync to make sure the registration modal uses the latest organizer config
-    // (form fields, tickets, etc.) even if it changed after the page was loaded.
+  const handleOpenRegistration = async (event: any) => {
+    // Busca os ingressos atuais do evento no Supabase para montar o modal.
     let latest = event;
     try {
-      const fresh = syncCustomEvents();
-      setEvents(fresh);
-      latest = fresh.find((e: any) => e.id === event.id) || event;
+      const { data: tickets } = await supabase
+        .from("event_tickets")
+        .select("*")
+        .eq("event_id", event.id)
+        .order("sort_order");
+      latest = {
+        ...event,
+        tickets: (tickets ?? []).map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          price: String((t.price_cents ?? 0) / 100),
+          type: t.type,
+        })),
+      };
     } catch {
       // ignore
     }
@@ -442,7 +499,7 @@ const ExploreEventsPage = () => {
       fixed_email: user?.email || "",
       fixed_nascimento: "",
     };
-    const fields = latest.custom_fields || latest.details?.formFields || [];
+    const fields = latest.custom_fields || [];
     fields.forEach((f: any) => {
       initialValues[f.id] = f.type === "checkbox" ? false : "";
     });
@@ -459,19 +516,13 @@ const ExploreEventsPage = () => {
     setFormValues((prev) => ({ ...prev, [fieldId]: value }));
   };
 
-  const isDuplicate = useMemo(() => {
-    if (!selectedEvent) return false;
-    const registrations = JSON.parse(localStorage.getItem("event_registrations") || "[]");
-    const currentCpf = formValues["fixed_cpf"];
-    return registrations.some(
-      (reg: any) => reg.eventId === selectedEvent.id && currentCpf && reg.values?.fixed_cpf === currentCpf
-    );
-  }, [formValues, selectedEvent]);
+  // A verificação de duplicidade por CPF agora é responsabilidade do backend (RLS/constraints).
+  const isDuplicate = false;
 
   // When the organizer hasn't configured any ticket yet, fall back to a synthetic
   // free entry so the participant can still submit the form.
   const modalTickets = useMemo(() => {
-    const configured = selectedEvent?.tickets || selectedEvent?.details?.tickets || [];
+    const configured = selectedEvent?.tickets || [];
     if (configured.length > 0) return configured;
     return [{ id: "default-free", name: "Inscrição gratuita", price: "0" }];
   }, [selectedEvent]);
@@ -494,30 +545,33 @@ const ExploreEventsPage = () => {
     });
   }, [selectedTicketId, formValues, unifiedFields, isDuplicate]);
 
-  const handleRegister = () => {
-    if (isDuplicate) {
-      toast.error("Este CPF já possui uma inscrição para este evento.");
-      return;
-    }
-    const registrations = JSON.parse(localStorage.getItem("event_registrations") || "[]");
-    const newReg = {
-      id: Date.now(),
-      eventId: selectedEvent.id,
-      email: formValues["fixed_email"],
-      phone: formValues["fixed_tel"],
-      ticketId: selectedTicketId,
-      paymentMethod: selectedPaymentMethod,
-      values: formValues,
-    };
-    localStorage.setItem("event_registrations", JSON.stringify([...registrations, newReg]));
-    toast.success("Inscrição confirmada!", {
-      description: `Sua participação no evento "${selectedEvent?.name}" foi registrada.`,
+  const handleRegister = async () => {
+    if (!selectedEvent) return;
+    // Coleta os valores dos campos customizados configurados pelo organizador.
+    const customValues: Record<string, any> = {};
+    (selectedEvent.custom_fields || []).forEach((f: any) => {
+      customValues[f.id] = formValues[f.id];
     });
-    const updated = events.map((e) =>
-      e.id === selectedEvent.id ? { ...e, attendees: (e.attendees || 0) + 1 } : e
-    );
-    setEvents(updated);
-    setIsModalOpen(false);
+    try {
+      await createRegistration.mutateAsync({
+        event_id: selectedEvent.id,
+        ticket_id: selectedTicketId && selectedTicketId !== "default-free" ? selectedTicketId : null,
+        user_id: user?.id ?? null,
+        full_name: formValues["fixed_nome"] || "",
+        email: formValues["fixed_email"] || "",
+        cpf: formValues["fixed_cpf"] || null,
+        phone: formValues["fixed_tel"] || null,
+        birth_date: formValues["fixed_nascimento"] || null,
+        custom_fields: customValues as any,
+        status: "confirmed",
+      });
+      toast.success("Inscrição confirmada!", {
+        description: `Sua participação no evento "${selectedEvent?.name}" foi registrada.`,
+      });
+      setIsModalOpen(false);
+    } catch (e: any) {
+      toast.error("Erro ao confirmar inscrição", { description: e.message });
+    }
   };
 
   return (

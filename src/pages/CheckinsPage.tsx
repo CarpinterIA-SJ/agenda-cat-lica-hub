@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Calendar, ChevronLeft, PlayCircle } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -10,10 +10,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useCheckins } from "@/hooks/use-checkins";
 
 const CheckinsPage = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
   const { toast } = useToast();
+  const { data: checkins = [] } = useCheckins(id);
   const [ticketType, setTicketType] = useState<string>("");
   const [accessPoint, setAccessPoint] = useState<string>("");
 
@@ -47,7 +50,7 @@ const CheckinsPage = () => {
           </div>
           <div className="flex items-center gap-2 text-slate-500 font-medium">
             <Calendar className="w-4 h-4" />
-            <span>21/10/2026 às 12:00 até 22/10/2026 às 18:00</span>
+            <span>{checkins.length} check-in(s) realizado(s)</span>
           </div>
         </div>
         

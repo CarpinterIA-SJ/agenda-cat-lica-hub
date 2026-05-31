@@ -7,6 +7,9 @@ import {
   ChevronLeft,
   LogOut,
   ShieldCheck,
+  Building2,
+  Wallet,
+  ClipboardList,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useNavigate } from "react-router-dom";
@@ -27,8 +30,12 @@ import {
 const adminNavItems = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard, end: true },
   { title: "Gestão de Usuários", url: "/admin/usuarios", icon: Users },
+  { title: "Gestão de Organizadores", url: "/admin/organizadores", icon: Building2 },
   { title: "Gestão de Eventos", url: "/admin/eventos", icon: Calendar },
+  { title: "Moderação de Eventos", url: "/admin/moderacao", icon: ShieldCheck },
+  { title: "Gestão de Repasses", url: "/admin/repasses", icon: Wallet },
   { title: "Financeiro Global", url: "/admin/financeiro", icon: DollarSign },
+  { title: "Logs de Auditoria", url: "/admin/logs", icon: ClipboardList },
   { title: "Configurações do Sistema", url: "/admin/configuracoes", icon: Settings },
 ];
 

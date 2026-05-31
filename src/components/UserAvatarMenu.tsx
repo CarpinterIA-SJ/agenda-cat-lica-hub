@@ -10,6 +10,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   LayoutGrid,
   User,
   Ticket,
@@ -50,6 +60,7 @@ export const UserAvatarMenu = () => {
   const [photoUrl, setPhotoUrl] = useState<string | null>(() =>
     localStorage.getItem(AVATAR_KEY)
   );
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
   const isAdmin = !!user?.email && ADMIN_ALLOWLIST.includes(user.email.toLowerCase());
 
@@ -60,7 +71,8 @@ export const UserAvatarMenu = () => {
 
   const handleLogout = async () => {
     await signOut();
-    navigate("/login");
+    setLogoutConfirmOpen(false);
+    navigate("/login", { replace: true });
   };
 
   const goToProfile = (role: "participant" | "organizer" | "admin") => {
@@ -213,7 +225,10 @@ export const UserAvatarMenu = () => {
           <DropdownMenuSeparator />
 
           <DropdownMenuItem
-            onClick={handleLogout}
+            onSelect={(e) => {
+              e.preventDefault();
+              setLogoutConfirmOpen(true);
+            }}
             className="gap-2 cursor-pointer text-destructive focus:text-destructive"
           >
             <LogOut className="w-4 h-4" />
@@ -221,6 +236,26 @@ export const UserAvatarMenu = () => {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AlertDialog open={logoutConfirmOpen} onOpenChange={setLogoutConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sair da conta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você será desconectado e redirecionado para a tela de login.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLogout}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Sair
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

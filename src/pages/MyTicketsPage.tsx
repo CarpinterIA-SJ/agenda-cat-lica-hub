@@ -1,53 +1,39 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Ticket, Search, Calendar, MapPin, ArrowRight, ExternalLink, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
+import { useMyRegistrations } from "@/hooks/use-registrations";
 
-interface TicketItem {
-  id: number;
-  eventId: number;
-  eventName: string;
-  eventDate: string;
-  eventLocation: string;
-  ticketName: string;
-  status: string;
-}
+const statusLabel: Record<string, string> = {
+  confirmed: "Confirmado",
+  pending: "Pendente",
+  cancelled: "Cancelado",
+  waitlist: "Fila de espera",
+};
+
+const locationLabel = (loc: any) => {
+  if (!loc) return "Local a confirmar";
+  if (typeof loc === "string") return loc;
+  return loc.name || loc.city || loc.address || "Local a confirmar";
+};
 
 const MyTicketsPage = () => {
   const navigate = useNavigate();
-  const [tickets, setTickets] = useState<TicketItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: registrations = [], isLoading: loading } = useMyRegistrations();
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    try {
-      const registrations = JSON.parse(localStorage.getItem("event_registrations") || "[]");
-      const allEvents = [
-        ...JSON.parse(localStorage.getItem("custom_events") || "[]"),
-        { id: 1, name: "Retiro de Quaresma", date: "28 Mar 2026", location: "Paróquia São José" },
-      ];
-
-      const mapped: TicketItem[] = registrations.map((reg: any) => {
-        const ev = allEvents.find((e: any) => String(e.id) === String(reg.eventId));
-        return {
-          id: reg.id || Math.random(),
-          eventId: reg.eventId,
-          eventName: ev?.name || `Evento #${reg.eventId}`,
-          eventDate: ev?.date || ev?.start_date || "Data a confirmar",
-          eventLocation: ev?.location || "Local a confirmar",
-          ticketName: reg.ticketId || "Ingresso",
-          status: "Confirmado",
-        };
-      });
-      setTickets(mapped);
-    } catch {
-      setTickets([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const tickets = registrations.map((reg) => ({
+    id: reg.id,
+    eventName: reg.event?.name || "Evento",
+    eventDate: reg.event?.start_at
+      ? new Date(reg.event.start_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })
+      : "Data a confirmar",
+    eventLocation: locationLabel(reg.event?.location),
+    ticketName: "Ingresso",
+    status: statusLabel[reg.status] || reg.status,
+  }));
 
   const filtered = tickets.filter((t) =>
     t.eventName.toLowerCase().includes(search.toLowerCase())

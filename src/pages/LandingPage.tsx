@@ -8,7 +8,7 @@ import { UserAvatarMenu } from "@/components/UserAvatarMenu";
 import { LogOut } from "lucide-react";
 import {
   Search, Calendar, MapPin, Users, ChevronRight, ChevronLeft,
-  Music, BookOpen, Tent, Mountain, Heart, Star, Mic2, Sparkles,
+  Music, BookOpen, Tent, Mountain, Heart, Star, Mic2, Sparkles, Flame,
   Menu, X, Ticket, ArrowRight, ChevronDown, ChevronUp,
   Building2, Mail, Instagram, Facebook, Youtube, Phone,
 } from "lucide-react";
@@ -21,6 +21,7 @@ const CATEGORIES = [
   { key: "cursos", label: "Cursos e Workshops", icon: BookOpen, color: "bg-rose-50 text-rose-700 border-rose-200" },
   { key: "encontros", label: "Encontros de Formação", icon: Heart, color: "bg-pink-50 text-pink-700 border-pink-200" },
   { key: "espiritualidade", label: "Encontros de Espiritualidade", icon: Sparkles, color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  { key: "seminario-espirito", label: "Seminário de Vida no Espírito Santo", icon: Flame, color: "bg-red-50 text-red-700 border-red-200" },
   { key: "palestras", label: "Palestras", icon: Star, color: "bg-orange-50 text-orange-700 border-orange-200" },
   { key: "catequese", label: "Catequese", icon: BookOpen, color: "bg-teal-50 text-teal-700 border-teal-200" },
 ];
@@ -347,7 +348,7 @@ const LandingPage = () => {
         </div>
 
         {/* Search bar */}
-        <div className="relative max-w-3xl mx-auto px-4 md:px-6 -mt-8 md:-mt-14 pb-0 -mb-6">
+        <div className="relative max-w-3xl mx-auto px-4 md:px-6 -mt-8 md:-mt-14 pb-8">
           <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-xl border border-slate-100 flex items-center gap-2 p-2">
             <Search className="w-5 h-5 text-slate-400 ml-2 shrink-0" />
             <Input

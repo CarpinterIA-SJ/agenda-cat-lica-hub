@@ -1,107 +1,66 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  listOrganizations,
-  getOrganization,
-  createOrganization,
-  updateOrganization,
-  deleteOrganization,
-  listMembers,
-  addMember,
-  updateMemberRole,
-  removeMember,
-} from "@/integrations/supabase/organizations";
-import type { OrgMemberRole, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
-import { useAuth } from "./use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
 
-// ─── Organizações ─────────────────────────────────────────────────────────────
+type Organization = Database["public"]["Tables"]["organizations"]["Row"];
+type OrganizationInsert = Database["public"]["Tables"]["organizations"]["Insert"];
 
-export function useOrganizations() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
-  const query = useQuery({
-    queryKey: ["organizations"],
-    queryFn:  listOrganizations,
-    enabled:  !!user,
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (payload: TablesInsert<"organizations">) => createOrganization(payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["organizations"] }),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: TablesUpdate<"organizations"> }) =>
-      updateOrganization(id, updates),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["organizations"] }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteOrganization(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["organizations"] }),
-  });
-
-  return {
-    organizations:      query.data ?? [],
-    isLoading:          query.isLoading,
-    error:              query.error,
-    createOrganization: createMutation.mutateAsync,
-    updateOrganization: (id: string, updates: TablesUpdate<"organizations">) =>
-      updateMutation.mutateAsync({ id, updates }),
-    deleteOrganization: deleteMutation.mutateAsync,
-    isCreating:         createMutation.isPending,
-    isDeleting:         deleteMutation.isPending,
-  };
-}
-
-// ─── Organização individual ───────────────────────────────────────────────────
-
-export function useOrganization(id: string) {
+export const useMyOrganization = () => {
   return useQuery({
-    queryKey: ["organizations", id],
-    queryFn:  () => getOrganization(id),
-    enabled:  !!id,
+    queryKey: ["organizations", "me"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("organizations")
+        .select("*")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data as Organization | null;
+    },
   });
-}
+};
 
-// ─── Membros ──────────────────────────────────────────────────────────────────
-
-export function useOrganizationMembers(organizationId: string) {
+export const useCreateOrganization = () => {
   const queryClient = useQueryClient();
-  const key = ["organization_members", organizationId];
-
-  const query = useQuery({
-    queryKey: key,
-    queryFn:  () => listMembers(organizationId),
-    enabled:  !!organizationId,
+  return useMutation({
+    mutationFn: async (org: OrganizationInsert) => {
+      const { data, error } = await supabase.from("organizations").insert(org).select().single();
+      if (error) throw error;
+      return data as Organization;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+    },
   });
+};
 
-  const addMutation = useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role?: OrgMemberRole }) =>
-      addMember(organizationId, userId, role),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
-  });
+export const useEnsureOrganization = () => {
+  const { data: org, isLoading } = useMyOrganization();
+  const createOrgMutation = useCreateOrganization();
 
-  const updateRoleMutation = useMutation({
-    mutationFn: ({ memberId, role }: { memberId: string; role: OrgMemberRole }) =>
-      updateMemberRole(memberId, role),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
-  });
+  const ensure = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || org || isLoading) return;
 
-  const removeMutation = useMutation({
-    mutationFn: (memberId: string) => removeMember(memberId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
-  });
+    const { data: profile } = await supabase.from("profiles").select("name").eq("id", user.id).maybeSingle();
+    const name = profile?.name || "Minha Organização";
+    const slug = `${name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`;
+
+    try {
+      await createOrgMutation.mutateAsync({
+        name,
+        slug,
+        owner_id: user.id
+      });
+    } catch (e) {
+      console.error("Erro ao garantir organização", e);
+    }
+  };
 
   return {
-    members:          query.data ?? [],
-    isLoading:        query.isLoading,
-    error:            query.error,
-    addMember:        addMutation.mutateAsync,
-    updateMemberRole: (memberId: string, role: OrgMemberRole) =>
-      updateRoleMutation.mutateAsync({ memberId, role }),
-    removeMember:     removeMutation.mutateAsync,
-    isAdding:         addMutation.isPending,
-    isRemoving:       removeMutation.isPending,
+    ensure,
+    isLoading: isLoading || createOrgMutation.isPending
   };
-}
+};

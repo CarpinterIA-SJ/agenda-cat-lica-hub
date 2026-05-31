@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -17,40 +18,10 @@ import {
   Clock,
 } from "lucide-react";
 
-interface Registration {
-  id: number;
-  eventId: number | string;
-  ticketId: string;
-  paymentMethod?: string;
-  email?: string;
-  phone?: string;
-  values?: Record<string, string>;
-}
-
-interface TicketDef {
-  id: string;
-  name: string;
-  price: string;
-}
-
-interface EventData {
-  id: number | string;
-  name: string;
-  date?: string;
-  start_date?: string;
-  startDateTime?: string;
-  time?: string;
-  location?: string;
-  bannerUrl?: string;
-  organizerName?: string;
-  details?: { tickets?: TicketDef[] };
-}
-
-const paymentLabels: Record<string, string> = {
-  pix: "PIX",
-  credit_card: "Cartão de Crédito",
-  boleto: "Boleto bancário",
-  free: "Gratuito",
+const locationLabel = (loc: any): string | null => {
+  if (!loc) return null;
+  if (typeof loc === "string") return loc;
+  return loc.name || loc.city || loc.address || null;
 };
 
 const formatDate = (raw?: string) => {
@@ -112,30 +83,29 @@ const InfoRow = ({
 const MyTicketDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [registration, setRegistration] = useState<Registration | null>(null);
-  const [event, setEvent] = useState<EventData | null>(null);
-  const [ticketDef, setTicketDef] = useState<TicketDef | null>(null);
 
-  useEffect(() => {
-    const registrations: Registration[] = JSON.parse(
-      localStorage.getItem("event_registrations") || "[]"
+  const { data: registration, isLoading } = useQuery({
+    queryKey: ["registrations", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from("event_registrations")
+        .select("*, event:events(*), ticket:event_tickets(*)")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+    enabled: !!id,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
     );
-    const found = registrations.find((r) => String(r.id) === String(id));
-    if (!found) return;
-    setRegistration(found);
-
-    const allEvents: EventData[] = [
-      ...JSON.parse(localStorage.getItem("custom_events") || "[]"),
-      { id: 1, name: "Retiro de Quaresma", date: "28 Mar 2026", location: "Paróquia São José" },
-    ];
-    const ev = allEvents.find((e) => String(e.id) === String(found.eventId)) ?? null;
-    setEvent(ev);
-
-    if (ev && found.ticketId) {
-      const tDef = ev.details?.tickets?.find((t) => t.id === found.ticketId || t.name === found.ticketId) ?? null;
-      setTicketDef(tDef);
-    }
-  }, [id]);
+  }
 
   if (!registration) {
     return (
@@ -148,45 +118,36 @@ const MyTicketDetailPage = () => {
     );
   }
 
-  const v = registration.values ?? {};
-  const participantName = v.fixed_nome || v.nome || "—";
-  const cpf = v.fixed_cpf || v.cpf || null;
-  const email = v.fixed_email || registration.email || null;
-  const phone = v.fixed_tel || registration.phone || null;
-  const birthDate = formatDate(v.fixed_nascimento || v.nascimento || undefined);
+  const event = registration.event ?? null;
+  const ticketDef = registration.ticket ?? null;
 
-  const eventName = event?.name ?? `Evento #${registration.eventId}`;
-  const eventLocation = event?.location ?? null;
+  const participantName = registration.full_name || "—";
+  const cpf = registration.cpf || null;
+  const email = registration.email || null;
+  const phone = registration.phone || null;
+  const birthDate = formatDate(registration.birth_date || undefined);
 
-  const eventDateLabel = (() => {
-    if (event?.startDateTime) return formatDateTime(event.startDateTime);
-    if (event?.date) return `${event.date}${event.time ? ` às ${event.time}` : ""}`;
-    if (event?.start_date) return formatDateTime(event.start_date);
-    return null;
-  })();
+  const eventName = event?.name ?? "Evento";
+  const eventLocation = locationLabel(event?.location);
 
-  const registrationDateLabel = formatDateTime(String(registration.id).length === 13
-    ? new Date(registration.id).toISOString()
-    : undefined);
+  const eventDateLabel = formatDateTime(event?.start_at || undefined);
 
-  const ticketName = ticketDef?.name || registration.ticketId || "Ingresso";
-  const ticketPrice = ticketDef?.price
-    ? Number(ticketDef.price) === 0
+  const registrationDateLabel = formatDateTime(registration.registered_at || undefined);
+
+  const ticketName = ticketDef?.name || "Ingresso";
+  const ticketPrice = ticketDef
+    ? ticketDef.price_cents === 0
       ? "Gratuito"
-      : `R$ ${Number(ticketDef.price).toFixed(2).replace(".", ",")}`
+      : `R$ ${(ticketDef.price_cents / 100).toFixed(2).replace(".", ",")}`
     : null;
 
   const ticketCode = `#${String(registration.id).toUpperCase().slice(-10)}`;
-  const qrValue = `GUARDIAO:${registration.id}:${registration.eventId}`;
+  const qrValue = `GUARDIAO:${registration.id}:${registration.event_id}`;
 
-  const organizerName = event?.organizerName || null;
-  const organizerInitials = organizerName
-    ? organizerName.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase()
-    : "GE";
+  const organizerName: string | null = null;
+  const organizerInitials = "GE";
 
-  const paymentLabel = registration.paymentMethod
-    ? paymentLabels[registration.paymentMethod] ?? registration.paymentMethod
-    : null;
+  const paymentLabel: string | null = null;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-12">
@@ -210,8 +171,8 @@ const MyTicketDetailPage = () => {
         <div className="p-5 flex gap-4 items-start">
           {/* Thumbnail */}
           <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-slate-100 border border-slate-200">
-            {event?.bannerUrl ? (
-              <img src={event.bannerUrl} alt={eventName} className="w-full h-full object-cover" />
+            {event?.banner_url ? (
+              <img src={event.banner_url} alt={eventName} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-primary/10">
                 <span className="text-xs font-bold text-primary">

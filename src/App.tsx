@@ -32,10 +32,13 @@ import AdminEventsPage from "./pages/admin/AdminEventsPage";
 import AdminFinancialPage from "./pages/admin/AdminFinancialPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminOrganizersPage from "./pages/admin/AdminOrganizersPage";
+import AdminPayoutsPage from "./pages/admin/AdminPayoutsPage";
+import AdminModerationPage from "./pages/admin/AdminModerationPage";
+import AdminAuditLogsPage from "./pages/admin/AdminAuditLogsPage";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 import { ThemeProvider } from "./hooks/use-theme";
 import { ThemeToggle } from "./components/ThemeToggle";
-import { syncCustomEvents } from "@/lib/events-sync";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -122,6 +125,11 @@ import TiptapLink from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import TextAlign from "@tiptap/extension-text-align";
 import Placeholder from "@tiptap/extension-placeholder";
+import { useMyOrganization } from "@/hooks/use-organizations";
+import { useEvent, useCreateEvent, useUpdateEvent } from "@/hooks/use-events";
+import { useTickets, useCreateTicket, useDeleteTicket } from "@/hooks/use-tickets";
+import { useRegistrations } from "@/hooks/use-registrations";
+import { useCoupons, useCreateCoupon, useUpdateCoupon, useDeleteCoupon } from "@/hooks/use-coupons";
 
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { session, loading } = useAuth();
@@ -209,6 +217,11 @@ const TAB_ORDER = ["informacoes", "pagina", "ingressos", "pagamento", "formulari
 const OrganizerEventNewPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { data: org } = useMyOrganization();
+  const createEvent = useCreateEvent();
+  const updateEvent = useUpdateEvent();
+  const createTicket = useCreateTicket();
+  const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState("informacoes");
   const [maxTabIndex, setMaxTabIndex] = useState(0);
   const [eventoId, setEventoId] = useState<string | null>(null);
@@ -424,7 +437,33 @@ const OrganizerEventNewPage = () => {
 
   const canAdvance = nomeEvento.trim() !== "" && organizadorId !== "" && termosAceitos;
 
-  const handleCriarEvento = () => {
+  const advanceTab = () => {
+    const currentIndex = TAB_ORDER.indexOf(tab);
+    const nextTab = TAB_ORDER[currentIndex + 1];
+    if (nextTab) {
+      const nextIndex = currentIndex + 1;
+      setMaxTabIndex((prev) => Math.max(prev, nextIndex));
+      setTab(nextTab);
+    }
+  };
+
+  const buildLocation = () => {
+    if (tipoEvento === "online") return null;
+    return {
+      name: nomeLocal || null,
+      street: rua || null,
+      number: numero || null,
+      neighborhood: bairro || null,
+      complement: complemento || null,
+      city: cidade || null,
+      state: estado || null,
+      cep: cep || null,
+      lat: mapCoords?.lat ?? null,
+      lon: mapCoords?.lon ?? null,
+    };
+  };
+
+  const handleCriarEvento = async () => {
     if (!canAdvance) {
       const missing: string[] = [];
       if (nomeEvento.trim() === "") missing.push("nome do evento");
@@ -438,146 +477,105 @@ const OrganizerEventNewPage = () => {
       return;
     }
 
-    // Persist event to localStorage on first advance
-    if (tab === "informacoes") {
-      const newId = eventoId ?? Date.now().toString();
-      if (!eventoId) setEventoId(newId);
+    if (!org?.id) {
+      toast({ title: "Organização não encontrada", description: "Aguarde a criação da sua organização e tente novamente.", variant: "destructive" });
+      return;
+    }
 
-      const orgObj = organizadores.find((o) => o.id === organizadorId);
-      const formatLabel =
-        tipoEvento === "online" ? "Online" : tipoEvento === "hibrido" ? "Híbrido" : "Presencial";
-      const locationLabel =
-        nomeLocal
-          ? `${nomeLocal}${cidade ? `, ${cidade}` : ""}`
-          : cidade || "";
-
-      const newEvent = {
-        id: newId,
-        title: nomeEvento.trim(),
-        status: "Ativo",
-        format: formatLabel,
-        date: dataInicio || "A definir",
-        location: locationLabel || "A definir",
-        attendees: "0 inscritos",
-        organizador: orgObj?.nome ?? "",
-      };
-
-      const stored = JSON.parse(localStorage.getItem("eventos_criados") || "[]");
-      const idx = stored.findIndex((e: any) => e.id === newId);
-      if (idx >= 0) stored[idx] = newEvent;
-      else stored.push(newEvent);
-      localStorage.setItem("eventos_criados", JSON.stringify(stored));
-
-      // Also persist to custom_events so participants can find and register
-      const toSlug = (value: string) =>
-        value
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[^\w\s-]/g, "")
-          .trim()
-          .replace(/\s+/g, "-");
-
-      const typeLabel =
-        tipoEvento === "online"
-          ? "Evento online"
-          : tipoEvento === "hibrido"
-          ? "Evento híbrido"
-          : "Evento presencial";
-
-      const dateDisplay = dataInicio
-        ? new Date(`${dataInicio}T00:00:00`).toLocaleDateString("pt-BR", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          })
-        : "A definir";
-
+    // Persist event on first advance (informações tab)
+    setSaving(true);
+    try {
       const descriptionHtml = descEditor?.getHTML?.() || "";
       const descriptionText = (descEditor?.getText?.() || "").trim();
-      const storedCustom = JSON.parse(localStorage.getItem("custom_events") || "[]");
-      const existingCustom = storedCustom.find((e: any) => e.id === newId) || {};
 
-      const customEvent = {
-        ...existingCustom,
-        id: newId,
-        name: nomeEvento.trim(),
-        slug: toSlug(nomeEvento.trim()),
-        date: dateDisplay,
-        time: "",
-        startDateTime: dataInicio ? `${dataInicio}T00:00:00` : "",
-        location: locationLabel || "A definir",
-        type: typeLabel,
-        attendees: existingCustom.attendees ?? 0,
-        status: "Ativo",
-        organizerName: orgObj?.nome ?? "",
-        category: categoria || existingCustom.category || "",
-        description: descriptionText ? descriptionHtml : existingCustom.description || "",
-        descriptionText: descriptionText || existingCustom.descriptionText || "",
-        bannerUrl: bannerUrl || existingCustom.bannerUrl || "",
-        show_nome: existingCustom.show_nome ?? true,
-        show_email: existingCustom.show_email ?? true,
-        show_cpf: existingCustom.show_cpf ?? true,
-        show_nascimento: existingCustom.show_nascimento ?? false,
-        show_whatsapp: existingCustom.show_whatsapp ?? true,
-        custom_fields: existingCustom.custom_fields ?? [],
-        details: existingCustom.details ?? { tickets: [] },
-      };
-
-      const customIdx = storedCustom.findIndex((e: any) => e.id === newId);
-      if (customIdx >= 0) storedCustom[customIdx] = customEvent;
-      else storedCustom.push(customEvent);
-      localStorage.setItem("custom_events", JSON.stringify(storedCustom));
-
+      if (!eventoId) {
+        const created = await createEvent.mutateAsync({
+          organization_id: org.id,
+          created_by: org.owner_id,
+          name: nomeEvento.trim(),
+          description: descriptionText ? descriptionHtml : null,
+          description_text: descriptionText || null,
+          banner_url: bannerUrl || null,
+          category: categoria || null,
+          format: tipoEvento as any,
+          visibility: "public",
+          status: "active",
+          start_at: dataInicio ? new Date(`${dataInicio}T00:00:00`).toISOString() : null,
+          end_at: dataFim ? new Date(`${dataFim}T00:00:00`).toISOString() : null,
+          location: buildLocation() as any,
+        });
+        setEventoId(created.id);
+      } else {
+        await updateEvent.mutateAsync({
+          id: eventoId,
+          name: nomeEvento.trim(),
+          description: descriptionText ? descriptionHtml : null,
+          description_text: descriptionText || null,
+          banner_url: bannerUrl || null,
+          category: categoria || null,
+          format: tipoEvento as any,
+          start_at: dataInicio ? new Date(`${dataInicio}T00:00:00`).toISOString() : null,
+          end_at: dataFim ? new Date(`${dataFim}T00:00:00`).toISOString() : null,
+          location: buildLocation() as any,
+        });
+      }
       toast({ title: "Evento criado!", description: "Agora configure os demais detalhes." });
+      advanceTab();
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar evento", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
+  };
 
-    // Update form config in custom_events when advancing from formulario tab
-    if (tab === "formulario" && eventoId) {
-      const storedCustom = JSON.parse(localStorage.getItem("custom_events") || "[]");
-      const customIdx = storedCustom.findIndex((e: any) => e.id === eventoId);
-      if (customIdx >= 0) {
-        storedCustom[customIdx] = {
-          ...storedCustom[customIdx],
-          show_nome: frmNameEnabled,
-          show_email: frmEmailEnabled,
-          show_cpf: frmCpfEnabled,
-          show_nascimento: frmBirthEnabled,
-          show_whatsapp: frmPhoneEnabled,
-          custom_fields: frmCustomFields
-            .filter((f) => f.enabled)
-            .map((f) => ({ id: f.id, label: f.label, type: "text", required: true })),
-        };
-        localStorage.setItem("custom_events", JSON.stringify(storedCustom));
+  // Persist tickets to Supabase when advancing from ingressos tab
+  const handleSalvarIngressos = async () => {
+    if (!eventoId) { advanceTab(); return; }
+    setSaving(true);
+    try {
+      for (const i of ingressos) {
+        await createTicket.mutateAsync({
+          event_id: eventoId,
+          name: i.nome,
+          type: i.tipo,
+          quantity: i.quantidade,
+          price_brl: i.preco ?? 0,
+          visibility: i.visibilidade === "Público" ? "public" : "private",
+          status: i.status === "Ativo" ? "active" : "inactive",
+          pass_fees: i.repassarTaxas,
+        });
       }
+      advanceTab();
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar ingressos", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
+  };
 
-    // Update tickets in custom_events when advancing from ingressos tab
-    if (tab === "ingressos" && eventoId) {
-      const storedCustom = JSON.parse(localStorage.getItem("custom_events") || "[]");
-      const customIdx = storedCustom.findIndex((e: any) => e.id === eventoId);
-      if (customIdx >= 0) {
-        storedCustom[customIdx] = {
-          ...storedCustom[customIdx],
-          details: {
-            ...storedCustom[customIdx].details,
-            tickets: ingressos.map((i) => ({
-              id: i.id,
-              name: i.nome,
-              price: i.preco !== null ? String(i.preco) : "0",
-              type: i.tipo,
-            })),
-          },
-        };
-        localStorage.setItem("custom_events", JSON.stringify(storedCustom));
-      }
-    }
-
-    const currentIndex = TAB_ORDER.indexOf(tab);
-    const nextTab = TAB_ORDER[currentIndex + 1];
-    if (nextTab) {
-      const nextIndex = currentIndex + 1;
-      setMaxTabIndex((prev) => Math.max(prev, nextIndex));
-      setTab(nextTab);
+  // Persist form config (show_fields + custom_fields) when advancing from formulário tab
+  const handleSalvarFormulario = async () => {
+    if (!eventoId) { advanceTab(); return; }
+    setSaving(true);
+    try {
+      await updateEvent.mutateAsync({
+        id: eventoId,
+        show_fields: {
+          nome: frmNameEnabled,
+          email: frmEmailEnabled,
+          cpf: frmCpfEnabled,
+          nascimento: frmBirthEnabled,
+          whatsapp: frmPhoneEnabled,
+        } as any,
+        custom_fields: frmCustomFields
+          .filter((f) => f.enabled)
+          .map((f) => ({ id: f.id, label: f.label, type: "text", required: true })) as any,
+      });
+      advanceTab();
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar formulário", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -732,6 +730,7 @@ const OrganizerEventNewPage = () => {
                         <SelectItem value="diversos">Eventos Diversos</SelectItem>
                         <SelectItem value="palestras">Palestras</SelectItem>
                         <SelectItem value="retiros">Retiros</SelectItem>
+                        <SelectItem value="seminario-espirito">Seminário de Vida no Espírito Santo</SelectItem>
                         <SelectItem value="shows">Shows Católicos</SelectItem>
                       </SelectContent>
                     </Select>
@@ -1208,11 +1207,8 @@ const OrganizerEventNewPage = () => {
               </Button>
               <Button
                 className="h-12 px-6 bg-emerald-700 text-white hover:bg-emerald-800"
-                onClick={() => {
-                  const nextIndex = TAB_ORDER.indexOf("pagamento");
-                  setMaxTabIndex((prev) => Math.max(prev, nextIndex));
-                  setTab("pagamento");
-                }}
+                disabled={saving}
+                onClick={handleSalvarIngressos}
               >
                 Salvar e continuar
               </Button>
@@ -1478,11 +1474,8 @@ const OrganizerEventNewPage = () => {
               </Button>
               <Button
                 className="h-12 px-6 bg-emerald-700 text-white hover:bg-emerald-800"
-                onClick={() => {
-                  const nextIndex = TAB_ORDER.indexOf("mensagens");
-                  setMaxTabIndex((prev) => Math.max(prev, nextIndex));
-                  setTab("mensagens");
-                }}
+                disabled={saving}
+                onClick={handleSalvarFormulario}
               >
                 Salvar e continuar
               </Button>
@@ -1639,21 +1632,18 @@ const OrganizerEventNewPage = () => {
 const OrganizerEventPreviewPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { data: event } = useEvent(id);
+  const { data: org } = useMyOrganization();
 
-  const event = (() => {
-    try {
-      const stored: any[] = JSON.parse(localStorage.getItem("eventos_criados") || "[]");
-      return stored.find((e) => e.id === id) ?? null;
-    } catch {
-      return null;
-    }
-  })();
-
-  const title = event?.title ?? "Evento não encontrado";
-  const date = event?.date ?? "Data não informada";
-  const format = event?.format ?? "";
-  const location = event?.location ?? "";
-  const organizador = event?.organizador ?? "";
+  const formatMap: Record<string, string> = { online: "Online", hibrido: "Híbrido", presencial: "Presencial" };
+  const locObj: any = event?.location;
+  const title = event?.name ?? "Evento não encontrado";
+  const date = event?.start_at
+    ? new Date(event.start_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+    : "Data não informada";
+  const format = event ? (formatMap[event.format] ?? "") : "";
+  const location = locObj ? (typeof locObj === "string" ? locObj : (locObj.name || locObj.city || "")) : "";
+  const organizador = org?.name ?? "";
 
   const initials = organizador
     ? organizador.split(" ").filter(Boolean).slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()
@@ -1760,48 +1750,38 @@ const OrganizerEventIngressosPage = () => {
   const [ticketPreco, setTicketPreco] = useState("");
   const [ticketSearch, setTicketSearch] = useState("");
 
-  const loadEventData = () => {
+  const { data: event } = useEvent(id);
+  const { data: tickets = [] } = useTickets(id);
+  const createTicket = useCreateTicket();
+  const deleteTicket = useDeleteTicket();
+  const eventName = event?.name ?? id ?? "";
+
+  const handleSaveTicket = async () => {
+    if (!ticketNome.trim() || !ticketQtd || !id) return;
     try {
-      const stored: any[] = JSON.parse(localStorage.getItem("custom_events") || "[]");
-      return stored.find((e) => e.id === id) ?? null;
-    } catch { return null; }
+      await createTicket.mutateAsync({
+        event_id: id,
+        name: ticketNome.trim(),
+        type: dialogType!,
+        quantity: parseInt(ticketQtd, 10),
+        price_brl: dialogType === "pago" ? parseFloat(ticketPreco.replace(",", ".")) : 0,
+        visibility: "public",
+        status: "active",
+      });
+      setTicketNome(""); setTicketQtd(""); setTicketPreco(""); setDialogType(null);
+      toast({ title: "Ingresso adicionado!", description: `"${ticketNome.trim()}" foi criado com sucesso.` });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar ingresso", description: e.message, variant: "destructive" });
+    }
   };
 
-  const [eventData, setEventData] = useState<any>(() => loadEventData());
-  const tickets: any[] = eventData?.details?.tickets ?? [];
-  const eventName = eventData?.name ?? id ?? "";
-
-  const saveTickets = (updated: any[]) => {
+  const handleDeleteTicket = async (ticketId: string) => {
     try {
-      const stored: any[] = JSON.parse(localStorage.getItem("custom_events") || "[]");
-      const idx = stored.findIndex((e) => e.id === id);
-      if (idx >= 0) {
-        stored[idx] = { ...stored[idx], details: { ...stored[idx].details, tickets: updated } };
-        localStorage.setItem("custom_events", JSON.stringify(stored));
-        setEventData({ ...stored[idx] });
-      }
-    } catch { /* ignore */ }
-  };
-
-  const handleSaveTicket = () => {
-    if (!ticketNome.trim() || !ticketQtd) return;
-    const novo = {
-      id: Date.now().toString(),
-      name: ticketNome.trim(),
-      price: dialogType === "pago" ? ticketPreco.replace(",", ".") : "0",
-      type: dialogType!,
-      quantity: parseInt(ticketQtd, 10),
-      status: "Ativo",
-      visibility: "Público",
-    };
-    saveTickets([...tickets, novo]);
-    setTicketNome(""); setTicketQtd(""); setTicketPreco(""); setDialogType(null);
-    toast({ title: "Ingresso adicionado!", description: `"${novo.name}" foi criado com sucesso.` });
-  };
-
-  const handleDeleteTicket = (ticketId: string) => {
-    saveTickets(tickets.filter((t) => t.id !== ticketId));
-    toast({ title: "Ingresso removido." });
+      await deleteTicket.mutateAsync(ticketId);
+      toast({ title: "Ingresso removido." });
+    } catch (e: any) {
+      toast({ title: "Erro ao remover ingresso", description: e.message, variant: "destructive" });
+    }
   };
 
   const filteredTickets = tickets.filter((t) =>
@@ -1903,7 +1883,7 @@ const OrganizerEventIngressosPage = () => {
                     <tr key={t.id} className="border-t border-slate-100 hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium">{t.name}</td>
                       <td className="px-4 py-3">{t.quantity}</td>
-                      <td className="px-4 py-3">{Number(t.price) === 0 ? "Grátis" : `R$ ${Number(t.price).toFixed(2)}`}</td>
+                      <td className="px-4 py-3">{t.price_cents === 0 ? "Grátis" : `R$ ${(t.price_cents / 100).toFixed(2).replace(".", ",")}`}</td>
                       <td className="px-4 py-3 capitalize">{t.type}</td>
                       <td className="px-4 py-3">
                         <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">{t.status}</span>
@@ -1959,20 +1939,13 @@ const OrganizerEventParticipantesPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [search, setSearch] = useState("");
-  const participants: {
-    name: string;
-    code: string;
-    date: string;
-    ticket: string;
-    status: string;
-  }[] = [];
+  const { data: registrations = [], isLoading } = useRegistrations(id);
 
-  const filteredParticipants = participants.filter((participant) => {
+  const filteredParticipants = registrations.filter((participant) => {
     const query = search.toLowerCase();
     return (
-      participant.name.toLowerCase().includes(query) ||
-      participant.code.toLowerCase().includes(query) ||
-      participant.ticket.toLowerCase().includes(query)
+      participant.full_name.toLowerCase().includes(query) ||
+      (participant.email ?? "").toLowerCase().includes(query)
     );
   });
 
@@ -2079,29 +2052,33 @@ const OrganizerEventParticipantesPage = () => {
               <thead className="bg-slate-50 text-slate-500">
                 <tr>
                   <th className="px-4 py-3 text-left font-medium">Nome</th>
-                  <th className="px-4 py-3 text-left font-medium">Código</th>
+                  <th className="px-4 py-3 text-left font-medium">E-mail</th>
+                  <th className="px-4 py-3 text-left font-medium">Status</th>
                   <th className="px-4 py-3 text-left font-medium">Data de inscrição</th>
-                  <th className="px-4 py-3 text-left font-medium">Ingresso</th>
-                  <th className="px-4 py-3 text-left font-medium">Status pedido</th>
-                  <th className="px-4 py-3 text-left font-medium">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredParticipants.length === 0 ? (
+                {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="bg-slate-50 px-4 py-12 text-center text-slate-500">
+                    <td colSpan={4} className="bg-slate-50 px-4 py-12 text-center text-slate-500">
+                      Carregando...
+                    </td>
+                  </tr>
+                ) : filteredParticipants.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="bg-slate-50 px-4 py-12 text-center text-slate-500">
                       Nenhum dado adicionado.
                     </td>
                   </tr>
                 ) : (
                   filteredParticipants.map((participant) => (
-                    <tr key={participant.code} className="border-t border-slate-100">
-                      <td className="px-4 py-3 text-slate-700">{participant.name}</td>
-                      <td className="px-4 py-3 text-slate-500">{participant.code}</td>
-                      <td className="px-4 py-3 text-slate-500">{participant.date}</td>
-                      <td className="px-4 py-3 text-slate-500">{participant.ticket}</td>
+                    <tr key={participant.id} className="border-t border-slate-100">
+                      <td className="px-4 py-3 text-slate-700">{participant.full_name}</td>
+                      <td className="px-4 py-3 text-slate-500">{participant.email}</td>
                       <td className="px-4 py-3 text-slate-500">{participant.status}</td>
-                      <td className="px-4 py-3 text-slate-500">-</td>
+                      <td className="px-4 py-3 text-slate-500">
+                        {participant.registered_at ? new Date(participant.registered_at).toLocaleDateString("pt-BR") : "-"}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -2234,30 +2211,6 @@ const OrganizerEventFilaDeEsperaPage = () => {
   );
 };
 
-type Cupom = {
-  id: string;
-  codigo: string;
-  modo: "percentual" | "fixo";
-  valor: string;
-  maximo: string;
-  ativo: boolean;
-  usos: number;
-};
-
-const CUPONS_KEY = "cupons_desconto";
-
-const loadCupons = (eventId: string): Cupom[] => {
-  try {
-    return JSON.parse(localStorage.getItem(`${CUPONS_KEY}_${eventId}`) || "[]");
-  } catch {
-    return [];
-  }
-};
-
-const saveCupons = (eventId: string, cupons: Cupom[]) => {
-  localStorage.setItem(`${CUPONS_KEY}_${eventId}`, JSON.stringify(cupons));
-};
-
 const gerarCodigo = () => {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
@@ -2267,8 +2220,12 @@ const OrganizerEventCuponsPage = () => {
   const navigate = useNavigate();
   const { id: eventId = "default" } = useParams();
   const { toast } = useToast();
+  const { data: event } = useEvent(eventId);
+  const { data: cupons = [] } = useCoupons(eventId);
+  const createCoupon = useCreateCoupon();
+  const updateCoupon = useUpdateCoupon();
+  const deleteCoupon = useDeleteCoupon();
   const [openDialog, setOpenDialog] = useState(false);
-  const [cupons, setCupons] = useState<Cupom[]>(() => loadCupons(eventId));
   const [busca, setBusca] = useState("");
   const [deleteCupomId, setDeleteCupomId] = useState<string | null>(null);
 
@@ -2293,49 +2250,61 @@ const OrganizerEventCuponsPage = () => {
     setFormCodigo(gerarCodigo());
   };
 
-  const handleSalvar = () => {
+  const handleSalvar = async () => {
     if (!formCodigo.trim() || !formModo || !formValor.trim()) {
       toast({ title: "Campos obrigatórios", description: "Preencha código, modo e valor.", variant: "destructive" });
       return;
     }
-    const ja = cupons.find((c) => c.codigo.toUpperCase() === formCodigo.trim().toUpperCase());
+    if (!event?.organization_id) {
+      toast({ title: "Evento não encontrado", description: "Não foi possível identificar a organização do evento.", variant: "destructive" });
+      return;
+    }
+    const code = formCodigo.trim().toUpperCase();
+    const ja = cupons.find((c) => c.code.toUpperCase() === code);
     if (ja) {
       toast({ title: "Código duplicado", description: "Já existe um cupom com esse código.", variant: "destructive" });
       return;
     }
-    const novo: Cupom = {
-      id: crypto.randomUUID(),
-      codigo: formCodigo.trim().toUpperCase(),
-      modo: formModo as "percentual" | "fixo",
-      valor: formValor.trim(),
-      maximo: formMaximo.trim() || "∞",
-      ativo: true,
-      usos: 0,
-    };
-    const updated = [...cupons, novo];
-    setCupons(updated);
-    saveCupons(eventId, updated);
-    setOpenDialog(false);
-    toast({ title: "Cupom criado", description: `Cupom "${novo.codigo}" adicionado com sucesso.` });
+    try {
+      await createCoupon.mutateAsync({
+        organization_id: event.organization_id,
+        event_id: eventId,
+        code,
+        discount_kind: formModo === "percentual" ? "percent" : "fixed",
+        discount_value: Number(formValor.replace(",", ".")),
+        max_uses: formMaximo.trim() ? parseInt(formMaximo, 10) : null,
+        starts_at: null,
+        expires_at: null,
+        active: true,
+      });
+      setOpenDialog(false);
+      toast({ title: "Cupom criado", description: `Cupom "${code}" adicionado com sucesso.` });
+    } catch (e: any) {
+      toast({ title: "Erro ao criar cupom", description: e.message, variant: "destructive" });
+    }
   };
 
-  const handleToggleAtivo = (id: string) => {
-    const updated = cupons.map((c) => c.id === id ? { ...c, ativo: !c.ativo } : c);
-    setCupons(updated);
-    saveCupons(eventId, updated);
+  const handleToggleAtivo = async (id: string, active: boolean) => {
+    try {
+      await updateCoupon.mutateAsync({ id, active: !active });
+    } catch (e: any) {
+      toast({ title: "Erro ao atualizar cupom", description: e.message, variant: "destructive" });
+    }
   };
 
-  const handleDeleteCupom = () => {
+  const handleDeleteCupom = async () => {
     if (!deleteCupomId) return;
-    const updated = cupons.filter((c) => c.id !== deleteCupomId);
-    setCupons(updated);
-    saveCupons(eventId, updated);
+    try {
+      await deleteCoupon.mutateAsync(deleteCupomId);
+      toast({ title: "Cupom excluído", description: "O cupom foi removido permanentemente." });
+    } catch (e: any) {
+      toast({ title: "Erro ao excluir cupom", description: e.message, variant: "destructive" });
+    }
     setDeleteCupomId(null);
-    toast({ title: "Cupom excluído", description: "O cupom foi removido permanentemente." });
   };
 
   const cuponsFiltrados = cupons.filter((c) =>
-    c.codigo.toLowerCase().includes(busca.toLowerCase())
+    c.code.toLowerCase().includes(busca.toLowerCase())
   );
 
   return (
@@ -2413,22 +2382,22 @@ const OrganizerEventCuponsPage = () => {
                 ) : (
                   cuponsFiltrados.map((c) => (
                     <tr key={c.id} className="border-t border-slate-100 hover:bg-slate-50">
-                      <td className="px-4 py-3 font-mono font-semibold text-slate-800">{c.codigo}</td>
-                      <td className="px-4 py-3 text-slate-600">{c.modo === "percentual" ? "Porcentagem" : "Valor Fixo"}</td>
-                      <td className="px-4 py-3 text-slate-600">{c.modo === "percentual" ? `${c.valor}%` : `R$ ${c.valor}`}</td>
-                      <td className="px-4 py-3 text-slate-600">{c.maximo}</td>
+                      <td className="px-4 py-3 font-mono font-semibold text-slate-800">{c.code}</td>
+                      <td className="px-4 py-3 text-slate-600">{c.discount_kind === "percent" ? "Porcentagem" : "Valor Fixo"}</td>
+                      <td className="px-4 py-3 text-slate-600">{c.discount_kind === "percent" ? `${c.discount_value}%` : `R$ ${c.discount_value}`}</td>
+                      <td className="px-4 py-3 text-slate-600">{c.max_uses ?? "∞"}</td>
                       <td className="px-4 py-3">
-                        <span className={`text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full ${c.ativo ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                          {c.ativo ? "Ativo" : "Inativo"}
+                        <span className={`text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full ${c.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                          {c.active ? "Ativo" : "Inativo"}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => handleToggleAtivo(c.id)}
+                            onClick={() => handleToggleAtivo(c.id, c.active)}
                             className="text-xs text-slate-500 hover:text-[#004d00] underline"
                           >
-                            {c.ativo ? "Desativar" : "Ativar"}
+                            {c.active ? "Desativar" : "Ativar"}
                           </button>
                           <button
                             onClick={() => setDeleteCupomId(c.id)}
@@ -3119,6 +3088,7 @@ const OrganizerEventConfiguracoesPage = () => {
                   <SelectItem value="diversos">Eventos Diversos</SelectItem>
                   <SelectItem value="palestras">Palestras</SelectItem>
                   <SelectItem value="retiros">Retiros</SelectItem>
+                  <SelectItem value="seminario-espirito">Seminário de Vida no Espírito Santo</SelectItem>
                   <SelectItem value="shows">Shows Católicos</SelectItem>
                 </SelectContent>
               </Select>
@@ -3728,50 +3698,51 @@ const OrganizerEventFormularioConfiguracoesPage = () => {
   const { id } = useParams();
   const { toast } = useToast();
 
-  const loadEventFormConfig = () => {
-    try {
-      // syncCustomEvents ensures even mock events are present in custom_events
-      const stored = syncCustomEvents();
-      return stored.find((e: any) => e.id === id) ?? null;
-    } catch { return null; }
-  };
-
-  const eventData = loadEventFormConfig();
+  const { data: eventData } = useEvent(id);
+  const updateEvent = useUpdateEvent();
   const eventName = eventData?.name ?? id ?? "";
 
-  const [nameEnabled, setNameEnabled] = useState<boolean>(eventData?.show_nome ?? true);
-  const [emailEnabled, setEmailEnabled] = useState<boolean>(eventData?.show_email ?? true);
-  const [cpfEnabled, setCpfEnabled] = useState<boolean>(eventData?.show_cpf ?? true);
-  const [birthEnabled, setBirthEnabled] = useState<boolean>(eventData?.show_nascimento ?? false);
-  const [phoneEnabled, setPhoneEnabled] = useState<boolean>(eventData?.show_whatsapp ?? true);
-  const [customFields, setCustomFields] = useState<{ id: string; label: string; enabled: boolean }[]>(
-    () => (eventData?.custom_fields ?? []).map((f: any) => ({ id: f.id, label: f.label, enabled: true }))
-  );
+  const [nameEnabled, setNameEnabled] = useState<boolean>(true);
+  const [emailEnabled, setEmailEnabled] = useState<boolean>(true);
+  const [cpfEnabled, setCpfEnabled] = useState<boolean>(true);
+  const [birthEnabled, setBirthEnabled] = useState<boolean>(false);
+  const [phoneEnabled, setPhoneEnabled] = useState<boolean>(true);
+  const [customFields, setCustomFields] = useState<{ id: string; label: string; enabled: boolean }[]>([]);
   const [addFieldOpen, setAddFieldOpen] = useState(false);
   const [newFieldLabel, setNewFieldLabel] = useState("");
 
-  const handleSave = () => {
+  useEffect(() => {
+    if (!eventData) return;
+    const sf: any = eventData.show_fields ?? {};
+    setNameEnabled(sf.nome ?? true);
+    setEmailEnabled(sf.email ?? true);
+    setCpfEnabled(sf.cpf ?? true);
+    setBirthEnabled(sf.nascimento ?? false);
+    setPhoneEnabled(sf.whatsapp ?? true);
+    const cf: any[] = Array.isArray(eventData.custom_fields) ? eventData.custom_fields : [];
+    setCustomFields(cf.map((f: any) => ({ id: f.id, label: f.label, enabled: true })));
+  }, [eventData]);
+
+  const handleSave = async () => {
+    if (!id) return;
     try {
-      // Ensure event is present in custom_events (covers mock and newly created events)
-      syncCustomEvents();
-      const stored: any[] = JSON.parse(localStorage.getItem("custom_events") || "[]");
-      const idx = stored.findIndex((e) => e.id === id);
-      if (idx >= 0) {
-        stored[idx] = {
-          ...stored[idx],
-          show_nome: nameEnabled,
-          show_email: emailEnabled,
-          show_cpf: cpfEnabled,
-          show_nascimento: birthEnabled,
-          show_whatsapp: phoneEnabled,
-          custom_fields: customFields
-            .filter((f) => f.enabled)
-            .map((f) => ({ id: f.id, label: f.label, type: "text", required: true })),
-        };
-        localStorage.setItem("custom_events", JSON.stringify(stored));
-        toast({ title: "Formulário salvo!", description: "As configurações foram atualizadas para os participantes." });
-      }
-    } catch { /* ignore */ }
+      await updateEvent.mutateAsync({
+        id,
+        show_fields: {
+          nome: nameEnabled,
+          email: emailEnabled,
+          cpf: cpfEnabled,
+          nascimento: birthEnabled,
+          whatsapp: phoneEnabled,
+        } as any,
+        custom_fields: customFields
+          .filter((f) => f.enabled)
+          .map((f) => ({ id: f.id, label: f.label, type: "text", required: true })) as any,
+      });
+      toast({ title: "Formulário salvo!", description: "As configurações foram atualizadas para os participantes." });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
+    }
   };
 
   const tabs = [
@@ -4078,6 +4049,10 @@ const App = () => (
               <Route path="/admin" element={<AdminHomePage />} />
               <Route path="/admin/usuarios" element={<AdminUsersPage />} />
               <Route path="/admin/eventos" element={<AdminEventsPage />} />
+              <Route path="/admin/organizadores" element={<AdminOrganizersPage />} />
+              <Route path="/admin/repasses" element={<AdminPayoutsPage />} />
+              <Route path="/admin/moderacao" element={<AdminModerationPage />} />
+              <Route path="/admin/logs" element={<AdminAuditLogsPage />} />
               <Route path="/admin/financeiro" element={<AdminFinancialPage />} />
               <Route path="/admin/configuracoes" element={<AdminSettingsPage />} />
             </Route>

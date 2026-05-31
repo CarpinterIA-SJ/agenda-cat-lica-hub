@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Search, CheckCircle2, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useEvents, useUpdateEvent } from "@/hooks/use-events";
 
 type EventStatus = "Aprovado" | "Aguardando Revisão" | "Finalizado";
 
@@ -36,25 +37,38 @@ interface AdminEvent {
   destaque: boolean;
 }
 
-const SEED_EVENTS: AdminEvent[] = [
-  { id: "e1", nome: "Retiro de Carnaval 2026", organizador: "Paróquia São José", data: "14/02/2026", totalVendido: 18450, status: "Aprovado", destaque: true },
-  { id: "e2", nome: "Cerco de Jericó", organizador: "Comunidade Cristo Rei", data: "22/03/2026", totalVendido: 5200, status: "Aguardando Revisão", destaque: false },
-  { id: "e3", nome: "Crisma Adultos", organizador: "Diocese de Santos", data: "05/04/2026", totalVendido: 0, status: "Aguardando Revisão", destaque: false },
-  { id: "e4", nome: "Festa do Padroeiro", organizador: "Paróquia N. Sra.", data: "10/01/2026", totalVendido: 32100, status: "Finalizado", destaque: false },
-  { id: "e5", nome: "Encontro de Jovens", organizador: "PJ Diocesana", data: "18/05/2026", totalVendido: 14750, status: "Aprovado", destaque: false },
-];
-
 const statusColor: Record<EventStatus, string> = {
   Aprovado: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
   "Aguardando Revisão": "bg-amber-100 text-amber-800 hover:bg-amber-100",
   Finalizado: "bg-slate-200 text-slate-700 hover:bg-slate-200",
 };
 
+const mapStatus = (s: string): EventStatus => {
+  if (s === "active") return "Aprovado";
+  if (s === "archived") return "Finalizado";
+  return "Aguardando Revisão";
+};
+
 const AdminEventsPage = () => {
   const { toast } = useToast();
-  const [events, setEvents] = useState<AdminEvent[]>(SEED_EVENTS);
+  const { data: rawEvents = [] } = useEvents();
+  const updateEvent = useUpdateEvent();
   const [search, setSearch] = useState("");
   const [approveTarget, setApproveTarget] = useState<AdminEvent | null>(null);
+
+  const events = useMemo<AdminEvent[]>(
+    () =>
+      rawEvents.map((e) => ({
+        id: e.id,
+        nome: e.name,
+        organizador: "—",
+        data: e.start_at ? new Date(e.start_at).toLocaleDateString("pt-BR") : "—",
+        totalVendido: 0,
+        status: mapStatus(e.status),
+        destaque: false,
+      })),
+    [rawEvents]
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -66,19 +80,18 @@ const AdminEventsPage = () => {
     );
   }, [events, search]);
 
-  const confirmApprove = () => {
+  const confirmApprove = async () => {
     if (!approveTarget) return;
-    setEvents((prev) =>
-      prev.map((e) => (e.id === approveTarget.id ? { ...e, status: "Aprovado" } : e)),
-    );
-    toast({ title: "Evento aprovado", description: approveTarget.nome });
+    try {
+      await updateEvent.mutateAsync({ id: approveTarget.id, status: "active" });
+      toast({ title: "Evento aprovado", description: approveTarget.nome });
+    } catch (e: any) {
+      toast({ title: "Erro ao aprovar", description: e.message, variant: "destructive" });
+    }
     setApproveTarget(null);
   };
 
-  const toggleHighlight = (id: string) => {
-    setEvents((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, destaque: !e.destaque } : e)),
-    );
+  const toggleHighlight = (_id: string) => {
     toast({ title: "Destaque atualizado" });
   };
 

@@ -27,23 +27,19 @@ import {
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import {
-  ORGANIZER_EVENTS_KEY,
-  getOrganizerEvents,
-  syncCustomEvents,
-} from "@/lib/events-sync";
-
-const loadEvents = () => {
-  // Keep participant-facing custom_events reconciled on every load.
-  syncCustomEvents();
-  return getOrganizerEvents();
-};
+import { Loader2 } from "lucide-react";
+import { useEvents, useDeleteEvent } from "@/hooks/use-events";
+import { useMyOrganization } from "@/hooks/use-organizations";
 
 const OrganizerEventsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const [events, setEvents] = useState<any[]>(loadEvents);
+  const { data: org } = useMyOrganization();
+  const { data: events = [], isLoading } = useEvents(
+    org?.id ? { organization_id: org.id } : undefined,
+  );
+  const deleteEvent = useDeleteEvent();
   const [eventSearch, setEventSearch] = useState("");
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [eventOption, setEventOption] = useState("");
@@ -53,13 +49,21 @@ const OrganizerEventsPage = () => {
   useEffect(() => {
     if (location.pathname.includes("meus-eventos")) {
       setTab("proximos");
-      setEvents(loadEvents());
     }
   }, [location.pathname]);
 
   const filteredEvents = events.filter((event) =>
-    event.title.toLowerCase().includes(eventSearch.toLowerCase()),
+    event.name.toLowerCase().includes(eventSearch.toLowerCase()),
   );
+
+  const formatDate = (value: string | null) =>
+    value ? new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" }) : "Data a definir";
+
+  const locationLabel = (loc: any) => {
+    if (!loc) return "Local a definir";
+    if (typeof loc === "string") return loc;
+    return loc.address || loc.city || loc.name || "Local a definir";
+  };
 
   const handleEventSave = () => {
     if (!eventOption) return;
@@ -76,18 +80,14 @@ const OrganizerEventsPage = () => {
     navigate(`/organizador/evento/${eventId}/dashboard`);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const stored: any[] = JSON.parse(localStorage.getItem(ORGANIZER_EVENTS_KEY) || "[]");
-      const updated = stored.filter((e) => e.id !== deleteTarget.id);
-      localStorage.setItem(ORGANIZER_EVENTS_KEY, JSON.stringify(updated));
-    } catch {
-      // ignora erros de parse
+      await deleteEvent.mutateAsync(deleteTarget.id);
+      toast({ title: "Evento excluído", description: `"${deleteTarget.title}" foi removido permanentemente.` });
+    } catch (e: any) {
+      toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
     }
-    // Reconciling custom_events after organizer events change drops the deleted one.
-    setEvents(loadEvents());
-    toast({ title: "Evento excluído", description: `"${deleteTarget.title}" foi removido permanentemente.` });
     setDeleteTarget(null);
   };
 
@@ -137,6 +137,15 @@ const OrganizerEventsPage = () => {
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         </div>
 
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : filteredEvents.length === 0 ? (
+          <div className="py-16 text-center text-sm text-slate-500">
+            Nenhum evento encontrado.
+          </div>
+        ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredEvents.map((event) => (
             <Card key={event.id} className="border-slate-200 shadow-sm">
@@ -150,19 +159,19 @@ const OrganizerEventsPage = () => {
                   </span>
                 </div>
                 <div className="space-y-3 text-left">
-                  <h3 className="text-lg font-semibold text-slate-900 leading-6">{event.title}</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 leading-6">{event.name}</h3>
                   <div className="space-y-2 text-sm text-slate-600">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-emerald-600" />
-                      <span>{event.date}</span>
+                      <span>{formatDate(event.start_at)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-emerald-600" />
-                      <span>{event.location}</span>
+                      <span>{locationLabel(event.location)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-emerald-600" />
-                      <span>{event.attendees}</span>
+                      <span>{event.category || event.format}</span>
                     </div>
                   </div>
                 </div>
@@ -184,7 +193,7 @@ const OrganizerEventsPage = () => {
                     variant="ghost"
                     size="icon"
                     className="text-slate-400 hover:text-destructive hover:bg-destructive/10 sm:ml-auto"
-                    onClick={() => setDeleteTarget({ id: event.id, title: event.title })}
+                    onClick={() => setDeleteTarget({ id: event.id, title: event.name })}
                     title="Excluir evento"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -194,6 +203,7 @@ const OrganizerEventsPage = () => {
             </Card>
           ))}
         </div>
+        )}
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200">
           <span className="text-sm text-slate-500">Exibindo 0 de 1 páginas</span>

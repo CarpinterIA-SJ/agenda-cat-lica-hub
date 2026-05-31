@@ -32,6 +32,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Search, Eye, Pencil, Ban } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AdminUser {
   id: string;
@@ -41,24 +43,43 @@ interface AdminUser {
   status: "Ativo" | "Banido";
 }
 
-const SEED_USERS: AdminUser[] = [
-  { id: "u1", nome: "Maria das Graças", email: "maria@paroquia.com", tipo: "Organizador", status: "Ativo" },
-  { id: "u2", nome: "João Batista", email: "joao.b@exemplo.com", tipo: "Participante", status: "Ativo" },
-  { id: "u3", nome: "Ana Carolina", email: "ana.c@diocese.org", tipo: "Organizador", status: "Ativo" },
-  { id: "u4", nome: "Pedro Henrique", email: "pedro.h@exemplo.com", tipo: "Participante", status: "Banido" },
-  { id: "u5", nome: "Lucas Santos", email: "lucas@guardiao.app", tipo: "Organizador", status: "Ativo" },
-  { id: "u6", nome: "Beatriz Oliveira", email: "bia@exemplo.com", tipo: "Participante", status: "Ativo" },
-];
-
 const AdminUsersPage = () => {
   const { toast } = useToast();
-  const [users, setUsers] = useState<AdminUser[]>(SEED_USERS);
   const [search, setSearch] = useState("");
   const [detailsUser, setDetailsUser] = useState<AdminUser | null>(null);
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
   const [editNome, setEditNome] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [suspendUser, setSuspendUser] = useState<AdminUser | null>(null);
+
+  const { data: users = [] } = useQuery({
+    queryKey: ["admin-users"],
+    queryFn: async (): Promise<AdminUser[]> => {
+      const [{ data: profiles, error: e1 }, { data: roles, error: e2 }] = await Promise.all([
+        supabase.from("profiles").select("*"),
+        supabase.from("user_roles").select("*"),
+      ]);
+      if (e1) throw e1;
+      if (e2) throw e2;
+      const rolesByUser = new Map<string, string[]>();
+      (roles ?? []).forEach((r: any) => {
+        const arr = rolesByUser.get(r.user_id) ?? [];
+        arr.push(r.role);
+        rolesByUser.set(r.user_id, arr);
+      });
+      return (profiles ?? []).map((p: any) => {
+        const rs = rolesByUser.get(p.id) ?? [];
+        const isOrganizer = rs.some((r) => ["organizer", "admin", "superadmin"].includes(r));
+        return {
+          id: p.id,
+          nome: p.name ?? "—",
+          email: "—",
+          tipo: isOrganizer ? "Organizador" : "Participante",
+          status: "Ativo",
+        };
+      });
+    },
+  });
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -76,24 +97,12 @@ const AdminUsersPage = () => {
 
   const saveEdit = () => {
     if (!editUser) return;
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === editUser.id ? { ...u, nome: editNome, email: editEmail } : u,
-      ),
-    );
     toast({ title: "Usuário atualizado" });
     setEditUser(null);
   };
 
   const confirmSuspend = () => {
     if (!suspendUser) return;
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === suspendUser.id
-          ? { ...u, status: u.status === "Ativo" ? "Banido" : "Ativo" }
-          : u,
-      ),
-    );
     toast({
       title: suspendUser.status === "Ativo" ? "Conta suspensa" : "Conta reativada",
       description: suspendUser.nome,

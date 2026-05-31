@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Calendar, ChevronLeft, FileText, Loader2 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -10,10 +10,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useCheckins } from "@/hooks/use-checkins";
 
 const CheckinsRealizadosPage = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
   const { toast } = useToast();
+  const { data: checkins = [], isLoading } = useCheckins(id);
   const [ticketType, setTicketType] = useState<string>("");
   const [accessPoint, setAccessPoint] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -130,7 +133,7 @@ const CheckinsRealizadosPage = () => {
 
         {/* Gerar Relatório Button */}
         <div className="mt-8 flex justify-end">
-          <Button 
+          <Button
             onClick={handleGenerateReport}
             disabled={isGenerating}
             className="gap-2 bg-[#004d00] hover:bg-[#003300] text-white min-w-[200px]"
@@ -142,6 +145,44 @@ const CheckinsRealizadosPage = () => {
             )}
             Gerar relatório
           </Button>
+        </div>
+
+        {/* Lista de check-ins realizados */}
+        <div className="mt-8 overflow-x-auto rounded-lg border border-slate-200">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-700">
+              <tr>
+                <th className="px-4 py-3 text-left font-bold">Participante</th>
+                <th className="px-4 py-3 text-left font-bold">E-mail</th>
+                <th className="px-4 py-3 text-left font-bold">Realizado em</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={3} className="px-4 py-12 text-center text-slate-500">
+                    <Loader2 className="w-5 h-5 animate-spin inline" />
+                  </td>
+                </tr>
+              ) : checkins.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-4 py-12 text-center text-slate-500">
+                    Nenhum check-in realizado.
+                  </td>
+                </tr>
+              ) : (
+                checkins.map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-slate-900">{c.registration?.full_name ?? "-"}</td>
+                    <td className="px-4 py-3 text-slate-600">{c.registration?.email ?? "-"}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {c.checked_at ? new Date(c.checked_at).toLocaleString("pt-BR") : "-"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

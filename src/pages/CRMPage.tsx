@@ -15,14 +15,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Pencil, Trash2, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface Person {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  tag: string;
-}
+import { useMyOrganization } from "@/hooks/use-organizations";
+import { useCrmContacts, useCreateCrmContact, useDeleteCrmContact } from "@/hooks/use-crm";
 
 interface Group {
   id: number;
@@ -45,12 +39,6 @@ interface TagItem {
   createdAt: string;
   color: string;
 }
-
-const mockPeople: Person[] = [
-  { id: 1, name: "Maria Silva", email: "maria@email.com", phone: "(11) 98765-4321", tag: "Voluntária" },
-  { id: 2, name: "João Santos", email: "joao@email.com", phone: "(11) 91234-5678", tag: "Convidado" },
-  { id: 3, name: "Ana Oliveira", email: "ana@email.com", phone: "(21) 99876-5432", tag: "Liderança" },
-];
 
 const mockGroups: Group[] = [
   { id: 1, name: "Grupo de Jovens", people: 32, createdAt: "10/02/2026" },
@@ -93,7 +81,25 @@ const CRMPage = () => {
     { key: "categorias", label: "Categorias" },
   ];
 
-  const [people, setPeople] = useState<Person[]>(mockPeople);
+  const { data: org } = useMyOrganization();
+  const { data: crmContacts = [] } = useCrmContacts(org?.id);
+  const createCrmContact = useCreateCrmContact();
+  const deleteCrmContact = useDeleteCrmContact();
+
+  const people = useMemo(
+    () =>
+      crmContacts.map((c) => {
+        const tags = Array.isArray(c.tags) ? (c.tags as any[]) : [];
+        return {
+          id: c.id,
+          name: c.full_name,
+          email: c.email || "-",
+          phone: c.phone || "-",
+          tag: tags.length > 0 ? String(tags[0]) : "Sem tag",
+        };
+      }),
+    [crmContacts]
+  );
   const [showPersonForm, setShowPersonForm] = useState(false);
   const [personForm, setPersonForm] = useState({
     name: "",
@@ -153,21 +159,38 @@ const CRMPage = () => {
     categories.filter((c) => c.name.toLowerCase().includes(search.toLowerCase())),
   [categories, search]);
 
-  const handlePersonSave = () => {
+  const handlePersonSave = async () => {
     if (!personForm.name.trim()) return;
-    setPeople((prev) => [
-      {
-        id: Date.now(),
-        name: personForm.name,
-        email: "-",
-        phone: "-",
-        tag: "Sem tag",
-      },
-      ...prev,
-    ]);
-    setPersonForm({ name: "", document: "", birth: "", gender: "", maritalStatus: "", notes: "" });
-    setShowPersonForm(false);
-    toast({ title: "Contato salvo", description: "Pessoa adicionada com sucesso." });
+    if (!org?.id) {
+      toast({ title: "Organização não encontrada", description: "Aguarde a criação da sua organização.", variant: "destructive" });
+      return;
+    }
+    try {
+      await createCrmContact.mutateAsync({
+        organization_id: org.id,
+        full_name: personForm.name.trim(),
+        cpf: personForm.document || null,
+        notes: personForm.notes || null,
+        email: null,
+        phone: null,
+        source: "crm",
+        tags: [] as any,
+      });
+      setPersonForm({ name: "", document: "", birth: "", gender: "", maritalStatus: "", notes: "" });
+      setShowPersonForm(false);
+      toast({ title: "Contato salvo", description: "Pessoa adicionada com sucesso." });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar contato", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handlePersonDelete = async (id: string) => {
+    try {
+      await deleteCrmContact.mutateAsync(id);
+      toast({ title: "Contato removido." });
+    } catch (e: any) {
+      toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
+    }
   };
 
   const handleGroupSave = () => {
@@ -359,7 +382,7 @@ const CRMPage = () => {
                             <Button variant="ghost" size="icon" className="text-slate-500 hover:text-primary">
                               <Pencil className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-destructive">
+                            <Button variant="ghost" size="icon" className="text-slate-500 hover:text-destructive" onClick={() => handlePersonDelete(person.id)}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
