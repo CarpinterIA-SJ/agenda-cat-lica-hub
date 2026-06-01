@@ -33,7 +33,7 @@ import AdminFinancialPage from "./pages/admin/AdminFinancialPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminOrganizersPage from "./pages/admin/AdminOrganizersPage";
-import AdminPayoutsPage from "./pages/admin/AdminPayoutsPage";
+import AdminWithdrawalsPage from "./pages/admin/AdminWithdrawalsPage";
 import AdminModerationPage from "./pages/admin/AdminModerationPage";
 import AdminAuditLogsPage from "./pages/admin/AdminAuditLogsPage";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
@@ -4046,7 +4046,7 @@ const App = () => (
               <Route path="/admin/usuarios" element={<AdminUsersPage />} />
               <Route path="/admin/eventos" element={<AdminEventsPage />} />
               <Route path="/admin/organizadores" element={<AdminOrganizersPage />} />
-              <Route path="/admin/repasses" element={<AdminPayoutsPage />} />
+              <Route path="/admin/repasses" element={<AdminWithdrawalsPage />} />
               <Route path="/admin/moderacao" element={<AdminModerationPage />} />
               <Route path="/admin/logs" element={<AdminAuditLogsPage />} />
               <Route path="/admin/financeiro" element={<AdminFinancialPage />} />

@@ -25,6 +25,10 @@ export type MessageChannel      = 'email' | 'whatsapp' | 'system'
 // Migration 004
 export type AppRole             = 'superadmin' | 'admin' | 'support' | 'organizer' | 'participant'
 
+// Migration 008
+export type OrganizerStatus     = 'pending' | 'approved' | 'suspended' | 'rejected'
+export type WithdrawalStatus    = 'pending' | 'approved' | 'paid' | 'rejected'
+
 // ─── Row types ──────────────────────────────────────────────────────────────
 
 export interface Profile {
@@ -269,6 +273,34 @@ export interface Payment {
   updated_at:              string
 }
 
+// Migration 008 — aprovação de organizadores + repasses
+
+/** Organization com as colunas de status de aprovação (migration 008). */
+export interface OrganizationWithStatus extends Organization {
+  status:             OrganizerStatus
+  status_updated_by:  string | null
+  status_updated_at:  string | null
+  rejection_reason:   string | null
+}
+
+export interface WithdrawalRequest {
+  id:               string
+  organization_id:  string
+  requested_by:     string | null
+  amount_cents:     number
+  status:           WithdrawalStatus
+  bank_name:        string | null
+  bank_agency:      string | null
+  bank_account:     string | null
+  bank_holder:      string | null
+  admin_notes:      string | null
+  reviewed_by:      string | null
+  reviewed_at:      string | null
+  paid_at:          string | null
+  created_at:       string
+  updated_at:       string
+}
+
 // ─── Database type (usado pelo createClient<Database>) ──────────────────────
 
 export type Database = {
@@ -283,9 +315,17 @@ export type Database = {
         Update: Partial<Omit<Profile, 'id'>>
       }
       organizations: {
-        Row:    Organization
-        Insert: Omit<Organization, 'id' | 'created_at'> & { id?: string; created_at?: string }
-        Update: Partial<Pick<Organization, 'name' | 'slug'>>
+        Row:    OrganizationWithStatus
+        Insert: Omit<Organization, 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+          status?:            OrganizerStatus
+          status_updated_by?: string | null
+          status_updated_at?: string | null
+          rejection_reason?:  string | null
+        }
+        Update: Partial<Pick<OrganizationWithStatus,
+          'name' | 'slug' | 'status' | 'status_updated_by' | 'status_updated_at' | 'rejection_reason'>>
       }
       organization_members: {
         Row:    OrganizationMember
@@ -450,6 +490,27 @@ export type Database = {
           fee_cents?: number
         }
         Update: Partial<Omit<Payment, 'id' | 'organization_id' | 'created_at'>>
+      }
+      withdrawal_requests: {
+        Row:    WithdrawalRequest
+        Insert: Omit<WithdrawalRequest,
+          'id' | 'created_at' | 'updated_at' | 'status' | 'requested_by' |
+          'admin_notes' | 'reviewed_by' | 'reviewed_at' | 'paid_at'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          status?:       WithdrawalStatus
+          requested_by?: string | null
+          bank_name?:    string | null
+          bank_agency?:  string | null
+          bank_account?: string | null
+          bank_holder?:  string | null
+          admin_notes?:  string | null
+          reviewed_by?:  string | null
+          reviewed_at?:  string | null
+          paid_at?:      string | null
+        }
+        Update: Partial<Omit<WithdrawalRequest, 'id' | 'organization_id' | 'created_at'>>
       }
     }
     Views: {

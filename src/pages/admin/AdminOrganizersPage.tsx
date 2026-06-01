@@ -3,6 +3,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -36,81 +39,82 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Eye, CheckCircle2, XCircle, Ban, RotateCcw, Building2 } from "lucide-react";
+import { Search, CheckCircle2, XCircle, Ban, RotateCcw, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuditLog } from "@/hooks/use-audit-log";
+import {
+  AdminOrganizer,
+  useAdminOrganizers,
+  useUpdateOrganizerStatus,
+} from "@/hooks/use-admin-organizers";
+import { OrganizerStatus } from "@/integrations/supabase/types";
 
-type OrganizerStatus = "Pendente" | "Aprovado" | "Suspenso" | "Rejeitado";
-
-interface AdminOrganizer {
-  id: string;
-  nome: string;
-  cnpj: string;
-  email: string;
-  telefone: string;
-  cidade: string;
-  status: OrganizerStatus;
-  createdAt: string;
-}
-
-const SEED: AdminOrganizer[] = [
-  { id: "o1", nome: "Paróquia São José",        cnpj: "12.345.678/0001-90", email: "contato@saojose.org", telefone: "(31) 99999-1111", cidade: "Belo Horizonte/MG", status: "Pendente",  createdAt: "2026-05-20" },
-  { id: "o2", nome: "Diocese de Aparecida",     cnpj: "23.456.789/0001-21", email: "eventos@aparecida.org", telefone: "(12) 98888-2222", cidade: "Aparecida/SP",     status: "Aprovado",  createdAt: "2026-04-10" },
-  { id: "o3", nome: "Comunidade Canção Nova",   cnpj: "34.567.890/0001-32", email: "admin@cn.com.br",      telefone: "(12) 97777-3333", cidade: "Cachoeira Paulista/SP", status: "Aprovado", createdAt: "2026-03-02" },
-  { id: "o4", nome: "Shalom BH",                cnpj: "45.678.901/0001-43", email: "bh@shalom.org",        telefone: "(31) 96666-4444", cidade: "Belo Horizonte/MG", status: "Suspenso",  createdAt: "2026-02-15" },
-  { id: "o5", nome: "Pastoral da Juventude",    cnpj: "56.789.012/0001-54", email: "pj@cnbb.org.br",       telefone: "(61) 95555-5555", cidade: "Brasília/DF",       status: "Pendente",  createdAt: "2026-05-25" },
-  { id: "o6", nome: "Ministério Adoradores",    cnpj: "67.890.123/0001-65", email: "contato@adoradores.com", telefone: "(11) 94444-6666", cidade: "São Paulo/SP",    status: "Rejeitado", createdAt: "2026-01-30" },
-];
+const STATUS_LABEL: Record<OrganizerStatus, string> = {
+  pending: "Pendente",
+  approved: "Aprovado",
+  suspended: "Suspenso",
+  rejected: "Rejeitado",
+};
 
 const STATUS_BADGE: Record<OrganizerStatus, string> = {
-  Pendente:  "bg-amber-100 text-amber-800 hover:bg-amber-100",
-  Aprovado:  "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
-  Suspenso:  "bg-orange-100 text-orange-800 hover:bg-orange-100",
-  Rejeitado: "bg-red-100 text-red-800 hover:bg-red-100",
+  pending: "bg-amber-100 text-amber-800 hover:bg-amber-100",
+  approved: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
+  suspended: "bg-orange-100 text-orange-800 hover:bg-orange-100",
+  rejected: "bg-red-100 text-red-800 hover:bg-red-100",
 };
 
 const AdminOrganizersPage = () => {
   const { toast } = useToast();
-  const { log } = useAuditLog();
-  const [items, setItems] = useState<AdminOrganizer[]>(SEED);
+  const { data: organizers, isLoading } = useAdminOrganizers();
+  const updateStatus = useUpdateOrganizerStatus();
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrganizerStatus | "todos">("todos");
-  const [detail, setDetail] = useState<AdminOrganizer | null>(null);
-  const [confirm, setConfirm] = useState<{ org: AdminOrganizer; next: OrganizerStatus; label: string } | null>(null);
+  const [suspendTarget, setSuspendTarget] = useState<AdminOrganizer | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<AdminOrganizer | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return items.filter((o) => {
-      const hitsQ = !q || o.nome.toLowerCase().includes(q) || o.cnpj.includes(q) || o.email.toLowerCase().includes(q);
+    return (organizers ?? []).filter((o) => {
+      const hitsQ = !q || o.name.toLowerCase().includes(q);
       const hitsS = statusFilter === "todos" || o.status === statusFilter;
       return hitsQ && hitsS;
     });
-  }, [items, search, statusFilter]);
+  }, [organizers, search, statusFilter]);
 
-  const applyTransition = () => {
-    if (!confirm) return;
-    setItems((prev) => prev.map((o) => (o.id === confirm.org.id ? { ...o, status: confirm.next } : o)));
-    toast({ title: confirm.label, description: confirm.org.nome });
-    log({
-      acao: confirm.label,
-      tipo: "organizador",
-      alvo: confirm.org.nome,
-      descricao: `Status alterado de "${confirm.org.status}" para "${confirm.next}".`,
-    });
-    setConfirm(null);
+  const changeStatus = (
+    o: AdminOrganizer,
+    status: OrganizerStatus,
+    reason?: string,
+  ) => {
+    updateStatus.mutate(
+      { id: o.id, status, rejection_reason: reason },
+      {
+        onSuccess: () => {
+          toast({ title: `Organizador ${STATUS_LABEL[status].toLowerCase()}`, description: o.name });
+        },
+        onError: (e: any) => {
+          toast({
+            title: "Erro ao atualizar status",
+            description: e?.message ?? "Tente novamente.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
   };
 
-  const actionsFor = (o: AdminOrganizer) => {
-    const acts: { label: string; next: OrganizerStatus; icon: React.ReactNode; cls: string }[] = [];
-    if (o.status === "Pendente") {
-      acts.push({ label: "Aprovado",  next: "Aprovado",  icon: <CheckCircle2 className="w-4 h-4" />, cls: "text-emerald-700 hover:text-emerald-800" });
-      acts.push({ label: "Rejeitado", next: "Rejeitado", icon: <XCircle className="w-4 h-4" />,      cls: "text-red-600 hover:text-red-700" });
-    } else if (o.status === "Aprovado") {
-      acts.push({ label: "Suspenso", next: "Suspenso", icon: <Ban className="w-4 h-4" />, cls: "text-orange-600 hover:text-orange-700" });
-    } else if (o.status === "Suspenso" || o.status === "Rejeitado") {
-      acts.push({ label: "Reativado", next: "Aprovado", icon: <RotateCcw className="w-4 h-4" />, cls: "text-emerald-700 hover:text-emerald-800" });
-    }
-    return acts;
+  const confirmSuspend = () => {
+    if (!suspendTarget) return;
+    changeStatus(suspendTarget, "suspended");
+    setSuspendTarget(null);
+  };
+
+  const confirmReject = () => {
+    if (!rejectTarget || !rejectReason.trim()) return;
+    changeStatus(rejectTarget, "rejected", rejectReason.trim());
+    setRejectTarget(null);
+    setRejectReason("");
   };
 
   return (
@@ -131,22 +135,25 @@ const AdminOrganizersPage = () => {
             <div className="relative flex-1 max-w-md">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <Input
-                placeholder="Buscar por nome, CNPJ ou e-mail"
+                placeholder="Buscar por nome"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
               />
             </div>
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as OrganizerStatus | "todos")}>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v as OrganizerStatus | "todos")}
+            >
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="Filtrar status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os status</SelectItem>
-                <SelectItem value="Pendente">Pendente</SelectItem>
-                <SelectItem value="Aprovado">Aprovado</SelectItem>
-                <SelectItem value="Suspenso">Suspenso</SelectItem>
-                <SelectItem value="Rejeitado">Rejeitado</SelectItem>
+                <SelectItem value="pending">Pendente</SelectItem>
+                <SelectItem value="approved">Aprovado</SelectItem>
+                <SelectItem value="suspended">Suspenso</SelectItem>
+                <SelectItem value="rejected">Rejeitado</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -155,48 +162,101 @@ const AdminOrganizersPage = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
-                  <TableHead>Organizador</TableHead>
-                  <TableHead>CNPJ</TableHead>
-                  <TableHead>Contato</TableHead>
-                  <TableHead>Cidade</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead>E-mail</TableHead>
+                  <TableHead className="text-center">Eventos</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Cadastro</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((o) => (
-                  <TableRow key={o.id}>
-                    <TableCell className="font-medium">{o.nome}</TableCell>
-                    <TableCell className="text-slate-600">{o.cnpj}</TableCell>
-                    <TableCell className="text-slate-600">{o.email}</TableCell>
-                    <TableCell className="text-slate-600">{o.cidade}</TableCell>
-                    <TableCell>
-                      <Badge className={STATUS_BADGE[o.status]}>{o.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => setDetail(o)} title="Ver detalhes">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        {actionsFor(o).map((a) => (
-                          <Button
-                            key={a.label}
-                            variant="ghost"
-                            size="icon"
-                            className={a.cls}
-                            title={a.label}
-                            onClick={() => setConfirm({ org: o, next: a.next, label: a.label })}
-                          >
-                            {a.icon}
-                          </Button>
-                        ))}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filtered.length === 0 && (
+                {isLoading &&
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={`sk-${i}`}>
+                      {Array.from({ length: 7 }).map((__, j) => (
+                        <TableCell key={j}>
+                          <Skeleton className="h-4 w-full" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+
+                {!isLoading &&
+                  filtered.map((o) => (
+                    <TableRow key={o.id}>
+                      <TableCell className="font-medium">{o.name}</TableCell>
+                      <TableCell className="text-slate-600">{o.owner?.name ?? "—"}</TableCell>
+                      <TableCell className="text-slate-600">{o.ownerEmail}</TableCell>
+                      <TableCell className="text-center text-slate-600">{o.eventCount}</TableCell>
+                      <TableCell>
+                        <Badge className={STATUS_BADGE[o.status]}>{STATUS_LABEL[o.status]}</Badge>
+                      </TableCell>
+                      <TableCell className="text-slate-600">
+                        {new Date(o.created_at).toLocaleDateString("pt-BR")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {o.status === "pending" && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-emerald-700 hover:text-emerald-800"
+                                title="Aprovar"
+                                disabled={updateStatus.isPending}
+                                onClick={() => changeStatus(o, "approved")}
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-600 hover:text-red-700"
+                                title="Rejeitar"
+                                disabled={updateStatus.isPending}
+                                onClick={() => {
+                                  setRejectReason("");
+                                  setRejectTarget(o);
+                                }}
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+                          {o.status === "approved" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-orange-600 hover:text-orange-700"
+                              title="Suspender"
+                              disabled={updateStatus.isPending}
+                              onClick={() => setSuspendTarget(o)}
+                            >
+                              <Ban className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {(o.status === "suspended" || o.status === "rejected") && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-emerald-700 hover:text-emerald-800"
+                              title="Reativar"
+                              disabled={updateStatus.isPending}
+                              onClick={() => changeStatus(o, "approved")}
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+
+                {!isLoading && filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-slate-500 py-8">
+                    <TableCell colSpan={7} className="text-center text-slate-500 py-8">
                       Nenhum organizador encontrado.
                     </TableCell>
                   </TableRow>
@@ -207,45 +267,73 @@ const AdminOrganizersPage = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Detalhes do organizador</DialogTitle>
-            <DialogDescription>Informações cadastrais e de contato.</DialogDescription>
-          </DialogHeader>
-          {detail && (
-            <div className="space-y-2 text-sm">
-              <div><span className="text-slate-500">Nome:</span> <b>{detail.nome}</b></div>
-              <div><span className="text-slate-500">CNPJ:</span> {detail.cnpj}</div>
-              <div><span className="text-slate-500">E-mail:</span> {detail.email}</div>
-              <div><span className="text-slate-500">Telefone:</span> {detail.telefone}</div>
-              <div><span className="text-slate-500">Cidade:</span> {detail.cidade}</div>
-              <div><span className="text-slate-500">Status:</span> {detail.status}</div>
-              <div><span className="text-slate-500">Cadastrado em:</span> {new Date(detail.createdAt).toLocaleDateString("pt-BR")}</div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDetail(null)}>Fechar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
+      {/* Suspender — confirmação */}
+      <AlertDialog open={!!suspendTarget} onOpenChange={(o) => !o && setSuspendTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar ação?</AlertDialogTitle>
+            <AlertDialogTitle>Suspender organizador?</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirm && `O organizador "${confirm.org.nome}" passará para o status "${confirm.next}".`}
+              {suspendTarget &&
+                `"${suspendTarget.name}" deixará de operar na plataforma até ser reativado.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={applyTransition} className="bg-[#004d00] hover:bg-[#003300]">
-              Confirmar
+            <AlertDialogAction onClick={confirmSuspend} className="bg-[#004d00] hover:bg-[#003300]">
+              Suspender
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Rejeitar — motivo obrigatório */}
+      <Dialog
+        open={!!rejectTarget}
+        onOpenChange={(o) => {
+          if (!o) {
+            setRejectTarget(null);
+            setRejectReason("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rejeitar organizador</DialogTitle>
+            <DialogDescription>
+              Informe o motivo da rejeição{rejectTarget ? ` de "${rejectTarget.name}"` : ""}. Será
+              registrado no cadastro.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="reject-reason">Motivo da rejeição</Label>
+            <Textarea
+              id="reject-reason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Ex: documentação incompleta, CNPJ inválido..."
+              rows={4}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRejectTarget(null);
+                setRejectReason("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={!rejectReason.trim() || updateStatus.isPending}
+              onClick={confirmReject}
+            >
+              Rejeitar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
