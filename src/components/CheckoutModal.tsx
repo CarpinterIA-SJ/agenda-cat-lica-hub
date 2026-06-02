@@ -18,6 +18,8 @@ import { Loader2, Ticket, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { usePlatformSettings } from "@/hooks/use-platform-settings";
+import { ChargeSummary } from "@/components/ChargeSummary";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "");
 
@@ -39,9 +41,6 @@ interface CheckoutData {
   ticket_name: string;
 }
 
-const brl = (cents: number) =>
-  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
 export const CheckoutModal = ({
   eventId,
   ticketId,
@@ -52,6 +51,8 @@ export const CheckoutModal = ({
 }: CheckoutModalProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { data: platformSettings } = usePlatformSettings();
+  const taxaPercent = Number(platformSettings?.map?.taxa_plataforma_percent ?? 5);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<CheckoutData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -113,21 +114,13 @@ export const CheckoutModal = ({
             </div>
           ) : data ? (
             <>
-              {/* Resumo */}
-              <div className="rounded-2xl border border-slate-200 p-4 space-y-2 text-sm">
-                <div className="flex justify-between text-slate-600">
-                  <span>Subtotal ({quantity}x)</span>
-                  <span>{brl(data.subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>Taxa de serviço</span>
-                  <span>{brl(data.taxa)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-[#004d00] border-t border-slate-100 pt-2">
-                  <span>Total</span>
-                  <span>{brl(data.total)}</span>
-                </div>
-              </div>
+              {/* Resumo de cobrança */}
+              <ChargeSummary
+                subtotalCents={data.subtotal}
+                taxaCents={data.taxa}
+                totalCents={data.total}
+                taxaPercent={data.subtotal > 0 ? taxaPercent : undefined}
+              />
 
               <Elements
                 stripe={stripePromise}

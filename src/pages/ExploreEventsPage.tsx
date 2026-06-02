@@ -21,8 +21,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEvents } from "@/hooks/use-events";
 import { useCreateRegistration } from "@/hooks/use-registrations";
+import { usePlatformSettings } from "@/hooks/use-platform-settings";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CheckoutModal } from "@/components/CheckoutModal";
+import { ChargeSummary, computeCharge } from "@/components/ChargeSummary";
 
 const formatLabelMap: Record<string, string> = {
   presencial: "Evento presencial",
@@ -72,6 +74,8 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const createRegistration = useCreateRegistration();
+  const { data: platformSettings } = usePlatformSettings();
+  const taxaPercent = Number(platformSettings?.map?.taxa_plataforma_percent ?? 5);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [checkout, setCheckout] = useState<{ ticketId: string; name: string; quantity: number } | null>(null);
   const [registering, setRegistering] = useState(false);
@@ -145,6 +149,8 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
   };
   const tickets = eventData?.tickets || eventData?.details?.tickets || [];
   const primaryTicket = tickets[0];
+  const primaryPriceCents = primaryTicket ? Math.round(Number(primaryTicket.price || 0) * 100) : 0;
+  const primaryCharge = computeCharge(primaryPriceCents, 1, taxaPercent);
 
   const handleBuy = async () => {
     if (!eventData?.id) return;
@@ -276,6 +282,16 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
                   </div>
                 ))}
               </div>
+
+              {primaryTicket && (
+                <ChargeSummary
+                  className="mt-6"
+                  subtotalCents={primaryCharge.subtotal}
+                  taxaCents={primaryCharge.taxa}
+                  totalCents={primaryCharge.total}
+                  taxaPercent={primaryPriceCents > 0 ? taxaPercent : undefined}
+                />
+              )}
 
               <Button
                 className="mt-6 w-full h-12 bg-[#0b3d2e] text-white hover:bg-[#0a3225]"
@@ -461,6 +477,8 @@ const ExploreEventsPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const createRegistration = useCreateRegistration();
+  const { data: platformSettings } = usePlatformSettings();
+  const taxaPercent = Number(platformSettings?.map?.taxa_plataforma_percent ?? 5);
 
   const { data: rawEvents = [] } = useEvents({ visibility: "public", status: "active" });
 
@@ -586,6 +604,12 @@ const ExploreEventsPage = () => {
   }, [isModalOpen, modalTickets, selectedTicketId]);
 
   const unifiedFields = useMemo(() => buildUnifiedFields(selectedEvent), [selectedEvent]);
+
+  const selectedTicket = modalTickets.find((t: any) => t.id === selectedTicketId);
+  const selectedPriceCents = selectedTicket
+    ? Math.round(calcDiscountedPrice(Number(selectedTicket.price || 0)) * 100)
+    : 0;
+  const selectedCharge = computeCharge(selectedPriceCents, 1, taxaPercent);
 
   const isFormValid = useMemo(() => {
     if (!selectedTicketId || isDuplicate) return false;
@@ -848,6 +872,17 @@ const ExploreEventsPage = () => {
               </p>
             )}
           </div>
+
+          {selectedTicket && (
+            <div className="px-6 pb-4">
+              <ChargeSummary
+                subtotalCents={selectedCharge.subtotal}
+                taxaCents={selectedCharge.taxa}
+                totalCents={selectedCharge.total}
+                taxaPercent={selectedPriceCents > 0 ? taxaPercent : undefined}
+              />
+            </div>
+          )}
 
           <DialogFooter className="sticky bottom-0 bg-card border-t p-4">
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
