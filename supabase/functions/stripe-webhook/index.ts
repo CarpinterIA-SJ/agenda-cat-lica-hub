@@ -63,8 +63,14 @@ Deno.serve(async (req) => {
   try {
     if (evt.type === "payment_intent.succeeded") {
       await handleSucceeded(evt.data.object as Stripe.PaymentIntent);
-    } else if (evt.type === "payment_intent.payment_failed") {
-      await handleFailed(evt.data.object as Stripe.PaymentIntent);
+    } else if (
+      evt.type === "payment_intent.payment_failed" ||
+      evt.type === "payment_intent.canceled"
+    ) {
+      // payment_failed: recusa do método. canceled: PaymentIntent expirado
+      // (prazo do organizador atingido em pix/boleto) ou cancelado.
+      const reason = evt.type === "payment_intent.canceled" ? "cancelled" : "failed";
+      await handleUnpaid(evt.data.object as Stripe.PaymentIntent, reason);
     }
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
@@ -128,20 +134,41 @@ async function handleSucceeded(pi: Stripe.PaymentIntent) {
     if (profile?.name) fullName = profile.name;
   }
 
-  // Inscrição confirmada
-  const { data: registration, error: regErr } = await supabaseAdmin
+  // Promove a inscrição PENDING (criada no início do checkout) a 'confirmed'.
+  // Fallback: se não existir (checkout antigo / falha ao criar), insere nova.
+  let registration: { id: string };
+  const { data: pendingReg } = await supabaseAdmin
     .from("event_registrations")
-    .insert({
-      event_id: eventId,
-      ticket_id: ticketId,
-      user_id: userId,
-      full_name: fullName,
-      email: email || "sem-email@guardiaoeventos.com",
-      status: "confirmed",
-    })
-    .select()
-    .single();
-  if (regErr) throw regErr;
+    .select("id")
+    .eq("payment_intent_id", pi.id)
+    .maybeSingle();
+
+  if (pendingReg) {
+    const { data: updated, error: updErr } = await supabaseAdmin
+      .from("event_registrations")
+      .update({ status: "confirmed", full_name: fullName, email: email || "sem-email@guardiaoeventos.com" })
+      .eq("id", pendingReg.id)
+      .select("id")
+      .single();
+    if (updErr) throw updErr;
+    registration = updated;
+  } else {
+    const { data: inserted, error: regErr } = await supabaseAdmin
+      .from("event_registrations")
+      .insert({
+        event_id: eventId,
+        ticket_id: ticketId,
+        user_id: userId,
+        full_name: fullName,
+        email: email || "sem-email@guardiaoeventos.com",
+        status: "confirmed",
+        payment_intent_id: pi.id,
+      })
+      .select("id")
+      .single();
+    if (regErr) throw regErr;
+    registration = inserted;
+  }
 
   // Pagamento (status paid)
   const method = await resolveMethod(pi);
@@ -175,13 +202,27 @@ async function handleSucceeded(pi: Stripe.PaymentIntent) {
   }
 }
 
-async function handleFailed(pi: Stripe.PaymentIntent) {
+async function handleUnpaid(pi: Stripe.PaymentIntent, reason: "failed" | "cancelled") {
   const m = pi.metadata ?? {};
   const eventId = m.event_id;
   const feeCents = Number(m.fee_cents ?? "0");
 
   if (!eventId) return;
 
+  // Cancela a inscrição pendente vinculada ao PaymentIntent.
+  const { data: pendingReg } = await supabaseAdmin
+    .from("event_registrations")
+    .select("id, status")
+    .eq("payment_intent_id", pi.id)
+    .maybeSingle();
+  if (pendingReg && pendingReg.status !== "confirmed") {
+    await supabaseAdmin
+      .from("event_registrations")
+      .update({ status: "cancelled" })
+      .eq("id", pendingReg.id);
+  }
+
+  // Idempotência do registro de pagamento.
   const { data: existing } = await supabaseAdmin
     .from("payments")
     .select("id")
@@ -199,12 +240,13 @@ async function handleFailed(pi: Stripe.PaymentIntent) {
   await supabaseAdmin.from("payments").insert({
     organization_id: event.organization_id,
     event_id: eventId,
+    registration_id: pendingReg?.id ?? null,
     amount_cents: pi.amount,
     fee_cents: feeCents,
     net_cents: pi.amount - feeCents,
     currency: "BRL",
     method: "credit_card",
-    status: "failed",
+    status: reason === "cancelled" ? "cancelled" : "failed",
     gateway: "stripe",
     gateway_transaction_id: pi.id,
   });

@@ -474,6 +474,7 @@ const ExploreEventsPage = () => {
   const [couponCode, setCouponCode] = useState("");
   const [couponDiscount, setCouponDiscount] = useState<{ modo: "percentual" | "fixo"; valor: string; codigo: string } | null>(null);
   const [couponError, setCouponError] = useState("");
+  const [checkout, setCheckout] = useState<{ ticketId: string; name: string; quantity: number; coupon: string | null } | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
   const createRegistration = useCreateRegistration();
@@ -623,6 +624,30 @@ const ExploreEventsPage = () => {
 
   const handleRegister = async () => {
     if (!selectedEvent) return;
+
+    // Ingresso pago → checkout obrigatório (Stripe). A inscrição só é criada
+    // (pending) pelo backend e confirmada via webhook após o pagamento.
+    if (selectedPriceCents > 0) {
+      if (!user) {
+        toast.info("Entre na sua conta para concluir o pagamento.");
+        navigate("/login");
+        return;
+      }
+      const ticketId = selectedTicketId && selectedTicketId !== "default-free" ? selectedTicketId : null;
+      if (!ticketId) {
+        toast.error("Selecione um ingresso válido para pagamento.");
+        return;
+      }
+      setIsModalOpen(false);
+      setCheckout({
+        ticketId,
+        name: selectedTicket?.name ?? "Ingresso",
+        quantity: 1,
+        coupon: couponDiscount?.codigo ?? null,
+      });
+      return;
+    }
+
     // Coleta os valores dos campos customizados configurados pelo organizador.
     const customValues: Record<string, any> = {};
     (selectedEvent.custom_fields || []).forEach((f: any) => {
@@ -892,6 +917,17 @@ const ExploreEventsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {checkout && selectedEvent?.id && (
+        <CheckoutModal
+          eventId={selectedEvent.id}
+          ticketId={checkout.ticketId}
+          ticketName={checkout.name}
+          quantity={checkout.quantity}
+          couponCode={checkout.coupon}
+          onClose={() => setCheckout(null)}
+        />
+      )}
     </div>
   );
 };

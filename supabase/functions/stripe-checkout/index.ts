@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     // Ingresso
     const { data: ticket, error: ticketErr } = await supabaseAdmin
       .from("event_tickets")
-      .select("id, name, price_cents, event_id")
+      .select("id, name, price_cents, event_id, payment_deadline_minutes")
       .eq("id", ticket_id)
       .single();
     if (ticketErr || !ticket) return json({ error: "Ingresso não encontrado." }, 404);
@@ -85,10 +85,24 @@ Deno.serve(async (req) => {
 
     if (total < 1) return json({ error: "Valor total inválido para cobrança." }, 400);
 
+    // Prazo de pagamento configurado pelo organizador → expiração no gateway
+    // para métodos assíncronos (pix/boleto). Limites do Stripe respeitados.
+    const deadlineMin = ticket.payment_deadline_minutes ?? null;
+    const paymentMethodOptions: Record<string, unknown> = {};
+    if (deadlineMin && deadlineMin > 0) {
+      const pixSeconds = Math.min(Math.max(deadlineMin * 60, 30), 86400); // 30s..24h
+      const boletoDays = Math.min(Math.max(Math.ceil(deadlineMin / 1440), 1), 60); // 1..60 dias
+      paymentMethodOptions.pix = { expires_after_seconds: pixSeconds };
+      paymentMethodOptions.boleto = { expires_after_days: boletoDays };
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: total,
       currency: "brl",
       payment_method_types: ["card", "boleto", "pix"],
+      ...(Object.keys(paymentMethodOptions).length
+        ? { payment_method_options: paymentMethodOptions as any }
+        : {}),
       metadata: {
         event_id,
         ticket_id,
@@ -97,8 +111,40 @@ Deno.serve(async (req) => {
         coupon_code: coupon_code ?? "",
         subtotal_cents: String(subtotal),
         fee_cents: String(taxa),
+        payment_deadline_minutes: deadlineMin ? String(deadlineMin) : "",
       },
     });
+
+    // Dados do comprador para a inscrição pendente.
+    let fullName = "Participante";
+    let email = "";
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(user_id);
+    if (authUser?.user) {
+      email = authUser.user.email ?? "";
+      fullName = (authUser.user.user_metadata?.full_name as string) || fullName;
+    }
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("name")
+      .eq("id", user_id)
+      .maybeSingle();
+    if (profile?.name) fullName = profile.name;
+
+    // Inscrição PENDING vinculada ao PaymentIntent. O webhook a promove a
+    // 'confirmed' (succeeded) ou 'cancelled' (failed/canceled/expirado).
+    const { error: regErr } = await supabaseAdmin.from("event_registrations").insert({
+      event_id,
+      ticket_id,
+      user_id,
+      full_name: fullName,
+      email: email || "sem-email@guardiaoeventos.com",
+      status: "pending",
+      payment_intent_id: paymentIntent.id,
+    });
+    if (regErr) {
+      // Não bloqueia o pagamento: webhook tem fallback de insert idempotente.
+      console.error("[stripe-checkout] falha ao criar inscrição pendente", regErr);
+    }
 
     return json({
       client_secret: paymentIntent.client_secret,
