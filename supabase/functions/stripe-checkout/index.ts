@@ -132,19 +132,17 @@ Deno.serve(async (req) => {
     if (total < 1) return json({ error: "Valor total inválido para cobrança." }, 400);
 
     // Prazo de pagamento configurado pelo organizador → expiração no gateway
-    // para métodos assíncronos (pix/boleto). Limites do Stripe respeitados.
+    // para o método assíncrono (boleto). Limites do Stripe respeitados.
     const paymentMethodOptions: Record<string, unknown> = {};
     if (deadlineMin && deadlineMin > 0) {
-      const pixSeconds = Math.min(Math.max(deadlineMin * 60, 30), 86400); // 30s..24h
       const boletoDays = Math.min(Math.max(Math.ceil(deadlineMin / 1440), 1), 60); // 1..60 dias
-      paymentMethodOptions.pix = { expires_after_seconds: pixSeconds };
       paymentMethodOptions.boleto = { expires_after_days: boletoDays };
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: total,
       currency: "brl",
-      payment_method_types: ["card", "boleto", "pix"],
+      payment_method_types: ["card", "boleto"],
       ...(Object.keys(paymentMethodOptions).length
         ? { payment_method_options: paymentMethodOptions as any }
         : {}),
