@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import DOMPurify from "dompurify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -307,7 +308,7 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
             {eventData?.description ? (
               <div
                 className="prose prose-sm max-w-none text-[#4b6355] mt-2"
-                dangerouslySetInnerHTML={{ __html: eventData.description }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(eventData.description) }}
               />
             ) : (
               <p className="text-sm text-[#4b6355] mt-2">

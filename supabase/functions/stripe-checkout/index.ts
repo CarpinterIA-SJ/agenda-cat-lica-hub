@@ -5,7 +5,17 @@
 // ============================================================
 import Stripe from "npm:stripe@^17.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "npm:zod@^3.23.8";
 import { corsHeaders } from "../_shared/cors.ts";
+
+// Valida o payload antes de qualquer processamento.
+const checkoutSchema = z.object({
+  event_id:    z.string().uuid({ message: "event_id deve ser um uuid válido" }),
+  ticket_id:   z.string().uuid({ message: "ticket_id deve ser um uuid válido" }),
+  quantity:    z.number().int().min(1).max(10),
+  user_id:     z.string().uuid({ message: "user_id deve ser um uuid válido" }),
+  coupon_code: z.string().max(50).nullish(),
+});
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -17,26 +27,20 @@ const supabaseAdmin = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
 );
 
-interface CheckoutBody {
-  event_id: string;
-  ticket_id: string;
-  quantity: number;
-  user_id: string | null;
-  coupon_code?: string | null;
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const body = (await req.json()) as CheckoutBody;
-    const { event_id, ticket_id, quantity, user_id, coupon_code } = body;
-
-    if (!event_id || !ticket_id || !quantity || quantity < 1) {
-      return json({ error: "Parâmetros inválidos." }, 400);
+    const raw = await req.json().catch(() => null);
+    const parsed = checkoutSchema.safeParse(raw);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const field = issue.path.join(".") || "payload";
+      return json({ error: `Validação falhou: ${field} — ${issue.message}` }, 400);
     }
+    const { event_id, ticket_id, quantity, user_id, coupon_code } = parsed.data;
 
     // Ingresso
     const { data: ticket, error: ticketErr } = await supabaseAdmin

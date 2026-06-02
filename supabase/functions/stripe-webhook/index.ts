@@ -32,14 +32,25 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Verificação obrigatória da assinatura Stripe antes de processar qualquer evento.
+  if (!webhookSecret) {
+    console.error("[stripe-webhook] STRIPE_WEBHOOK_SECRET não configurado");
+    return new Response("Webhook secret não configurado.", { status: 500 });
+  }
+
   const signature = req.headers.get("stripe-signature");
+  if (!signature) {
+    console.error("[stripe-webhook] header stripe-signature ausente");
+    return new Response("Assinatura ausente.", { status: 400 });
+  }
+
   const bodyText = await req.text();
 
   let evt: Stripe.Event;
   try {
     evt = await stripe.webhooks.constructEventAsync(
       bodyText,
-      signature ?? "",
+      signature,
       webhookSecret,
       undefined,
       cryptoProvider,
