@@ -488,6 +488,14 @@ const OrganizerEventNewPage = () => {
       const descriptionHtml = descEditor?.getHTML?.() || "";
       const descriptionText = (descEditor?.getText?.() || "").trim();
 
+      // Converte dd/mm/aaaa → ISO 8601. Retorna null se a data estiver incompleta ou inválida.
+      const ptBRToISO = (d: string, time = "00:00"): string | null => {
+        const digits = d.replace(/\D/g, "");
+        if (digits.length !== 8) return null;
+        const iso = new Date(`${digits.slice(4)}-${digits.slice(2, 4)}-${digits.slice(0, 2)}T${time}:00`);
+        return isNaN(iso.getTime()) ? null : iso.toISOString();
+      };
+
       if (!eventoId) {
         const created = await createEvent.mutateAsync({
           organization_id: org.id,
@@ -500,8 +508,8 @@ const OrganizerEventNewPage = () => {
           format: tipoEvento as any,
           visibility: "public",
           status: "active",
-          start_at: dataInicio ? new Date(`${dataInicio}T00:00:00`).toISOString() : null,
-          end_at: dataFim ? new Date(`${dataFim}T00:00:00`).toISOString() : null,
+          start_at: ptBRToISO(dataInicio),
+          end_at: ptBRToISO(dataFim),
           location: buildLocation() as any,
         });
         setEventoId(created.id);
@@ -514,8 +522,8 @@ const OrganizerEventNewPage = () => {
           banner_url: bannerUrl || null,
           category: categoria || null,
           format: tipoEvento as any,
-          start_at: dataInicio ? new Date(`${dataInicio}T00:00:00`).toISOString() : null,
-          end_at: dataFim ? new Date(`${dataFim}T00:00:00`).toISOString() : null,
+          start_at: ptBRToISO(dataInicio),
+          end_at: ptBRToISO(dataFim),
           location: buildLocation() as any,
         });
       }
@@ -2890,8 +2898,13 @@ const OrganizerEventConfiguracoesPage = () => {
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
-    const start = startDate ? new Date(`${startDate}T${startTime || "00:00"}`).toISOString() : null;
-    const end = endDate ? new Date(`${endDate}T${endTime || "00:00"}`).toISOString() : null;
+    const toISO = (date: string, time: string): string | null => {
+      if (!date) return null;
+      const d = new Date(`${date}T${time || "00:00"}:00`);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    };
+    const start = toISO(startDate, startTime);
+    const end = toISO(endDate, endTime);
 
     const { error } = await supabase
       .from("events")
