@@ -28,8 +28,22 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import { useEvents, useDeleteEvent } from "@/hooks/use-events";
+import { useEvents, useDeleteEvent, useUpdateEvent } from "@/hooks/use-events";
 import { useMyOrganization } from "@/hooks/use-organizations";
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: "Rascunho",
+  active: "Publicado",
+  paused: "Pausado",
+  archived: "Arquivado",
+};
+
+const STATUS_BADGE: Record<string, string> = {
+  draft: "bg-amber-50 text-amber-700",
+  active: "bg-emerald-50 text-emerald-700",
+  paused: "bg-slate-100 text-slate-600",
+  archived: "bg-slate-100 text-slate-500",
+};
 
 const OrganizerEventsPage = () => {
   const navigate = useNavigate();
@@ -40,6 +54,7 @@ const OrganizerEventsPage = () => {
     org?.id ? { organization_id: org.id } : undefined,
   );
   const deleteEvent = useDeleteEvent();
+  const updateEvent = useUpdateEvent();
   const [eventSearch, setEventSearch] = useState("");
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [eventOption, setEventOption] = useState("");
@@ -78,6 +93,15 @@ const OrganizerEventsPage = () => {
 
   const handleManageEvent = (eventId: string) => {
     navigate(`/organizador/evento/${eventId}/dashboard`);
+  };
+
+  const handlePublish = async (eventId: string, title: string) => {
+    try {
+      await updateEvent.mutateAsync({ id: eventId, status: "active" });
+      toast({ title: "Evento publicado", description: `"${title}" agora está visível para participantes.` });
+    } catch (e: any) {
+      toast({ title: "Erro ao publicar", description: e.message, variant: "destructive" });
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -152,8 +176,8 @@ const OrganizerEventsPage = () => {
             <Card key={event.id} className="border-slate-200 shadow-sm">
               <CardContent className="p-4 space-y-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
-                    {event.status}
+                  <span className={`text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full ${STATUS_BADGE[event.status] ?? "bg-slate-100 text-slate-600"}`}>
+                    {STATUS_LABEL[event.status] ?? event.status}
                   </span>
                   <span className="text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
                     {event.format}
@@ -190,6 +214,16 @@ const OrganizerEventsPage = () => {
                   >
                     Gerenciar
                   </Button>
+                  {event.status === "draft" && (
+                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                      disabled={updateEvent.isPending}
+                      onClick={() => handlePublish(event.id, event.name)}
+                    >
+                      Publicar
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
