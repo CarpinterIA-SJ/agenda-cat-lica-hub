@@ -191,6 +191,7 @@ export default function FinanceiroRepassePage() {
               <Input
                 placeholder="Pesquisar..."
                 className="pl-9 bg-gray-50 border-gray-200"
+                maxLength={100}
               />
             </div>
             <Button variant="outline" className="flex items-center gap-2">
@@ -288,27 +289,28 @@ export default function FinanceiroRepassePage() {
                 placeholder="0,00"
                 value={valor}
                 onChange={(e) => setValor(e.target.value)}
+                maxLength={10}
               />
             </div>
 
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Banco</label>
-                <Input placeholder="Ex: 341 - Itaú" value={banco} onChange={(e) => setBanco(e.target.value)} />
+                <Input placeholder="Ex: 341 - Itaú" value={banco} onChange={(e) => setBanco(e.target.value)} maxLength={50} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">Agência</label>
-                  <Input placeholder="0000" value={agencia} onChange={(e) => setAgencia(e.target.value)} />
+                  <Input placeholder="0000" value={agencia} onChange={(e) => setAgencia(e.target.value)} maxLength={10} />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">Conta</label>
-                  <Input placeholder="00000-0" value={conta} onChange={(e) => setConta(e.target.value)} />
+                  <Input placeholder="00000-0" value={conta} onChange={(e) => setConta(e.target.value)} maxLength={20} />
                 </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Titular da conta</label>
-                <Input placeholder="Nome do titular" value={titular} onChange={(e) => setTitular(e.target.value)} />
+                <Input placeholder="Nome do titular" value={titular} onChange={(e) => setTitular(e.target.value)} maxLength={100} />
               </div>
             </div>
           </div>

@@ -339,6 +339,7 @@ const OrganizerEventDashboardPage = () => {
                 placeholder="Digite o nome do evento"
                 value={duplicateName}
                 onChange={(e) => setDuplicateName(e.target.value)}
+                maxLength={150}
               />
             </div>
             <div className="space-y-2">
@@ -347,6 +348,7 @@ const OrganizerEventDashboardPage = () => {
                 placeholder="meu-evento"
                 value={duplicateSlug}
                 onChange={(e) => setDuplicateSlug(e.target.value)}
+                maxLength={100}
               />
             </div>
           </div>

@@ -84,6 +84,7 @@ const AdminAuditLogsPage = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
+                maxLength={100}
               />
             </div>
             <Select value={acaoFilter} onValueChange={setAcaoFilter}>

@@ -636,7 +636,7 @@ const ExploreEventsPage = () => {
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <div className="relative max-w-sm flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Buscar eventos..." className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder="Buscar eventos..." className="pl-10" value={search} onChange={(e) => setSearch(e.target.value)} maxLength={100} />
         </div>
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
           <SelectTrigger className="w-[200px]">
@@ -810,6 +810,7 @@ const ExploreEventsPage = () => {
                           value={typeof value === "string" ? value : value ? String(value) : ""}
                           readOnly={readOnly}
                           onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                          maxLength={200}
                         />
                         {field.kind === "standard" && field.helper && (
                           <p className="text-[10px] text-muted-foreground italic">{field.helper}</p>
@@ -832,6 +833,7 @@ const ExploreEventsPage = () => {
                 value={couponCode}
                 onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); if (!e.target.value) setCouponDiscount(null); }}
                 className="h-10 font-mono uppercase"
+                maxLength={20}
               />
               <Button variant="outline" size="sm" className="h-10 px-4 shrink-0" onClick={validateCoupon} disabled={!couponCode.trim()}>
                 Aplicar

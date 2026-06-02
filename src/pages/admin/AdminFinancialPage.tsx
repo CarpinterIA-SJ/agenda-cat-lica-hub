@@ -115,6 +115,7 @@ const AdminFinancialPage = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
+                maxLength={100}
               />
             </div>
             <div className="flex items-center gap-2 text-slate-500 text-sm">

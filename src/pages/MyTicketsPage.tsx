@@ -70,6 +70,7 @@ const MyTicketsPage = () => {
           className="pl-10 h-11 bg-white border-slate-200 focus-visible:ring-primary/20 focus-visible:border-primary transition-all shadow-sm"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          maxLength={100}
         />
       </div>
 

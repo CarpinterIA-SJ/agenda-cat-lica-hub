@@ -695,12 +695,12 @@ const OrganizerEventNewPage = () => {
                           <SelectItem value="351">+351</SelectItem>
                         </SelectContent>
                       </Select>
-                      <Input placeholder="(00) 00000-0000" inputMode="tel" />
+                      <Input placeholder="(00) 00000-0000" inputMode="tel" maxLength={15} />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">E-mail de suporte</label>
-                    <Input placeholder="suporte@guardiaoeventos.com" type="email" />
+                    <Input placeholder="suporte@guardiaoeventos.com" type="email" maxLength={254} />
                   </div>
                 </div>
               </CardContent>
@@ -719,6 +719,7 @@ const OrganizerEventNewPage = () => {
                     placeholder="Informe o nome do evento"
                     value={nomeEvento}
                     onChange={(e) => setNomeEvento(e.target.value)}
+                    maxLength={150}
                   />
                 </div>
 
@@ -814,6 +815,7 @@ const OrganizerEventNewPage = () => {
                         <Input
                           placeholder="Digite uma consulta"
                           value={enderecoSearch}
+                          maxLength={100}
                           onChange={(e) => {
                             setEnderecoSearch(e.target.value);
                             if (e.target.value.length < 3) setShowSuggestions(false);
@@ -873,6 +875,7 @@ const OrganizerEventNewPage = () => {
                           value={nomeLocal}
                           onChange={(e) => setNomeLocal(e.target.value.toUpperCase())}
                           placeholder="Nome do local"
+                          maxLength={100}
                         />
                       </div>
                       <div className="grid grid-cols-3 gap-2">
@@ -880,13 +883,13 @@ const OrganizerEventNewPage = () => {
                           <label className="text-xs font-medium text-slate-600">
                             <span className="text-destructive">*</span> Rua:
                           </label>
-                          <Input value={rua} onChange={(e) => setRua(e.target.value)} placeholder="Rua" />
+                          <Input value={rua} onChange={(e) => setRua(e.target.value)} placeholder="Rua" maxLength={100} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-slate-600">
                             <span className="text-destructive">*</span> Número:
                           </label>
-                          <Input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="S/N" />
+                          <Input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="S/N" maxLength={10} />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -894,11 +897,11 @@ const OrganizerEventNewPage = () => {
                           <label className="text-xs font-medium text-slate-600">
                             <span className="text-destructive">*</span> Bairro:
                           </label>
-                          <Input value={bairro} onChange={(e) => setBairro(e.target.value)} placeholder="Bairro" />
+                          <Input value={bairro} onChange={(e) => setBairro(e.target.value)} placeholder="Bairro" maxLength={60} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-slate-600">Complemento:</label>
-                          <Input value={complemento} onChange={(e) => setComplemento(e.target.value)} placeholder="Complemento" />
+                          <Input value={complemento} onChange={(e) => setComplemento(e.target.value)} placeholder="Complemento" maxLength={60} />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -906,7 +909,7 @@ const OrganizerEventNewPage = () => {
                           <label className="text-xs font-medium text-slate-600">
                             <span className="text-destructive">*</span> Cidade:
                           </label>
-                          <Input value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="Cidade" />
+                          <Input value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="Cidade" maxLength={60} />
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-slate-600">Estado:</label>
@@ -1148,6 +1151,7 @@ const OrganizerEventNewPage = () => {
                     placeholder="Buscar..."
                     value={ingressoSearch}
                     onChange={(e) => setIngressoSearch(e.target.value)}
+                    maxLength={100}
                   />
                 </div>
 
@@ -1503,6 +1507,7 @@ const OrganizerEventNewPage = () => {
                   placeholder="Ex: RG, Diocese, Paróquia..."
                   value={frmNewFieldLabel}
                   onChange={(e) => setFrmNewFieldLabel(e.target.value)}
+                  maxLength={200}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && frmNewFieldLabel.trim()) {
                       setFrmCustomFields((prev) => [
@@ -1604,16 +1609,16 @@ const OrganizerEventNewPage = () => {
               <div className="space-y-3">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Nome</label>
-                  <Input placeholder="Nome do ingresso" value={ingressoNome} onChange={(e) => setIngressoNome(e.target.value)} />
+                  <Input placeholder="Nome do ingresso" value={ingressoNome} onChange={(e) => setIngressoNome(e.target.value)} maxLength={100} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Quantidade</label>
-                  <Input placeholder="0" type="number" min={1} value={ingressoQtd} onChange={(e) => setIngressoQtd(e.target.value)} />
+                  <Input placeholder="0" type="number" min={1} value={ingressoQtd} onChange={(e) => setIngressoQtd(e.target.value)} maxLength={6} />
                 </div>
                 {dialogTipoIngresso === "pago" && (
                   <div className="space-y-1">
                     <label className="text-sm font-medium">Preço (R$)</label>
-                    <Input placeholder="0,00" value={ingressoPreco} onChange={(e) => setIngressoPreco(e.target.value)} />
+                    <Input placeholder="0,00" value={ingressoPreco} onChange={(e) => setIngressoPreco(e.target.value)} maxLength={10} />
                   </div>
                 )}
               </div>
@@ -1864,7 +1869,7 @@ const OrganizerEventIngressosPage = () => {
         <CardContent className="space-y-4">
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input className="pl-9" placeholder="Buscar..." value={ticketSearch} onChange={(e) => setTicketSearch(e.target.value)} />
+            <Input className="pl-9" placeholder="Buscar..." value={ticketSearch} onChange={(e) => setTicketSearch(e.target.value)} maxLength={100} />
           </div>
 
           <div className="overflow-hidden rounded-lg border border-slate-200">
@@ -1918,16 +1923,16 @@ const OrganizerEventIngressosPage = () => {
           <div className="space-y-3">
             <div className="space-y-1">
               <label className="text-sm font-medium">Nome</label>
-              <Input placeholder="Nome do ingresso" value={ticketNome} onChange={(e) => setTicketNome(e.target.value)} />
+              <Input placeholder="Nome do ingresso" value={ticketNome} onChange={(e) => setTicketNome(e.target.value)} maxLength={100} />
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Quantidade</label>
-              <Input placeholder="0" type="number" min="1" value={ticketQtd} onChange={(e) => setTicketQtd(e.target.value)} />
+              <Input placeholder="0" type="number" min="1" value={ticketQtd} onChange={(e) => setTicketQtd(e.target.value)} maxLength={6} />
             </div>
             {dialogType === "pago" && (
               <div className="space-y-1">
                 <label className="text-sm font-medium">Preço (R$)</label>
-                <Input placeholder="0,00" value={ticketPreco} onChange={(e) => setTicketPreco(e.target.value)} />
+                <Input placeholder="0,00" value={ticketPreco} onChange={(e) => setTicketPreco(e.target.value)} maxLength={10} />
               </div>
             )}
           </div>
@@ -2048,6 +2053,7 @@ const OrganizerEventParticipantesPage = () => {
                 placeholder="Buscar..."
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
+                maxLength={100}
               />
             </div>
             <Button variant="outline" className="border-slate-200 text-slate-500 hover:bg-slate-50">
@@ -2170,7 +2176,7 @@ const OrganizerEventFilaDeEsperaPage = () => {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative max-w-sm w-full">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input className="pl-9" placeholder="Buscar..." />
+              <Input className="pl-9" placeholder="Buscar..." maxLength={100} />
             </div>
             <Button variant="outline" className="border-slate-200 text-slate-500 hover:bg-slate-50">
               <Filter className="h-4 w-4" />
@@ -2361,7 +2367,7 @@ const OrganizerEventCuponsPage = () => {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative max-w-sm w-full">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input className="pl-9" placeholder="Buscar..." value={busca} onChange={(e) => setBusca(e.target.value)} />
+              <Input className="pl-9" placeholder="Buscar..." value={busca} onChange={(e) => setBusca(e.target.value)} maxLength={100} />
             </div>
             <Button variant="outline" className="border-slate-200 text-slate-500 hover:bg-slate-50">
               <Filter className="h-4 w-4" />
@@ -2443,6 +2449,7 @@ const OrganizerEventCuponsPage = () => {
                   value={formCodigo}
                   onChange={(e) => setFormCodigo(e.target.value.toUpperCase())}
                   className="uppercase"
+                  maxLength={20}
                 />
                 <Button type="button" variant="outline" onClick={handleGerar} className="shrink-0">
                   Gerar
@@ -2469,6 +2476,7 @@ const OrganizerEventCuponsPage = () => {
                 placeholder="0"
                 value={formValor}
                 onChange={(e) => setFormValor(e.target.value)}
+                maxLength={10}
               />
             </div>
             <div className="space-y-1">
@@ -2623,7 +2631,7 @@ const OrganizerEventFinanceiroPage = () => {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative max-w-sm w-full">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input className="pl-9" placeholder="Buscar..." />
+              <Input className="pl-9" placeholder="Buscar..." maxLength={100} />
             </div>
             <Button variant="outline" className="border-slate-200 text-slate-500 hover:bg-slate-50">
               <Filter className="h-4 w-4" />
@@ -2754,7 +2762,7 @@ const OrganizerEventRepassePage = () => {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative max-w-sm w-full">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input className="pl-9" placeholder="Pesquisar..." />
+              <Input className="pl-9" placeholder="Pesquisar..." maxLength={100} />
             </div>
             <Button variant="outline" className="border-slate-200 text-slate-500 hover:bg-slate-50">
               <Filter className="h-4 w-4" />
@@ -2813,21 +2821,21 @@ const OrganizerEventRepassePage = () => {
             <div className="grid gap-3">
               <div className="space-y-1">
                 <label className="text-sm font-medium">Banco</label>
-                <Input placeholder="Nome do banco" />
+                <Input placeholder="Nome do banco" maxLength={50} />
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Agência</label>
-                  <Input placeholder="0000" />
+                  <Input placeholder="0000" maxLength={10} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Conta</label>
-                  <Input placeholder="00000-0" />
+                  <Input placeholder="00000-0" maxLength={20} />
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Titular</label>
-                <Input placeholder="Nome completo" />
+                <Input placeholder="Nome completo" maxLength={100} />
               </div>
             </div>
           </div>
@@ -3050,6 +3058,7 @@ const OrganizerEventConfiguracoesPage = () => {
                   inputMode="tel"
                   value={whatsapp}
                   onChange={(event) => setWhatsapp(event.target.value)}
+                  maxLength={15}
                 />
               </div>
             </div>
@@ -3060,6 +3069,7 @@ const OrganizerEventConfiguracoesPage = () => {
                 type="email"
                 value={supportEmail}
                 onChange={(event) => setSupportEmail(event.target.value)}
+                maxLength={254}
               />
             </div>
           </div>
@@ -3077,6 +3087,7 @@ const OrganizerEventConfiguracoesPage = () => {
               placeholder="Informe o nome do evento"
               value={eventName}
               onChange={(event) => setEventName(event.target.value)}
+              maxLength={150}
             />
           </div>
 

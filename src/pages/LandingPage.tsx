@@ -246,6 +246,7 @@ const LandingPage = () => {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar eventos..."
                 className="pl-9 h-9 text-sm border-slate-200 focus-visible:ring-[#004d00]/30"
+                maxLength={100}
               />
             </div>
           </form>
@@ -289,7 +290,7 @@ const LandingPage = () => {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-slate-100 bg-white px-4 py-4 space-y-3">
             <form onSubmit={handleSearch} className="flex gap-2">
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar eventos..." className="flex-1 h-9 text-sm" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar eventos..." className="flex-1 h-9 text-sm" maxLength={100} />
               <Button size="sm" type="submit" className="bg-[#004d00] text-white">Buscar</Button>
             </form>
             {isLoggedIn ? (
@@ -356,6 +357,7 @@ const LandingPage = () => {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Nome do evento, localidade ou categoria..."
               className="flex-1 border-none shadow-none focus-visible:ring-0 text-sm"
+              maxLength={100}
             />
             <Button type="submit" className="bg-[#004d00] hover:bg-[#003300] text-white h-10 px-6 rounded-xl font-semibold shrink-0">
               Buscar

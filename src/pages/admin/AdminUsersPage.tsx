@@ -112,6 +112,7 @@ const AdminUsersPage = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
+              maxLength={100}
             />
           </div>
 
@@ -220,11 +221,11 @@ const AdminUsersPage = () => {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>Nome</Label>
-              <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} />
+              <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} maxLength={100} />
             </div>
             <div className="space-y-1.5">
               <Label>E-mail</Label>
-              <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+              <Input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} maxLength={254} />
             </div>
           </div>
           <DialogFooter>

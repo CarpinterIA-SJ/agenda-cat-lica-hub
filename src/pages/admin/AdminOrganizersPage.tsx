@@ -139,6 +139,7 @@ const AdminOrganizersPage = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
+                maxLength={100}
               />
             </div>
             <Select
@@ -312,6 +313,7 @@ const AdminOrganizersPage = () => {
               onChange={(e) => setRejectReason(e.target.value)}
               placeholder="Ex: documentação incompleta, CNPJ inválido..."
               rows={4}
+              maxLength={500}
             />
           </div>
           <DialogFooter>

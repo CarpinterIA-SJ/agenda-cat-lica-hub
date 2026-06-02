@@ -192,6 +192,7 @@ const OrganizadoresPage = () => {
                   setCurrentPage(1);
                 }}
                 className="pl-9"
+                maxLength={100}
               />
             </div>
             <Button variant="ghost" size="icon" className="text-muted-foreground">
@@ -326,20 +327,20 @@ const OrganizadoresPage = () => {
             {/* Nome */}
             <div className="space-y-2">
               <Label><span className="text-destructive">*</span> Nome:</Label>
-              <Input value={newNome} onChange={(e) => setNewNome(e.target.value)} placeholder="Escreva aqui..." />
+              <Input value={newNome} onChange={(e) => setNewNome(e.target.value)} placeholder="Escreva aqui..." maxLength={100} />
             </div>
 
             {/* E-mail */}
             <div className="space-y-2">
               <Label><span className="text-destructive">*</span> E-mail:</Label>
-              <Input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="Escreva aqui..." type="email" />
+              <Input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="Escreva aqui..." type="email" maxLength={254} />
               <p className="text-xs text-muted-foreground">Esse será o email que receberá os contatos feitos por participantes através do "Fale com o Organizador".</p>
             </div>
 
             {/* Descrição */}
             <div className="space-y-2">
               <Label><span className="text-destructive">*</span> Descrição:</Label>
-              <Textarea value={newDescricao} onChange={(e) => setNewDescricao(e.target.value)} placeholder="Escreva aqui..." rows={4} />
+              <Textarea value={newDescricao} onChange={(e) => setNewDescricao(e.target.value)} placeholder="Escreva aqui..." rows={4} maxLength={2000} />
             </div>
           </div>
           <DialogFooter>
@@ -389,20 +390,20 @@ const OrganizadoresPage = () => {
             {/* Nome */}
             <div className="space-y-2">
               <Label><span className="text-destructive">*</span> Nome:</Label>
-              <Input value={newNome} onChange={(e) => setNewNome(e.target.value)} placeholder="Escreva aqui..." />
+              <Input value={newNome} onChange={(e) => setNewNome(e.target.value)} placeholder="Escreva aqui..." maxLength={100} />
             </div>
 
             {/* E-mail */}
             <div className="space-y-2">
               <Label><span className="text-destructive">*</span> E-mail:</Label>
-              <Input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="Escreva aqui..." type="email" />
+              <Input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="Escreva aqui..." type="email" maxLength={254} />
               <p className="text-xs text-muted-foreground">Esse será o email que receberá os contatos feitos por participantes através do "Fale com o Organizador".</p>
             </div>
 
             {/* Descrição */}
             <div className="space-y-2">
               <Label><span className="text-destructive">*</span> Descrição:</Label>
-              <Textarea value={newDescricao} onChange={(e) => setNewDescricao(e.target.value)} placeholder="Escreva aqui..." rows={4} />
+              <Textarea value={newDescricao} onChange={(e) => setNewDescricao(e.target.value)} placeholder="Escreva aqui..." rows={4} maxLength={2000} />
             </div>
           </div>
           <DialogFooter>

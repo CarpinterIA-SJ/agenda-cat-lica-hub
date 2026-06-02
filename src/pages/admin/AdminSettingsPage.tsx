@@ -67,11 +67,12 @@ const AdminSettingsPage = () => {
               <Input
                 value={nomePlataforma}
                 onChange={(e) => setNomePlataforma(e.target.value)}
+                maxLength={100}
               />
             </div>
             <div className="space-y-1.5">
               <Label>E-mail de suporte</Label>
-              <Input value={emailSuporte} onChange={(e) => setEmailSuporte(e.target.value)} />
+              <Input value={emailSuporte} onChange={(e) => setEmailSuporte(e.target.value)} maxLength={254} />
             </div>
           </div>
           <div className="space-y-1.5">
@@ -80,6 +81,7 @@ const AdminSettingsPage = () => {
               rows={3}
               value={mensagemBoasVindas}
               onChange={(e) => setMensagemBoasVindas(e.target.value)}
+              maxLength={2000}
             />
           </div>
         </CardContent>

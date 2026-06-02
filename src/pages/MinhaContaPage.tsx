@@ -194,7 +194,7 @@ const MinhaContaPage = () => {
           </DialogHeader>
           <div className="space-y-2">
             <Label>Nome completo</Label>
-            <Input value={nameValue} onChange={(e) => setNameValue(e.target.value)} placeholder="Seu nome" />
+            <Input value={nameValue} onChange={(e) => setNameValue(e.target.value)} placeholder="Seu nome" maxLength={100} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setNameOpen(false)}>Cancelar</Button>

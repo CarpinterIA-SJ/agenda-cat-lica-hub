@@ -193,6 +193,7 @@ const AdminDashboardPage = () => {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por nome, email, ID ou role…"
               className="pl-9"
+              maxLength={100}
             />
           </div>
         </CardHeader>

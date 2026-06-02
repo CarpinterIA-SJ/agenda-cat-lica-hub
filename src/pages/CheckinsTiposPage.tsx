@@ -139,7 +139,7 @@ const CheckinsTiposPage = () => {
         <div className="space-y-4">
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input className="pl-9" placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input className="pl-9" placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} maxLength={100} />
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-slate-200">
@@ -200,12 +200,12 @@ const CheckinsTiposPage = () => {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label htmlFor="nome" className="text-slate-700 font-semibold">Nome do Tipo <span className="text-red-500">*</span></Label>
-              <Input id="nome" placeholder="Ex: Entrada Principal" value={nome} onChange={(e) => setNome(e.target.value)} />
+              <Input id="nome" placeholder="Ex: Entrada Principal" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={100} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="descricao" className="text-slate-700 font-semibold">Descrição</Label>
-              <Input id="descricao" placeholder="Opcional" value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+              <Input id="descricao" placeholder="Opcional" value={descricao} onChange={(e) => setDescricao(e.target.value)} maxLength={500} />
             </div>
 
             <div className="flex items-center justify-between border rounded-lg p-4 mt-2">

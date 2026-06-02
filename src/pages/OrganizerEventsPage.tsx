@@ -133,6 +133,7 @@ const OrganizerEventsPage = () => {
             className="pr-10 bg-white"
             value={eventSearch}
             onChange={(e) => setEventSearch(e.target.value)}
+            maxLength={100}
           />
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         </div>

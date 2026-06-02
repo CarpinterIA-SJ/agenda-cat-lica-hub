@@ -193,6 +193,7 @@ const LoginPage = () => {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
+                        maxLength={254}
                         autoComplete="email"
                       />
                     </div>
@@ -251,6 +252,7 @@ const LoginPage = () => {
                         className="pl-10 h-11 rounded-lg"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
+                        maxLength={100}
                         autoComplete="name"
                       />
                     </div>
@@ -268,6 +270,7 @@ const LoginPage = () => {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
+                        maxLength={254}
                         autoComplete="email"
                       />
                     </div>
@@ -399,6 +402,7 @@ function PasswordInput({
         onChange={(e) => onChange(e.target.value)}
         required
         minLength={minLength}
+        maxLength={72}
         autoComplete={autoComplete}
       />
       <button

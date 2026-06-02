@@ -306,11 +306,11 @@ const CRMPage = () => {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Nome completo *</Label>
-                <Input value={personForm.name} onChange={(e) => setPersonForm((prev) => ({ ...prev, name: e.target.value }))} />
+                <Input value={personForm.name} onChange={(e) => setPersonForm((prev) => ({ ...prev, name: e.target.value }))} maxLength={100} />
               </div>
               <div className="space-y-1.5">
                 <Label>CPF/CNPJ</Label>
-                <Input value={personForm.document} onChange={(e) => setPersonForm((prev) => ({ ...prev, document: e.target.value }))} />
+                <Input value={personForm.document} onChange={(e) => setPersonForm((prev) => ({ ...prev, document: e.target.value }))} maxLength={18} />
               </div>
               <div className="space-y-1.5">
                 <Label>Nascimento</Label>
@@ -349,6 +349,7 @@ const CRMPage = () => {
                   className="min-h-[110px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={personForm.notes}
                   onChange={(e) => setPersonForm((prev) => ({ ...prev, notes: e.target.value }))}
+                  maxLength={2000}
                 />
               </div>
             </div>
@@ -368,6 +369,7 @@ const CRMPage = () => {
                 className="pl-10"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                maxLength={100}
               />
             </div>
             <Button className="gap-2" onClick={() => {
@@ -577,7 +579,7 @@ const CRMPage = () => {
           <div className="grid gap-4">
             <div className="space-y-1.5">
               <Label>Nome</Label>
-              <Input value={groupForm.name} onChange={(e) => setGroupForm((prev) => ({ ...prev, name: e.target.value }))} />
+              <Input value={groupForm.name} onChange={(e) => setGroupForm((prev) => ({ ...prev, name: e.target.value }))} maxLength={100} />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
@@ -612,7 +614,7 @@ const CRMPage = () => {
               </div>
               <div className="space-y-1.5">
                 <Label>Duração</Label>
-                <Input placeholder="Ex: 2h" value={groupForm.duration} onChange={(e) => setGroupForm((prev) => ({ ...prev, duration: e.target.value }))} />
+                <Input placeholder="Ex: 2h" value={groupForm.duration} onChange={(e) => setGroupForm((prev) => ({ ...prev, duration: e.target.value }))} maxLength={10} />
               </div>
               <div className="space-y-1.5">
                 <Label>Frequência</Label>
@@ -653,6 +655,7 @@ const CRMPage = () => {
                 className="min-h-[90px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={groupForm.description}
                 onChange={(e) => setGroupForm((prev) => ({ ...prev, description: e.target.value }))}
+                maxLength={2000}
               />
             </div>
             <div className="space-y-2">
@@ -661,6 +664,7 @@ const CRMPage = () => {
                 placeholder="Buscar endereço"
                 value={groupForm.address}
                 onChange={(e) => setGroupForm((prev) => ({ ...prev, address: e.target.value }))}
+                maxLength={100}
               />
               <div className="h-32 rounded-md border border-dashed flex items-center justify-center text-xs text-muted-foreground">
                 <MapPin className="w-4 h-4 mr-2" /> Mapa integrado
@@ -682,11 +686,11 @@ const CRMPage = () => {
           <div className="grid gap-4">
             <div className="space-y-1.5">
               <Label>Nome</Label>
-              <Input value={sectorForm.name} onChange={(e) => setSectorForm((prev) => ({ ...prev, name: e.target.value }))} />
+              <Input value={sectorForm.name} onChange={(e) => setSectorForm((prev) => ({ ...prev, name: e.target.value }))} maxLength={100} />
             </div>
             <div className="space-y-1.5">
               <Label>Descrição</Label>
-              <Input value={sectorForm.description} onChange={(e) => setSectorForm((prev) => ({ ...prev, description: e.target.value }))} />
+              <Input value={sectorForm.description} onChange={(e) => setSectorForm((prev) => ({ ...prev, description: e.target.value }))} maxLength={2000} />
             </div>
           </div>
           <DialogFooter className="gap-2">
@@ -704,7 +708,7 @@ const CRMPage = () => {
           <div className="grid gap-4">
             <div className="space-y-1.5">
               <Label>Nome</Label>
-              <Input value={tagForm.name} onChange={(e) => setTagForm((prev) => ({ ...prev, name: e.target.value }))} />
+              <Input value={tagForm.name} onChange={(e) => setTagForm((prev) => ({ ...prev, name: e.target.value }))} maxLength={100} />
             </div>
             <div className="space-y-2">
               <Label>Cor</Label>
@@ -735,7 +739,7 @@ const CRMPage = () => {
           </DialogHeader>
           <div className="space-y-1.5">
             <Label>Nome</Label>
-            <Input value={categoryForm.name} onChange={(e) => setCategoryForm((prev) => ({ ...prev, name: e.target.value }))} />
+            <Input value={categoryForm.name} onChange={(e) => setCategoryForm((prev) => ({ ...prev, name: e.target.value }))} maxLength={100} />
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setCategoryOpen(false)}>Cancelar</Button>

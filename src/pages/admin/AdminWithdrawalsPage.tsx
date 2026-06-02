@@ -331,6 +331,7 @@ const AdminWithdrawalsPage = () => {
               onChange={(e) => setRejectNotes(e.target.value)}
               placeholder="Ex: dados bancários divergentes, saldo insuficiente..."
               rows={4}
+              maxLength={500}
             />
           </div>
           <DialogFooter>
