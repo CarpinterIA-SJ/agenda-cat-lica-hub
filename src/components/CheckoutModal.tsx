@@ -23,6 +23,9 @@ import { ChargeSummary } from "@/components/ChargeSummary";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "");
 
+const brl = (cents: number) =>
+  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 interface CheckoutModalProps {
   eventId: string;
   ticketId: string;
@@ -90,60 +93,55 @@ export const CheckoutModal = ({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg rounded-2xl p-0 overflow-hidden">
-        <div className="bg-[#004d00] p-6 text-white">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold flex items-center gap-2 text-white">
-              <Ticket className="w-5 h-5" /> Finalizar inscrição
-            </DialogTitle>
-            <DialogDescription className="text-emerald-100">
-              {ticketName ?? data?.ticket_name ?? "Ingresso"}
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+      <DialogContent
+        className="
+          flex flex-col gap-0 overflow-hidden p-0
+          w-screen h-[100dvh] max-w-none rounded-none
+          sm:w-full sm:max-w-lg sm:h-auto sm:max-h-[90vh] sm:rounded-2xl
+        "
+      >
+        {/* Header fixo */}
+        <DialogHeader className="shrink-0 space-y-1 bg-[#004d00] p-4 text-left sm:p-6">
+          <DialogTitle className="flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+            <Ticket className="h-5 w-5" /> Finalizar inscrição
+          </DialogTitle>
+          <DialogDescription className="text-emerald-100">
+            {ticketName ?? data?.ticket_name ?? "Ingresso"}
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="p-6 space-y-6">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-[#004d00]" />
-            </div>
-          ) : error ? (
-            <div className="space-y-4">
-              <p className="text-sm text-destructive">{error}</p>
-              <Button variant="outline" className="w-full" onClick={onClose}>Fechar</Button>
-            </div>
-          ) : data ? (
-            <>
-              {/* Resumo de cobrança */}
-              <ChargeSummary
-                subtotalCents={data.subtotal}
-                taxaCents={data.taxa}
-                totalCents={data.total}
-                taxaPercent={data.subtotal > 0 ? taxaPercent : undefined}
-              />
-
-              <Elements
-                stripe={stripePromise}
-                options={{
-                  clientSecret: data.client_secret,
-                  appearance: { theme: "stripe", variables: { colorPrimary: "#004d00" } },
-                }}
-              >
-                <PaymentForm onClose={onClose} />
-              </Elements>
-
-              <p className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
-                <ShieldCheck className="w-3.5 h-3.5" /> Pagamento seguro processado pela Stripe
-              </p>
-            </>
-          ) : null}
-        </div>
+        {loading ? (
+          <div className="flex flex-1 items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-[#004d00]" />
+          </div>
+        ) : error ? (
+          <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+            <p className="text-sm text-destructive">{error}</p>
+            <Button variant="outline" className="w-full" onClick={onClose}>Fechar</Button>
+          </div>
+        ) : data ? (
+          <Elements
+            stripe={stripePromise}
+            options={{
+              clientSecret: data.client_secret,
+              appearance: { theme: "stripe", variables: { colorPrimary: "#004d00" } },
+            }}
+          >
+            <PaymentForm data={data} taxaPercent={taxaPercent} onClose={onClose} />
+          </Elements>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
 };
 
-const PaymentForm = ({ onClose }: { onClose: () => void }) => {
+interface PaymentFormProps {
+  data: CheckoutData;
+  taxaPercent: number;
+  onClose: () => void;
+}
+
+const PaymentForm = ({ data, taxaPercent, onClose }: PaymentFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
@@ -159,7 +157,7 @@ const PaymentForm = ({ onClose }: { onClose: () => void }) => {
         return_url: `${window.location.origin}/participante/meus-ingressos`,
       },
     });
-    // Só chega aqui em caso de erro imediato (cartão). PIX/boleto redirecionam.
+    // Só chega aqui em caso de erro imediato (cartão). Boleto redireciona.
     if (error) {
       toast({ title: "Pagamento não concluído", description: error.message, variant: "destructive" });
       setSubmitting(false);
@@ -167,18 +165,41 @@ const PaymentForm = ({ onClose }: { onClose: () => void }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <PaymentElement />
-      <div className="flex gap-2">
-        <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={submitting}>
-          Cancelar
-        </Button>
+    // Form é o container flex que divide corpo rolável e rodapé fixo.
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+      {/* Corpo com scroll interno */}
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
+        <ChargeSummary
+          subtotalCents={data.subtotal}
+          taxaCents={data.taxa}
+          totalCents={data.total}
+          taxaPercent={data.subtotal > 0 ? taxaPercent : undefined}
+        />
+
+        <PaymentElement />
+
+        <p className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
+          <ShieldCheck className="h-3.5 w-3.5" /> Pagamento seguro processado pela Stripe
+        </p>
+      </div>
+
+      {/* Rodapé fixo — botão Pagar sempre visível */}
+      <div className="shrink-0 space-y-2 border-t border-slate-200 bg-white p-4">
         <Button
           type="submit"
-          className="flex-1 bg-[#004d00] hover:bg-[#003a00] text-white"
+          className="h-12 w-full bg-[#004d00] text-base font-semibold text-white hover:bg-[#003a00]"
           disabled={!stripe || submitting}
         >
-          {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Pagar agora"}
+          {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : `Pagar ${brl(data.total)}`}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-9 w-full text-slate-500"
+          onClick={onClose}
+          disabled={submitting}
+        >
+          Cancelar
         </Button>
       </div>
     </form>
