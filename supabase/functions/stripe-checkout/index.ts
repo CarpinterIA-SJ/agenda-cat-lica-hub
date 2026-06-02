@@ -17,15 +17,17 @@ const checkoutSchema = z.object({
   coupon_code: z.string().max(50).nullish(),
 });
 
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
+// Variáveis de ambiente (lidas uma vez; ausência derruba a function com erro claro).
+const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+const stripe = new Stripe(STRIPE_SECRET_KEY, {
   apiVersion: "2024-06-20",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-const supabaseAdmin = createClient(
-  Deno.env.get("SUPABASE_URL") ?? "",
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-);
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -33,31 +35,75 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 1) Variáveis de ambiente obrigatórias.
+    const missingEnv: string[] = [];
+    if (!STRIPE_SECRET_KEY) missingEnv.push("STRIPE_SECRET_KEY");
+    if (!SUPABASE_URL) missingEnv.push("SUPABASE_URL");
+    if (!SUPABASE_SERVICE_ROLE_KEY) missingEnv.push("SUPABASE_SERVICE_ROLE_KEY");
+    if (missingEnv.length) {
+      console.error("[stripe-checkout] variáveis de ambiente ausentes:", missingEnv.join(", "));
+      return json(
+        { error: `Configuração do servidor incompleta: ${missingEnv.join(", ")} não definida(s).` },
+        500,
+      );
+    }
+
+    // 3) Loga o body recebido para diagnóstico.
     const raw = await req.json().catch(() => null);
+    console.log("[stripe-checkout] body recebido:", JSON.stringify(raw));
+
     const parsed = checkoutSchema.safeParse(raw);
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
       const field = issue.path.join(".") || "payload";
-      return json({ error: `Validação falhou: ${field} — ${issue.message}` }, 400);
+      return json({ error: `Dados inválidos: ${field} — ${issue.message}` }, 400);
     }
     const { event_id, ticket_id, quantity, user_id, coupon_code } = parsed.data;
 
-    // Ingresso
+    // 4) Ingresso (apenas colunas garantidas no schema base).
     const { data: ticket, error: ticketErr } = await supabaseAdmin
       .from("event_tickets")
-      .select("id, name, price_cents, event_id, payment_deadline_minutes")
+      .select("id, name, price_cents, event_id")
       .eq("id", ticket_id)
-      .single();
-    if (ticketErr || !ticket) return json({ error: "Ingresso não encontrado." }, 404);
-    if (ticket.event_id !== event_id) return json({ error: "Ingresso não pertence ao evento." }, 400);
+      .maybeSingle();
+    if (ticketErr) {
+      console.error("[stripe-checkout] erro ao buscar ingresso:", ticketErr);
+      return json({ error: `Falha ao buscar o ingresso: ${ticketErr.message}` }, 500);
+    }
+    if (!ticket) {
+      return json({ error: "Ingresso não encontrado. Verifique se o ingresso ainda está disponível." }, 404);
+    }
+    if (ticket.event_id !== event_id) {
+      return json({ error: "Este ingresso não pertence ao evento informado." }, 400);
+    }
 
-    // Taxa da plataforma
-    const { data: setting } = await supabaseAdmin
+    // Prazo de pagamento é coluna opcional (migration 010). Busca isolada para
+    // não derrubar o checkout caso a migration ainda não tenha sido aplicada.
+    let deadlineMin: number | null = null;
+    {
+      const { data: deadlineRow, error: deadlineErr } = await supabaseAdmin
+        .from("event_tickets")
+        .select("payment_deadline_minutes")
+        .eq("id", ticket_id)
+        .maybeSingle();
+      if (deadlineErr) {
+        console.warn("[stripe-checkout] payment_deadline_minutes indisponível (migration 010 pendente?):", deadlineErr.message);
+      } else {
+        deadlineMin = (deadlineRow as any)?.payment_deadline_minutes ?? null;
+      }
+    }
+
+    // 5) Taxa da plataforma — default 5 se ausente ou não numérica.
+    const { data: setting, error: settingErr } = await supabaseAdmin
       .from("platform_settings")
       .select("value")
       .eq("key", "taxa_plataforma_percent")
       .maybeSingle();
-    const taxaPercent = Number(setting?.value ?? "5");
+    if (settingErr) {
+      console.warn("[stripe-checkout] erro ao ler taxa_plataforma_percent, usando 5:", settingErr.message);
+    }
+    const parsedPercent = Number(setting?.value);
+    const taxaPercent = Number.isFinite(parsedPercent) && parsedPercent >= 0 ? parsedPercent : 5;
 
     // Subtotal (com cupom opcional)
     let subtotal = ticket.price_cents * quantity;
@@ -87,7 +133,6 @@ Deno.serve(async (req) => {
 
     // Prazo de pagamento configurado pelo organizador → expiração no gateway
     // para métodos assíncronos (pix/boleto). Limites do Stripe respeitados.
-    const deadlineMin = ticket.payment_deadline_minutes ?? null;
     const paymentMethodOptions: Record<string, unknown> = {};
     if (deadlineMin && deadlineMin > 0) {
       const pixSeconds = Math.min(Math.max(deadlineMin * 60, 30), 86400); // 30s..24h
@@ -155,8 +200,10 @@ Deno.serve(async (req) => {
       ticket_name: ticket.name,
     });
   } catch (err) {
-    console.error("[stripe-checkout]", err);
-    return json({ error: (err as Error).message }, 500);
+    // 2) Erro detalhado no corpo da resposta para facilitar o diagnóstico.
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[stripe-checkout] erro não tratado:", message, err);
+    return json({ error: `Erro ao iniciar o pagamento: ${message}` }, 500);
   }
 });
 
