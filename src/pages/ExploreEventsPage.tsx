@@ -149,6 +149,15 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
   };
   const tickets = eventData?.tickets || eventData?.details?.tickets || [];
   const primaryTicket = tickets[0];
+
+  // Mapa do local — exibido para eventos com endereço (presencial/híbrido).
+  const mapQuery =
+    eventData?.location && eventData.location !== "Local a definir" && eventData.type !== "Evento online"
+      ? eventData.location
+      : null;
+  const mapSrc = mapQuery
+    ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&t=m&z=15&ie=UTF8&iwloc=&output=embed&hl=pt-BR`
+    : null;
   const primaryPriceCents = primaryTicket ? Math.round(Number(primaryTicket.price || 0) * 100) : 0;
   const primaryCharge = computeCharge(primaryPriceCents, 1, taxaPercent);
 
@@ -245,6 +254,22 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
                 </div>
               </div>
             </div>
+
+            {mapSrc && (
+              <div className="rounded-2xl border border-[#dfe8df] bg-white overflow-hidden">
+                <div className="flex items-center gap-2 px-5 pt-4 pb-2 text-sm font-semibold text-[#0b3d2e]">
+                  <MapPin className="w-4 h-4" /> Localização
+                </div>
+                <iframe
+                  src={mapSrc}
+                  title="Mapa do local"
+                  className="w-full"
+                  style={{ minHeight: "260px", border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                />
+              </div>
+            )}
 
             <div className="rounded-2xl border border-[#dfe8df] bg-white p-5">
               <h2 className="text-sm font-semibold text-[#0b3d2e]">{policies.title}</h2>
@@ -482,10 +507,36 @@ const ExploreEventsPage = () => {
   const taxaPercent = Number(platformSettings?.map?.taxa_plataforma_percent ?? 5);
 
   const { data: rawEvents = [] } = useEvents({ visibility: "public", status: "active" });
+  const eventIds = useMemo(() => rawEvents.map((e) => e.id), [rawEvents]);
+
+  // Busca os preços dos ingressos de todos os eventos listados para o card exibir
+  // o valor correto (a query de eventos não traz ingressos).
+  const { data: ticketsByEvent = {} } = useQuery({
+    queryKey: ["explore-ticket-prices", eventIds],
+    enabled: eventIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("event_tickets")
+        .select("event_id, price_cents, type")
+        .in("event_id", eventIds);
+      if (error) throw error;
+      const map: Record<string, { price: string; type: string }[]> = {};
+      (data ?? []).forEach((t: any) => {
+        (map[t.event_id] ||= []).push({ price: String((t.price_cents ?? 0) / 100), type: t.type });
+      });
+      return map;
+    },
+  });
 
   useEffect(() => {
-    setEvents(rawEvents.map(eventToVM));
-  }, [rawEvents]);
+    setEvents(
+      rawEvents.map((e) => {
+        const vm = eventToVM(e);
+        vm.tickets = ticketsByEvent[e.id] ?? [];
+        return vm;
+      }),
+    );
+  }, [rawEvents, ticketsByEvent]);
 
   const filtered = events.filter((e) => {
     if (!e.name.toLowerCase().includes(search.toLowerCase())) return false;

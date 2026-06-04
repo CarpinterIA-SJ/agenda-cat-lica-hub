@@ -55,7 +55,7 @@ const MyTicketsPage = () => {
           <p className="text-slate-500 mt-1">Veja todos os seus ingressos e inscrições em um só lugar.</p>
         </div>
         <Button 
-          onClick={() => navigate("/dashboard")} 
+          onClick={() => navigate("/participante/explorar")} 
           className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
         >
           <Search className="w-4 h-4" />
@@ -88,7 +88,7 @@ const MyTicketsPage = () => {
             </div>
             <Button 
               variant="outline" 
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate("/participante/explorar")}
               className="mt-4 border-slate-200 hover:bg-white hover:border-primary hover:text-primary transition-all h-11 px-8 rounded-xl font-bold"
             >
               Explorar Marketplace

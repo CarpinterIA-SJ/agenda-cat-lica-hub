@@ -24,6 +24,13 @@ const locationLabel = (loc: any): string | null => {
   return loc.name || loc.city || loc.address || null;
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  confirmed: "Confirmado",
+  pending: "Pendente",
+  cancelled: "Cancelado",
+  waitlist: "Fila de espera",
+};
+
 const formatDate = (raw?: string) => {
   if (!raw) return null;
   try {
@@ -204,6 +211,7 @@ const MyTicketDetailPage = () => {
         {/* Order Details Grid */}
         <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-5 overflow-hidden">
           <InfoRow label="Número do pedido" value={String(registration.id).slice(-10).toUpperCase()} icon={Hash} />
+          <InfoRow label="Status" value={STATUS_LABEL[registration.status] ?? registration.status} badge />
           <InfoRow label="Pedido realizado por" value={participantName} icon={User} />
           <InfoRow label="E-mail" value={email} icon={Mail} />
           {phone && <InfoRow label="Telefone" value={phone} icon={Phone} />}
