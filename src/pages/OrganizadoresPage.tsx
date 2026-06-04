@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,9 +10,17 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Plus, Search, Filter, Pencil, Trash2, ChevronLeft, ChevronRight, Upload } from "lucide-react";
+import { ArrowLeft, Plus, Search, Filter, Pencil, Trash2, ChevronLeft, ChevronRight, Upload, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  useMyOrganizations,
+  useCreateOrganization,
+  useUpdateOrganization,
+  useDeleteOrganization,
+  buildOrgSlug,
+} from "@/hooks/use-organizations";
 
 interface Organizador {
   id: string;
@@ -26,6 +34,11 @@ interface Organizador {
 const OrganizadoresPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { data: orgs = [], isLoading } = useMyOrganizations();
+  const createOrg = useCreateOrganization();
+  const updateOrg = useUpdateOrganization();
+  const deleteOrg = useDeleteOrganization();
   const [search, setSearch] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -38,29 +51,16 @@ const OrganizadoresPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const defaultOrganizadores: Organizador[] = [
-    {
-      id: "1",
-      nome: "FABRICIO CHRISTIAN DA SILVA CAVALCANTE",
-      email: "fabricio.christian@hotmail.com",
-      descricao: "",
-      logo: null,
-      dataCriacao: "22/03/2026",
-    },
-  ];
-
-  const [organizadores, setOrganizadores] = useState<Organizador[]>(() => {
-    try {
-      const stored = localStorage.getItem("organizadores");
-      return stored ? JSON.parse(stored) : defaultOrganizadores;
-    } catch {
-      return defaultOrganizadores;
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem("organizadores", JSON.stringify(organizadores));
-  }, [organizadores]);
+  // Linhas reais da tabela organizations (email/descrição/logo não têm coluna
+  // no schema atual — exibidos apenas no formulário, não persistidos).
+  const organizadores: Organizador[] = orgs.map((o) => ({
+    id: o.id,
+    nome: o.name,
+    email: "",
+    descricao: "",
+    logo: null,
+    dataCriacao: new Date(o.created_at).toLocaleDateString("pt-BR"),
+  }));
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -91,50 +91,61 @@ const OrganizadoresPage = () => {
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const paginatedItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const handleAdd = () => {
-    if (!newNome || !newEmail || !newDescricao) {
-      toast({ title: "Preencha todos os campos obrigatórios", variant: "destructive" });
+  const resetForm = () => {
+    setNewNome("");
+    setNewEmail("");
+    setNewDescricao("");
+    setNewLogo(null);
+  };
+
+  const handleAdd = async () => {
+    if (!newNome.trim()) {
+      toast({ title: "Informe o nome do organizador", variant: "destructive" });
       return;
     }
-    const novo: Organizador = {
-      id: Date.now().toString(),
-      nome: newNome.toUpperCase(),
-      email: newEmail,
-      descricao: newDescricao,
-      logo: newLogo,
-      dataCriacao: new Date().toLocaleDateString("pt-BR"),
-    };
-    setOrganizadores((prev) => [...prev, novo]);
-    setNewNome("");
-    setNewEmail("");
-    setNewDescricao("");
-    setNewLogo(null);
-    setShowAddDialog(false);
-    toast({ title: "Organizador adicionado com sucesso" });
+    if (!user?.id) {
+      toast({ title: "Sessão expirada", description: "Faça login novamente.", variant: "destructive" });
+      return;
+    }
+    const name = newNome.trim().toUpperCase();
+    try {
+      await createOrg.mutateAsync({ name, slug: buildOrgSlug(name), owner_id: user.id });
+      resetForm();
+      setShowAddDialog(false);
+      toast({ title: "Organizador adicionado com sucesso" });
+    } catch (e: any) {
+      toast({ title: "Erro ao adicionar organizador", description: e.message, variant: "destructive" });
+    }
   };
 
-  const handleEdit = () => {
-    if (!selectedOrganizador || !newNome || !newEmail) return;
-    setOrganizadores((prev) =>
-      prev.map((o) =>
-        o.id === selectedOrganizador.id ? { ...o, nome: newNome.toUpperCase(), email: newEmail, descricao: newDescricao, logo: newLogo } : o
-      )
-    );
-    setShowEditDialog(false);
-    setSelectedOrganizador(null);
-    setNewNome("");
-    setNewEmail("");
-    setNewDescricao("");
-    setNewLogo(null);
-    toast({ title: "Organizador atualizado com sucesso" });
+  const handleEdit = async () => {
+    if (!selectedOrganizador || !newNome.trim()) return;
+    const name = newNome.trim().toUpperCase();
+    try {
+      await updateOrg.mutateAsync({
+        id: selectedOrganizador.id,
+        name,
+        slug: buildOrgSlug(name, selectedOrganizador.id.slice(0, 8)),
+      });
+      setShowEditDialog(false);
+      setSelectedOrganizador(null);
+      resetForm();
+      toast({ title: "Organizador atualizado com sucesso" });
+    } catch (e: any) {
+      toast({ title: "Erro ao atualizar organizador", description: e.message, variant: "destructive" });
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedOrganizador) return;
-    setOrganizadores((prev) => prev.filter((o) => o.id !== selectedOrganizador.id));
-    setShowDeleteDialog(false);
-    setSelectedOrganizador(null);
-    toast({ title: "Organizador removido com sucesso" });
+    try {
+      await deleteOrg.mutateAsync(selectedOrganizador.id);
+      setShowDeleteDialog(false);
+      setSelectedOrganizador(null);
+      toast({ title: "Organizador removido com sucesso" });
+    } catch (e: any) {
+      toast({ title: "Erro ao remover organizador", description: e.message, variant: "destructive" });
+    }
   };
 
   const openEdit = (org: Organizador) => {
@@ -211,7 +222,13 @@ const OrganizadoresPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedItems.length === 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                    <Loader2 className="w-5 h-5 animate-spin inline" />
+                  </TableCell>
+                </TableRow>
+              ) : paginatedItems.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                     Nenhum organizador encontrado
@@ -221,7 +238,7 @@ const OrganizadoresPage = () => {
                 paginatedItems.map((org) => (
                   <TableRow key={org.id}>
                     <TableCell className="text-primary font-medium">{org.nome}</TableCell>
-                    <TableCell className="text-muted-foreground">{org.email}</TableCell>
+                    <TableCell className="text-muted-foreground">{org.email || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{org.dataCriacao}</TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-2">
@@ -345,7 +362,9 @@ const OrganizadoresPage = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancelar</Button>
-            <Button onClick={handleAdd} className="bg-primary text-primary-foreground">Criar organizador</Button>
+            <Button onClick={handleAdd} disabled={createOrg.isPending} className="bg-primary text-primary-foreground">
+              {createOrg.isPending ? "Criando..." : "Criar organizador"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -408,7 +427,9 @@ const OrganizadoresPage = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancelar</Button>
-            <Button onClick={handleEdit} className="bg-primary text-primary-foreground">Salvar</Button>
+            <Button onClick={handleEdit} disabled={updateOrg.isPending} className="bg-primary text-primary-foreground">
+              {updateOrg.isPending ? "Salvando..." : "Salvar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -424,7 +445,9 @@ const OrganizadoresPage = () => {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleDelete}>Excluir</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteOrg.isPending}>
+              {deleteOrg.isPending ? "Excluindo..." : "Excluir"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

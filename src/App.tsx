@@ -13,7 +13,7 @@ import MyTicketDetailPage from "./pages/MyTicketDetailPage";
 import ExploreEventsPage, { PublicEventPage } from "./pages/ExploreEventsPage";
 import SupportPage from "./pages/SupportPage";
 import OrganizerEventsPage from "./pages/OrganizerEventsPage";
-import OrganizerEventMensagensPage, { MessageSection } from "./pages/OrganizerEventMensagensPage";
+import OrganizerEventMensagensPage, { MessageSection, MESSAGE_TEMPLATES, defaultMessageContents } from "./pages/OrganizerEventMensagensPage";
 import CRMPage from "./pages/CRMPage";
 import NotFound from "./pages/NotFound";
 import CheckinsPage from "./pages/CheckinsPage";
@@ -125,11 +125,13 @@ import TiptapLink from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import TextAlign from "@tiptap/extension-text-align";
 import Placeholder from "@tiptap/extension-placeholder";
-import { useMyOrganization } from "@/hooks/use-organizations";
+import { useMyOrganization, useMyOrganizations } from "@/hooks/use-organizations";
 import { useEvent, useCreateEvent, useUpdateEvent } from "@/hooks/use-events";
 import { useTickets, useCreateTicket, useDeleteTicket } from "@/hooks/use-tickets";
 import { useRegistrations } from "@/hooks/use-registrations";
+import { useCheckins } from "@/hooks/use-checkins";
 import { useCoupons, useCreateCoupon, useUpdateCoupon, useDeleteCoupon } from "@/hooks/use-coupons";
+import { useEventMessages, useUpsertEventMessage } from "@/hooks/use-event-messages";
 
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { session, loading } = useAuth();
@@ -228,6 +230,8 @@ const OrganizerEventNewPage = () => {
   const [tipoEvento, setTipoEvento] = useState("presencial");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
+  const [horaInicio, setHoraInicio] = useState("");
+  const [horaFim, setHoraFim] = useState("");
 
   // Ingressos state
   interface Ingresso { id: string; nome: string; quantidade: number; preco: number | null; tipo: "pago" | "gratuito"; status: string; visibilidade: string; repassarTaxas: boolean; }
@@ -276,33 +280,29 @@ const OrganizerEventNewPage = () => {
   const [frmAddFieldOpen, setFrmAddFieldOpen] = useState(false);
   const [frmNewFieldLabel, setFrmNewFieldLabel] = useState("");
 
+  // Mensagens (templates) state
+  const upsertMsg = useUpsertEventMessage();
+  const { data: savedMsgs = [] } = useEventMessages(eventoId ?? undefined);
+  const [msgContents, setMsgContents] = useState<Record<string, string>>(defaultMessageContents);
+  const setMsgContent = (key: string, html: string) =>
+    setMsgContents((prev) => (prev[key] === html ? prev : { ...prev, [key]: html }));
+
   // Form fields
   const [nomeEvento, setNomeEvento] = useState("");
   const [organizadorId, setOrganizadorId] = useState("");
   const [termosAceitos, setTermosAceitos] = useState(false);
   const [categoria, setCategoria] = useState("");
 
-  const [organizadores, setOrganizadoresState] = useState<{ id: string; nome: string }[]>(() => {
-    try {
-      const stored = localStorage.getItem("organizadores");
-      return stored ? JSON.parse(stored) : [{ id: "1", nome: "FABRICIO CHRISTIAN DA SILVA CAVALCANTE" }];
-    } catch {
-      return [{ id: "1", nome: "FABRICIO CHRISTIAN DA SILVA CAVALCANTE" }];
-    }
-  });
+  // Organizadores = organizações reais do usuário (Supabase), não mais localStorage.
+  const { data: organizadores = [] } = useMyOrganizations();
 
+  // Pré-seleciona a organização primária assim que a lista carrega.
   useEffect(() => {
-    const handleStorage = () => {
-      try {
-        const stored = localStorage.getItem("organizadores");
-        if (stored) setOrganizadoresState(JSON.parse(stored));
-      } catch {
-        // keep current
-      }
-    };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+    if (!organizadorId && organizadores.length > 0) {
+      const primary = org?.id && organizadores.some((o) => o.id === org.id) ? org.id : organizadores[0].id;
+      setOrganizadorId(primary);
+    }
+  }, [organizadores, org, organizadorId]);
 
   // Banner
   const [bannerUrl, setBannerUrl] = useState<string | null>(null);
@@ -477,7 +477,8 @@ const OrganizerEventNewPage = () => {
       return;
     }
 
-    if (!org?.id) {
+    const selectedOrg = organizadores.find((o) => o.id === organizadorId) ?? org;
+    if (!selectedOrg?.id) {
       toast({ title: "Organização não encontrada", description: "Aguarde a criação da sua organização e tente novamente.", variant: "destructive" });
       return;
     }
@@ -487,6 +488,12 @@ const OrganizerEventNewPage = () => {
     try {
       const descriptionHtml = descEditor?.getHTML?.() || "";
       const descriptionText = (descEditor?.getText?.() || "").trim();
+
+      // Normaliza hh:mm parcial → "HH:mm" válido (ou "00:00" se incompleto).
+      const sanitizeTime = (t: string): string => {
+        const d = t.replace(/\D/g, "");
+        return d.length === 4 ? `${d.slice(0, 2)}:${d.slice(2)}` : "00:00";
+      };
 
       // Converte dd/mm/aaaa → ISO 8601. Retorna null se a data estiver incompleta ou inválida.
       const ptBRToISO = (d: string, time = "00:00"): string | null => {
@@ -498,8 +505,8 @@ const OrganizerEventNewPage = () => {
 
       if (!eventoId) {
         const created = await createEvent.mutateAsync({
-          organization_id: org.id,
-          created_by: org.owner_id,
+          organization_id: selectedOrg.id,
+          created_by: selectedOrg.owner_id,
           name: nomeEvento.trim(),
           description: descriptionText ? descriptionHtml : null,
           description_text: descriptionText || null,
@@ -508,8 +515,8 @@ const OrganizerEventNewPage = () => {
           format: tipoEvento as any,
           visibility: "public",
           status: "active",
-          start_at: ptBRToISO(dataInicio),
-          end_at: ptBRToISO(dataFim),
+          start_at: ptBRToISO(dataInicio, sanitizeTime(horaInicio)),
+          end_at: ptBRToISO(dataFim, sanitizeTime(horaFim)),
           location: buildLocation() as any,
         });
         setEventoId(created.id);
@@ -522,8 +529,8 @@ const OrganizerEventNewPage = () => {
           banner_url: bannerUrl || null,
           category: categoria || null,
           format: tipoEvento as any,
-          start_at: ptBRToISO(dataInicio),
-          end_at: ptBRToISO(dataFim),
+          start_at: ptBRToISO(dataInicio, sanitizeTime(horaInicio)),
+          end_at: ptBRToISO(dataFim, sanitizeTime(horaFim)),
           location: buildLocation() as any,
         });
       }
@@ -558,6 +565,93 @@ const OrganizerEventNewPage = () => {
       toast({ title: "Erro ao salvar ingressos", description: e.message, variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Persist banner + descrição (página do evento) when advancing from página tab
+  const handleSalvarPagina = async () => {
+    const goNext = () => {
+      const nextIndex = TAB_ORDER.indexOf("ingressos");
+      setMaxTabIndex((prev) => Math.max(prev, nextIndex));
+      setTab("ingressos");
+    };
+    if (!eventoId) { goNext(); return; }
+    setSaving(true);
+    try {
+      const descriptionHtml = descEditor?.getHTML?.() || "";
+      const descriptionText = (descEditor?.getText?.() || "").trim();
+      await updateEvent.mutateAsync({
+        id: eventoId,
+        banner_url: bannerUrl || null,
+        description: descriptionText ? descriptionHtml : null,
+        description_text: descriptionText || null,
+      });
+      goNext();
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar página", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Persist payment_config when advancing from pagamento tab
+  const handleSalvarPagamento = async () => {
+    const goNext = () => {
+      const nextIndex = TAB_ORDER.indexOf("formulario");
+      setMaxTabIndex((prev) => Math.max(prev, nextIndex));
+      setTab("formulario");
+    };
+    if (!eventoId) { goNext(); return; }
+    setSaving(true);
+    try {
+      await updateEvent.mutateAsync({
+        id: eventoId,
+        payment_config: {
+          credit_card: pgCreditEnabled,
+          pix: pgPixEnabled,
+          boleto: pgBoletoEnabled,
+          pix_prazo: Number(pgPixPrazo) || 0,
+          pix_unit: pgPixUnit,
+          boleto_prazo: Number(pgBoletoPrazo) || 0,
+          auto_cancel: pgAutoCancel,
+        } as any,
+      });
+      goNext();
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar pagamento", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Persist mensagens (templates) na tabela event_messages e finaliza o wizard
+  const handleSalvarMensagens = async () => {
+    if (eventoId && organizadorId) {
+      setSaving(true);
+      try {
+        for (const t of MESSAGE_TEMPLATES) {
+          const existing = savedMsgs.find((m) => m.subject === t.title && m.channel === t.channel);
+          await upsertMsg.mutateAsync({
+            id: existing?.id,
+            organization_id: organizadorId,
+            event_id: eventoId,
+            channel: t.channel,
+            subject: t.title,
+            body: msgContents[t.key],
+          });
+        }
+      } catch (e: any) {
+        toast({ title: "Erro ao salvar mensagens", description: e.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      setSaving(false);
+    }
+    toast({ title: "Mensagens salvas!", description: "Evento criado com sucesso." });
+    if (eventoId) {
+      navigate(`/organizador/evento/${eventoId}/dashboard`);
+    } else {
+      navigate("/organizador/meus-eventos");
     }
   };
 
@@ -666,9 +760,9 @@ const OrganizerEventNewPage = () => {
                       <SelectValue placeholder="Selecione o organizador" />
                     </SelectTrigger>
                     <SelectContent>
-                      {organizadores.map((org) => (
-                        <SelectItem key={org.id} value={org.id}>
-                          {org.nome}
+                      {organizadores.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -784,14 +878,14 @@ const OrganizerEventNewPage = () => {
                     <label className="text-sm font-medium">Início do evento</label>
                     <div className="grid gap-2 sm:grid-cols-2">
                       <PatternFormat format="##/##/####" mask="_" placeholder="dd/mm/aaaa" inputMode="numeric" customInput={Input} value={dataInicio} onValueChange={(v) => setDataInicio(v.formattedValue)} />
-                      <PatternFormat format="##:##" mask="_" placeholder="hh:mm" inputMode="numeric" customInput={Input} />
+                      <PatternFormat format="##:##" mask="_" placeholder="hh:mm" inputMode="numeric" customInput={Input} value={horaInicio} onValueChange={(v) => setHoraInicio(v.formattedValue)} />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Término do evento</label>
                     <div className="grid gap-2 sm:grid-cols-2">
                       <PatternFormat format="##/##/####" mask="_" placeholder="dd/mm/aaaa" inputMode="numeric" customInput={Input} value={dataFim} onValueChange={(v) => setDataFim(v.formattedValue)} />
-                      <PatternFormat format="##:##" mask="_" placeholder="hh:mm" inputMode="numeric" customInput={Input} />
+                      <PatternFormat format="##:##" mask="_" placeholder="hh:mm" inputMode="numeric" customInput={Input} value={horaFim} onValueChange={(v) => setHoraFim(v.formattedValue)} />
                     </div>
                   </div>
                 </div>
@@ -1107,13 +1201,10 @@ const OrganizerEventNewPage = () => {
               </Button>
               <Button
                 className="h-12 px-6 bg-emerald-700 text-white hover:bg-emerald-800"
-                onClick={() => {
-                  const nextIndex = TAB_ORDER.indexOf("ingressos");
-                  setMaxTabIndex((prev) => Math.max(prev, nextIndex));
-                  setTab("ingressos");
-                }}
+                disabled={saving}
+                onClick={handleSalvarPagina}
               >
-                Salvar e continuar
+                {saving ? "Salvando..." : "Salvar e continuar"}
               </Button>
             </div>
           </TabsContent>
@@ -1344,13 +1435,10 @@ const OrganizerEventNewPage = () => {
               </Button>
               <Button
                 className="h-12 px-6 bg-emerald-700 text-white hover:bg-emerald-800"
-                onClick={() => {
-                  const nextIndex = TAB_ORDER.indexOf("formulario");
-                  setMaxTabIndex((prev) => Math.max(prev, nextIndex));
-                  setTab("formulario");
-                }}
+                disabled={saving}
+                onClick={handleSalvarPagamento}
               >
-                Salvar e continuar
+                {saving ? "Salvando..." : "Salvar e continuar"}
               </Button>
             </div>
           </TabsContent>
@@ -1547,35 +1635,15 @@ const OrganizerEventNewPage = () => {
               </span>
             </div>
 
-            <MessageSection
-              title="Mensagem para confirmação de inscrição - WhatsApp"
-              defaultContent={`<p>Olá <span class="template-var">{{nome}}</span>! Sua inscrição no evento <span class="template-var">{{nome_evento}}</span> foi realizada com sucesso.</p><p>Guarde este comprovante. Em caso de dúvidas, entre em contato conosco.</p><p>Equipe Guardião Eventos</p>`}
-            />
-            <MessageSection
-              title="Mensagem enviada após cadastro em fila de espera - WhatsApp"
-              infoBanner="Esta mensagem será enviada automaticamente quando um participante for adicionado à fila de espera via WhatsApp."
-              defaultContent={`<p>Olá <span class="template-var">{{nome}}</span>! Você foi cadastrado(a) na fila de espera do evento <span class="template-var">{{nome_evento}}</span>.</p><p>Assim que uma vaga for liberada, entraremos em contato.</p><p>Equipe Guardião Eventos</p>`}
-            />
-            <MessageSection
-              title="Mensagem para confirmação de inscrição - E-mail"
-              defaultContent={`<p>Olá <span class="template-var">{{nome}}</span>,</p><p>Sua inscrição no evento <span class="template-var">{{nome_evento}}</span> foi confirmada com sucesso!</p><p>Você receberá mais detalhes em breve.</p><p>Atenciosamente,<br/>Equipe Guardião Eventos</p>`}
-            />
-            <MessageSection
-              title="Mensagem enviada após cadastro em fila de espera - E-mail"
-              defaultContent={`<p>Olá <span class="template-var">{{nome}}</span>,</p><p>Você foi adicionado(a) à fila de espera do evento <span class="template-var">{{nome_evento}}</span>.</p><p>Notificaremos assim que houver disponibilidade.</p><p>Equipe Guardião Eventos</p>`}
-            />
-            <MessageSection
-              title="Mensagem para o ingresso (Comprovante de inscrição em PDF)"
-              defaultContent={`<p>Segue em anexo o comprovante de inscrição do participante <span class="template-var">{{nome}}</span> para o evento <span class="template-var">{{nome_evento}}</span>.</p>`}
-            />
-            <MessageSection
-              title="Mensagem para recuperação de pedido pendente - PIX (não pago)"
-              defaultContent={`<p>Olá <span class="template-var">{{nome}}</span>,</p><p>Notamos que seu pagamento via PIX para o evento <span class="template-var">{{nome_evento}}</span> ainda não foi confirmado.</p><p>Complete o pagamento para garantir sua vaga.</p><p>Equipe Guardião Eventos</p>`}
-            />
-            <MessageSection
-              title="Mensagem para recuperação de pedido pendente - Boleto (não pago)"
-              defaultContent={`<p>Olá <span class="template-var">{{nome}}</span>,</p><p>Seu boleto para o evento <span class="template-var">{{nome_evento}}</span> está pendente de pagamento.</p><p>Efetue o pagamento até a data de vencimento para garantir sua inscrição.</p><p>Equipe Guardião Eventos</p>`}
-            />
+            {MESSAGE_TEMPLATES.map((t) => (
+              <MessageSection
+                key={t.key}
+                title={t.title}
+                infoBanner={t.infoBanner}
+                defaultContent={msgContents[t.key]}
+                onChange={(html) => setMsgContent(t.key, html)}
+              />
+            ))}
 
             <div className="flex items-center justify-between pb-6">
               <Button variant="outline" className="h-12 px-6" onClick={() => setTab("formulario")}>
@@ -1583,16 +1651,10 @@ const OrganizerEventNewPage = () => {
               </Button>
               <Button
                 className="h-12 px-6 bg-emerald-700 text-white hover:bg-emerald-800"
-                onClick={() => {
-                  toast({ title: "Mensagens salvas!", description: "Evento criado com sucesso." });
-                  if (eventoId) {
-                    navigate(`/organizador/evento/${eventoId}/dashboard`);
-                  } else {
-                    navigate("/organizador/meus-eventos");
-                  }
-                }}
+                disabled={saving}
+                onClick={handleSalvarMensagens}
               >
-                Salvar mensagens
+                {saving ? "Salvando..." : "Salvar mensagens"}
               </Button>
             </div>
           </TabsContent>
@@ -1953,6 +2015,11 @@ const OrganizerEventParticipantesPage = () => {
   const { id } = useParams();
   const [search, setSearch] = useState("");
   const { data: registrations = [], isLoading } = useRegistrations(id);
+  const { data: checkins = [] } = useCheckins(id);
+
+  const confirmedCount = registrations.filter((r) => r.status === "confirmed").length;
+  const pendingCount = registrations.filter((r) => r.status === "pending").length;
+  const checkinCount = checkins.length;
 
   const filteredParticipants = registrations.filter((participant) => {
     const query = search.toLowerCase();
@@ -2001,19 +2068,19 @@ const OrganizerEventParticipantesPage = () => {
         {[
           {
             title: "Participantes confirmados (pagamento realizado)",
-            value: "0",
+            value: String(confirmedCount),
             icon: Users,
             color: "bg-blue-50 text-blue-600",
           },
           {
             title: "Participantes pendentes (aguardando pagamento)",
-            value: "0",
+            value: String(pendingCount),
             icon: Tag,
             color: "bg-rose-50 text-rose-600",
           },
           {
             title: "Check-ins realizados",
-            value: "0",
+            value: String(checkinCount),
             icon: CheckSquare,
             color: "bg-emerald-50 text-emerald-600",
           },
@@ -3203,7 +3270,11 @@ const OrganizerEventConfiguracoesPage = () => {
 const OrganizerEventPaginaConfiguracoesPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const eventName = "FABRICIO CHRISTIAN DA SILVA CAVALCANTE";
+  const { toast } = useToast();
+  const { data: eventData } = useEvent(id);
+  const updateEvent = useUpdateEvent();
+  const [saving, setSaving] = useState(false);
+  const eventName = eventData?.name ?? "Evento";
 
   // Refs para inputs de arquivo ocultos
   const editorImageInputRef = useRef<HTMLInputElement>(null);
@@ -3225,6 +3296,32 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
     ],
     content: "",
   });
+
+  // Carrega a descrição já salva no editor (uma vez, sem sobrescrever edições).
+  useEffect(() => {
+    if (eventData?.description && editor && editor.isEmpty) {
+      editor.commands.setContent(eventData.description);
+    }
+  }, [eventData, editor]);
+
+  const handleSavePagina = async () => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      const html = editor?.getHTML?.() || "";
+      const text = (editor?.getText?.() || "").trim();
+      await updateEvent.mutateAsync({
+        id,
+        description: text ? html : null,
+        description_text: text || null,
+      });
+      toast({ title: "Página salva", description: "A descrição do evento foi atualizada." });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Insere imagem base64 no editor Tiptap
   const handleEditorImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -3524,7 +3621,13 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
       </Card>
 
       <div className="flex justify-end">
-        <Button className="bg-[#004d00] text-white hover:bg-[#003a00]">Salvar</Button>
+        <Button
+          className="bg-[#004d00] text-white hover:bg-[#003a00]"
+          onClick={handleSavePagina}
+          disabled={saving}
+        >
+          {saving ? "Salvando..." : "Salvar"}
+        </Button>
       </div>
     </div>
   );
@@ -3533,7 +3636,10 @@ const OrganizerEventPaginaConfiguracoesPage = () => {
 const OrganizerEventPagamentoConfiguracoesPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const eventName = "FABRICIO CHRISTIAN DA SILVA CAVALCANTE";
+  const { toast } = useToast();
+  const { data: eventData } = useEvent(id);
+  const updateEvent = useUpdateEvent();
+  const eventName = eventData?.name ?? "Evento";
   const [creditEnabled, setCreditEnabled] = useState(true);
   const [pixEnabled, setPixEnabled] = useState(false);
   const [boletoEnabled, setBoletoEnabled] = useState(false);
@@ -3541,6 +3647,43 @@ const OrganizerEventPagamentoConfiguracoesPage = () => {
   const [pixUnit, setPixUnit] = useState("minutos");
   const [boletoPrazo, setBoletoPrazo] = useState("2");
   const [autoCancel, setAutoCancel] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Carrega payment_config salvo no evento.
+  useEffect(() => {
+    const pc: any = eventData?.payment_config ?? {};
+    setCreditEnabled(pc.credit_card ?? true);
+    setPixEnabled(pc.pix ?? false);
+    setBoletoEnabled(pc.boleto ?? false);
+    setPixPrazo(String(pc.pix_prazo ?? 30));
+    setPixUnit(pc.pix_unit ?? "minutos");
+    setBoletoPrazo(String(pc.boleto_prazo ?? 2));
+    setAutoCancel(pc.auto_cancel ?? true);
+  }, [eventData]);
+
+  const handleSavePagamento = async () => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      await updateEvent.mutateAsync({
+        id,
+        payment_config: {
+          credit_card: creditEnabled,
+          pix: pixEnabled,
+          boleto: boletoEnabled,
+          pix_prazo: Number(pixPrazo) || 0,
+          pix_unit: pixUnit,
+          boleto_prazo: Number(boletoPrazo) || 0,
+          auto_cancel: autoCancel,
+        } as any,
+      });
+      toast({ title: "Formas de pagamento salvas", description: "As preferências de pagamento foram atualizadas." });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const tabs = [
     { label: "Informações gerais", icon: Info, route: `/organizador/evento/${id}/configuracoes` },
@@ -3707,7 +3850,13 @@ const OrganizerEventPagamentoConfiguracoesPage = () => {
       </Card>
 
       <div className="flex justify-end">
-        <Button className="bg-[#004d00] text-white hover:bg-[#003a00]">Salvar</Button>
+        <Button
+          className="bg-[#004d00] text-white hover:bg-[#003a00]"
+          onClick={handleSavePagamento}
+          disabled={saving}
+        >
+          {saving ? "Salvando..." : "Salvar"}
+        </Button>
       </div>
     </div>
   );

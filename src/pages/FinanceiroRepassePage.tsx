@@ -101,7 +101,7 @@ export default function FinanceiroRepassePage() {
         </div>
         <Button
           variant="outline"
-          onClick={() => navigate("/organizador/dashboard")}
+          onClick={() => navigate("/organizador/meus-eventos")}
           className="whitespace-nowrap bg-white hover:bg-slate-50"
         >
           Voltar para os meus eventos

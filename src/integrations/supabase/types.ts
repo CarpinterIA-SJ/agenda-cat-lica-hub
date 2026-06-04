@@ -83,6 +83,7 @@ export interface Event {
   location:         Json | null
   custom_fields:    Json
   show_fields:      Json
+  payment_config:   Json
   created_at:       string
   updated_at:       string
 }
@@ -348,6 +349,7 @@ export type Database = {
           status?:      EventStatus
           custom_fields?: Json
           show_fields?:   Json
+          payment_config?: Json
         }
         Update: Partial<Omit<Event, 'id' | 'organization_id' | 'created_at'>>
       }

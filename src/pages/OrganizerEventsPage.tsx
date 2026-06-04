@@ -95,12 +95,16 @@ const OrganizerEventsPage = () => {
     navigate(`/organizador/evento/${eventId}/dashboard`);
   };
 
-  const handlePublish = async (eventId: string, title: string) => {
+  const handleToggleStatus = async (eventId: string, title: string, publish: boolean) => {
     try {
-      await updateEvent.mutateAsync({ id: eventId, status: "active" });
-      toast({ title: "Evento publicado", description: `"${title}" agora está visível para participantes.` });
+      await updateEvent.mutateAsync({ id: eventId, status: publish ? "active" : "paused" });
+      toast(
+        publish
+          ? { title: "Evento publicado", description: `"${title}" agora está visível para participantes.` }
+          : { title: "Evento despublicado", description: `"${title}" não está mais visível para participantes.` },
+      );
     } catch (e: any) {
-      toast({ title: "Erro ao publicar", description: e.message, variant: "destructive" });
+      toast({ title: "Erro ao atualizar status", description: e.message, variant: "destructive" });
     }
   };
 
@@ -214,12 +218,21 @@ const OrganizerEventsPage = () => {
                   >
                     Gerenciar
                   </Button>
-                  {event.status === "draft" && (
+                  {event.status === "active" ? (
+                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto border-slate-300 text-slate-600 hover:bg-slate-100"
+                      disabled={updateEvent.isPending}
+                      onClick={() => handleToggleStatus(event.id, event.name, false)}
+                    >
+                      Despublicar
+                    </Button>
+                  ) : (
                     <Button
                       variant="outline"
                       className="w-full sm:w-auto border-emerald-600 text-emerald-700 hover:bg-emerald-50"
                       disabled={updateEvent.isPending}
-                      onClick={() => handlePublish(event.id, event.name)}
+                      onClick={() => handleToggleStatus(event.id, event.name, true)}
                     >
                       Publicar
                     </Button>

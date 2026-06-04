@@ -1,38 +1,55 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   Calendar,
   Users,
-  Users2,
   HandHeart,
   Headset,
   Heart,
   CalendarDays,
   Ticket,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useMyOrganization } from "@/hooks/use-organizations";
+import { useEvents } from "@/hooks/use-events";
 
 const DashboardPage = () => {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [eventCount, setEventCount] = useState(1);
-  const [registrationCount, setRegistrationCount] = useState(0);
 
-  useEffect(() => {
-    try {
-      const storedEvents = JSON.parse(localStorage.getItem("custom_events") || "[]");
-      setEventCount(storedEvents.length + 1);
-    } catch {
-      setEventCount(1);
-    }
-    try {
-      const storedRegistrations = JSON.parse(localStorage.getItem("event_registrations") || "[]");
-      setRegistrationCount(storedRegistrations.length);
-    } catch {
-      setRegistrationCount(0);
-    }
-  }, []);
+  const { data: org } = useMyOrganization();
+  const { data: events = [] } = useEvents(org?.id ? { organization_id: org.id } : undefined);
+  const eventIds = events.map((e) => e.id);
+
+  // Inscrições reais somadas em todos os eventos da organização.
+  const { data: registrationCount = 0 } = useQuery({
+    queryKey: ["dashboard-registration-count", org?.id, eventIds],
+    enabled: eventIds.length > 0,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("event_registrations")
+        .select("id", { count: "exact", head: true })
+        .in("event_id", eventIds);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
+  // Contatos reais do CRM da organização.
+  const { data: crmCount = 0 } = useQuery({
+    queryKey: ["dashboard-crm-count", org?.id],
+    enabled: !!org?.id,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("crm_contacts")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", org!.id);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
 
   if (role === "participant") {
     return <Navigate to="/participante/meus-ingressos" replace />;
@@ -46,13 +63,17 @@ const DashboardPage = () => {
     return <Navigate to="/organizador/home" replace />;
   }
 
+  const activeSince = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString("pt-BR")
+    : "—";
+
   const stats = [
-    { label: "Total de eventos", value: eventCount, icon: Calendar, color: "text-primary" },
+    { label: "Total de eventos", value: events.length, icon: Calendar, color: "text-primary" },
     { label: "Total de campanhas de doações", value: 0, icon: Heart, color: "text-orange-500" },
-    { label: "Total de contatos no CRM", value: 5, icon: Users, color: "text-blue-500" },
+    { label: "Total de contatos no CRM", value: crmCount, icon: Users, color: "text-blue-500" },
     { label: "Total de inscrições em eventos", value: registrationCount, icon: Ticket, color: "text-orange-500" },
     { label: "Total de doadores cadastrados", value: 0, icon: HandHeart, color: "text-orange-500" },
-    { label: "Conta ativa desde", value: "17/01/2026", icon: CalendarDays, color: "text-blue-500" },
+    { label: "Conta ativa desde", value: activeSince, icon: CalendarDays, color: "text-blue-500" },
   ];
 
   const quickAccess = [

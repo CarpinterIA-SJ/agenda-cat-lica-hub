@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -21,6 +21,9 @@ import UnderlineExtension from "@tiptap/extension-underline";
 import TiptapLink from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import { useToast } from "@/hooks/use-toast";
+import type { MessageChannel } from "@/integrations/supabase/types";
+import { useEvent } from "@/hooks/use-events";
+import { useEventMessages, useUpsertEventMessage } from "@/hooks/use-event-messages";
 
 /* ──────────────── toolbar ──────────────── */
 export const EditorToolbar = ({ editor }: { editor: ReturnType<typeof useEditor> }) => {
@@ -52,9 +55,11 @@ export const EditorToolbar = ({ editor }: { editor: ReturnType<typeof useEditor>
 export const MessageEditor = ({
   defaultContent,
   placeholder,
+  onChange,
 }: {
   defaultContent: string;
   placeholder?: string;
+  onChange?: (html: string) => void;
 }) => {
   const editor = useEditor({
     extensions: [
@@ -67,7 +72,17 @@ export const MessageEditor = ({
     editorProps: {
       attributes: { class: "prose prose-sm max-w-none px-4 py-3 min-h-[120px] focus:outline-none [&_span.template-var]:text-[#004d00] [&_span.template-var]:font-semibold" },
     },
+    onUpdate: ({ editor }) => onChange?.(editor.getHTML()),
   });
+
+  // Sincroniza conteúdo vindo de fora (ex.: carregado do banco após montar).
+  // Não dispara durante a digitação: aí defaultContent já == getHTML().
+  useEffect(() => {
+    if (editor && defaultContent !== editor.getHTML()) {
+      editor.commands.setContent(defaultContent || "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultContent, editor]);
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
@@ -83,11 +98,13 @@ export const MessageSection = ({
   infoBanner,
   defaultContent,
   placeholder,
+  onChange,
 }: {
   title: string;
   infoBanner?: string;
   defaultContent: string;
   placeholder?: string;
+  onChange?: (html: string) => void;
 }) => (
   <Card className="rounded-2xl bg-white shadow-sm">
     <CardHeader className="pb-2">
@@ -101,18 +118,129 @@ export const MessageSection = ({
           <span>{infoBanner}</span>
         </div>
       )}
-      <MessageEditor defaultContent={defaultContent} placeholder={placeholder} />
+      <MessageEditor defaultContent={defaultContent} placeholder={placeholder} onChange={onChange} />
     </CardContent>
   </Card>
 );
+
+/* ──────────────── templates ──────────────── */
+export interface MessageTemplate {
+  key: string;
+  title: string;
+  channel: MessageChannel;
+  default: string;
+  infoBanner?: string;
+}
+
+export const MESSAGE_TEMPLATES: MessageTemplate[] = [
+  {
+    key: "confirm_whatsapp",
+    title: "Mensagem para confirmação de inscrição - WhatsApp",
+    channel: "whatsapp",
+    default: `<p>Olá <span class="template-var">{{nome}}</span>! Sua inscrição no evento <span class="template-var">{{nome_evento}}</span> foi realizada com sucesso.</p><p>Guarde este comprovante. Em caso de dúvidas, entre em contato conosco.</p><p>Equipe Guardião Eventos</p>`,
+  },
+  {
+    key: "waitlist_whatsapp",
+    title: "Mensagem enviada após cadastro em fila de espera - WhatsApp",
+    channel: "whatsapp",
+    infoBanner: "Esta mensagem será enviada automaticamente quando um participante for adicionado à fila de espera via WhatsApp.",
+    default: `<p>Olá <span class="template-var">{{nome}}</span>! Você foi cadastrado(a) na fila de espera do evento <span class="template-var">{{nome_evento}}</span>.</p><p>Assim que uma vaga for liberada, entraremos em contato.</p><p>Equipe Guardião Eventos</p>`,
+  },
+  {
+    key: "confirm_email",
+    title: "Mensagem para confirmação de inscrição - E-mail",
+    channel: "email",
+    default: `<p>Olá <span class="template-var">{{nome}}</span>,</p><p>Sua inscrição no evento <span class="template-var">{{nome_evento}}</span> foi confirmada com sucesso!</p><p>Você receberá mais detalhes em breve.</p><p>Atenciosamente,<br/>Equipe Guardião Eventos</p>`,
+  },
+  {
+    key: "waitlist_email",
+    title: "Mensagem enviada após cadastro em fila de espera - E-mail",
+    channel: "email",
+    default: `<p>Olá <span class="template-var">{{nome}}</span>,</p><p>Você foi adicionado(a) à fila de espera do evento <span class="template-var">{{nome_evento}}</span>.</p><p>Notificaremos assim que houver disponibilidade.</p><p>Equipe Guardião Eventos</p>`,
+  },
+  {
+    key: "ticket_pdf",
+    title: "Mensagem para o ingresso (Comprovante de inscrição em PDF)",
+    channel: "system",
+    default: `<p>Segue em anexo o comprovante de inscrição do participante <span class="template-var">{{nome}}</span> para o evento <span class="template-var">{{nome_evento}}</span>.</p>`,
+  },
+  {
+    key: "recover_pix",
+    title: "Mensagem para recuperação de pedido pendente - PIX (não pago)",
+    channel: "email",
+    default: `<p>Olá <span class="template-var">{{nome}}</span>,</p><p>Notamos que seu pagamento via PIX para o evento <span class="template-var">{{nome_evento}}</span> ainda não foi confirmado.</p><p>Complete o pagamento para garantir sua vaga.</p><p>Equipe Guardião Eventos</p>`,
+  },
+  {
+    key: "recover_boleto",
+    title: "Mensagem para recuperação de pedido pendente - Boleto (não pago)",
+    channel: "email",
+    default: `<p>Olá <span class="template-var">{{nome}}</span>,</p><p>Seu boleto para o evento <span class="template-var">{{nome_evento}}</span> está pendente de pagamento.</p><p>Efetue o pagamento até a data de vencimento para garantir sua inscrição.</p><p>Equipe Guardião Eventos</p>`,
+  },
+];
+
+/** Estado inicial dos conteúdos (key → HTML padrão). */
+export const defaultMessageContents = (): Record<string, string> =>
+  Object.fromEntries(MESSAGE_TEMPLATES.map((t) => [t.key, t.default]));
 
 /* ──────────────── page ──────────────── */
 const OrganizerEventMensagensPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { toast } = useToast();
+  const { data: event } = useEvent(id);
+  const { data: savedMessages = [], isSuccess } = useEventMessages(id);
+  const upsert = useUpsertEventMessage();
   const [saving, setSaving] = useState(false);
-  const eventName = "FABRICIO CHRISTIAN DA SILVA CAVALCANTE";
+  const eventName = event?.name ?? "Evento";
+
+  const [contents, setContents] = useState<Record<string, string>>(defaultMessageContents);
+  const initedRef = useRef(false);
+
+  // Carrega mensagens salvas (uma única vez, após a query resolver).
+  useEffect(() => {
+    if (initedRef.current || !isSuccess) return;
+    initedRef.current = true;
+    if (savedMessages.length === 0) return;
+    setContents((prev) => {
+      const next = { ...prev };
+      for (const t of MESSAGE_TEMPLATES) {
+        const row = savedMessages.find((m) => m.subject === t.title && m.channel === t.channel);
+        if (row) next[t.key] = row.body;
+      }
+      return next;
+    });
+  }, [isSuccess, savedMessages]);
+
+  const setContent = useCallback((key: string, html: string) => {
+    setContents((prev) => (prev[key] === html ? prev : { ...prev, [key]: html }));
+  }, []);
+
+  const handleSave = async () => {
+    if (!id) return;
+    if (!event?.organization_id) {
+      toast({ title: "Evento não encontrado", description: "Não foi possível identificar a organização.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      for (const t of MESSAGE_TEMPLATES) {
+        const existing = savedMessages.find((m) => m.subject === t.title && m.channel === t.channel);
+        await upsert.mutateAsync({
+          id: existing?.id,
+          organization_id: event.organization_id,
+          event_id: id,
+          channel: t.channel,
+          subject: t.title,
+          body: contents[t.key],
+        });
+      }
+      toast({ title: "Mensagens salvas", description: "Os templates de mensagens foram atualizados." });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar mensagens", description: e.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const tabs = [
     { label: "Informações gerais", icon: Info, route: `/organizador/evento/${id}/configuracoes` },
@@ -122,22 +250,6 @@ const OrganizerEventMensagensPage = () => {
     { label: "Formulário de inscrição", icon: ClipboardList, route: `/organizador/evento/${id}/configuracoes/formulario` },
     { label: "Mensagens", icon: MessageSquare, active: true },
   ];
-
-  const handleSave = useCallback(() => {
-    setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
-      toast({ title: "Mensagens salvas", description: "As configurações de mensagens foram atualizadas." });
-    }, 600);
-  }, [toast]);
-
-  const whatsappConfirmacao = `<p>Olá <span class="template-var">{{nome}}</span>! Sua inscrição no evento <span class="template-var">{{nome_evento}}</span> foi realizada com sucesso.</p><p>Guarde este comprovante. Em caso de dúvidas, entre em contato conosco.</p><p>Equipe Guardião Eventos</p>`;
-  const whatsappFilaEspera = `<p>Olá <span class="template-var">{{nome}}</span>! Você foi cadastrado(a) na fila de espera do evento <span class="template-var">{{nome_evento}}</span>.</p><p>Assim que uma vaga for liberada, entraremos em contato.</p><p>Equipe Guardião Eventos</p>`;
-  const emailConfirmacao = `<p>Olá <span class="template-var">{{nome}}</span>,</p><p>Sua inscrição no evento <span class="template-var">{{nome_evento}}</span> foi confirmada com sucesso!</p><p>Você receberá mais detalhes em breve.</p><p>Atenciosamente,<br/>Equipe Guardião Eventos</p>`;
-  const emailFilaEspera = `<p>Olá <span class="template-var">{{nome}}</span>,</p><p>Você foi adicionado(a) à fila de espera do evento <span class="template-var">{{nome_evento}}</span>.</p><p>Notificaremos assim que houver disponibilidade.</p><p>Equipe Guardião Eventos</p>`;
-  const mensagemIngresso = `<p>Segue em anexo o comprovante de inscrição do participante <span class="template-var">{{nome}}</span> para o evento <span class="template-var">{{nome_evento}}</span>.</p>`;
-  const recuperacaoPix = `<p>Olá <span class="template-var">{{nome}}</span>,</p><p>Notamos que seu pagamento via PIX para o evento <span class="template-var">{{nome_evento}}</span> ainda não foi confirmado.</p><p>Complete o pagamento para garantir sua vaga.</p><p>Equipe Guardião Eventos</p>`;
-  const recuperacaoBoleto = `<p>Olá <span class="template-var">{{nome}}</span>,</p><p>Seu boleto para o evento <span class="template-var">{{nome_evento}}</span> está pendente de pagamento.</p><p>Efetue o pagamento até a data de vencimento para garantir sua inscrição.</p><p>Equipe Guardião Eventos</p>`;
 
   return (
     <div className="min-h-[calc(100vh-4rem)] -m-6 p-6 bg-slate-100/70 space-y-6">
@@ -185,41 +297,15 @@ const OrganizerEventMensagensPage = () => {
       </div>
 
       {/* Message sections */}
-      <MessageSection
-        title="Mensagem para confirmação de inscrição - WhatsApp"
-        defaultContent={whatsappConfirmacao}
-      />
-
-      <MessageSection
-        title="Mensagem enviada após cadastro em fila de espera - WhatsApp"
-        infoBanner="Esta mensagem será enviada automaticamente quando um participante for adicionado à fila de espera via WhatsApp."
-        defaultContent={whatsappFilaEspera}
-      />
-
-      <MessageSection
-        title="Mensagem para confirmação de inscrição - E-mail"
-        defaultContent={emailConfirmacao}
-      />
-
-      <MessageSection
-        title="Mensagem enviada após cadastro em fila de espera - E-mail"
-        defaultContent={emailFilaEspera}
-      />
-
-      <MessageSection
-        title="Mensagem para o ingresso (Comprovante de inscrição em PDF)"
-        defaultContent={mensagemIngresso}
-      />
-
-      <MessageSection
-        title="Mensagem para recuperação de pedido pendente - PIX (não pago)"
-        defaultContent={recuperacaoPix}
-      />
-
-      <MessageSection
-        title="Mensagem para recuperação de pedido pendente - Boleto (não pago)"
-        defaultContent={recuperacaoBoleto}
-      />
+      {MESSAGE_TEMPLATES.map((t) => (
+        <MessageSection
+          key={t.key}
+          title={t.title}
+          infoBanner={t.infoBanner}
+          defaultContent={contents[t.key]}
+          onChange={(html) => setContent(t.key, html)}
+        />
+      ))}
 
       {/* Save */}
       <div className="flex justify-end pb-6">

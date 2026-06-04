@@ -193,7 +193,7 @@ const CheckinsPage = () => {
 
         <Button
           variant="outline"
-          onClick={() => navigate("/organizador/dashboard")}
+          onClick={() => navigate("/organizador/meus-eventos")}
           className="gap-2 shrink-0 border-slate-200 text-slate-600 hover:bg-slate-50"
         >
           <ChevronLeft className="w-4 h-4" />
