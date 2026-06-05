@@ -23,14 +23,38 @@ const AdminSettingsPage = () => {
   const [manutencao, setManutencao] = useState(false);
   const [novosCadastros, setNovosCadastros] = useState(true);
   const [aprovacaoAutomatica, setAprovacaoAutomatica] = useState(false);
+  const [savingGeneral, setSavingGeneral] = useState(false);
 
+  // Hidrata os campos a partir das chaves persistidas em platform_settings.
   useEffect(() => {
-    const v = settings?.map?.taxa_plataforma_percent;
-    if (v != null) setTaxaPlataforma(v);
-  }, [settings?.map?.taxa_plataforma_percent]);
+    const m = settings?.map;
+    if (!m) return;
+    if (m.taxa_plataforma_percent != null) setTaxaPlataforma(m.taxa_plataforma_percent);
+    if (m.platform_name != null) setNomePlataforma(m.platform_name);
+    if (m.support_email != null) setEmailSuporte(m.support_email);
+    if (m.welcome_message != null) setMensagemBoasVindas(m.welcome_message);
+    if (m.maintenance_mode != null) setManutencao(m.maintenance_mode === "true");
+    if (m.allow_signups != null) setNovosCadastros(m.allow_signups === "true");
+    if (m.auto_approve_events != null) setAprovacaoAutomatica(m.auto_approve_events === "true");
+  }, [settings?.map]);
 
-  const handleSave = () => {
-    toast({ title: "Configurações salvas", description: "As alterações foram aplicadas." });
+  const handleSave = async () => {
+    setSavingGeneral(true);
+    try {
+      await Promise.all([
+        updateSetting.mutateAsync({ key: "platform_name", value: nomePlataforma }),
+        updateSetting.mutateAsync({ key: "support_email", value: emailSuporte }),
+        updateSetting.mutateAsync({ key: "welcome_message", value: mensagemBoasVindas }),
+        updateSetting.mutateAsync({ key: "maintenance_mode", value: String(manutencao) }),
+        updateSetting.mutateAsync({ key: "allow_signups", value: String(novosCadastros) }),
+        updateSetting.mutateAsync({ key: "auto_approve_events", value: String(aprovacaoAutomatica) }),
+      ]);
+      toast({ title: "Configurações salvas", description: "As alterações foram aplicadas." });
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
+    } finally {
+      setSavingGeneral(false);
+    }
   };
 
   const handleSaveTaxa = async () => {
@@ -167,8 +191,8 @@ const AdminSettingsPage = () => {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700">
-          Salvar alterações
+        <Button onClick={handleSave} disabled={savingGeneral} className="bg-emerald-600 hover:bg-emerald-700">
+          {savingGeneral ? "Salvando..." : "Salvar alterações"}
         </Button>
       </div>
     </div>

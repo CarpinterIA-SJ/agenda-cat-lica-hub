@@ -21,14 +21,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, CheckCircle2, Star } from "lucide-react";
+import { Search, CheckCircle2, Star, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useEvents, useUpdateEvent } from "@/hooks/use-events";
 
 type EventStatus = "Aprovado" | "Aguardando Revisão" | "Finalizado";
 
 interface AdminEvent {
   id: string;
+  slug: string;
   nome: string;
   organizador: string;
   data: string;
@@ -56,18 +59,31 @@ const AdminEventsPage = () => {
   const [search, setSearch] = useState("");
   const [approveTarget, setApproveTarget] = useState<AdminEvent | null>(null);
 
+  // Mapa organization_id → nome (admin lê todas as organizações via RLS).
+  const { data: orgMap = {} } = useQuery({
+    queryKey: ["admin-org-names"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("organizations").select("id, name");
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      (data ?? []).forEach((o: any) => { map[o.id] = o.name; });
+      return map;
+    },
+  });
+
   const events = useMemo<AdminEvent[]>(
     () =>
       rawEvents.map((e) => ({
         id: e.id,
+        slug: e.slug,
         nome: e.name,
-        organizador: "—",
+        organizador: orgMap[e.organization_id] ?? "—",
         data: e.start_at ? new Date(e.start_at).toLocaleDateString("pt-BR") : "—",
         totalVendido: 0,
         status: mapStatus(e.status),
         destaque: false,
       })),
-    [rawEvents]
+    [rawEvents, orgMap]
   );
 
   const filtered = useMemo(() => {
@@ -151,6 +167,15 @@ const AdminEventsPage = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8"
+                          title="Visualizar evento"
+                          onClick={() => window.open(`/evento/${e.slug}`, "_blank", "noopener,noreferrer")}
+                        >
+                          <Eye className="w-4 h-4 mr-1" /> Visualizar
+                        </Button>
                         {e.status !== "Aprovado" && (
                           <Button
                             size="sm"

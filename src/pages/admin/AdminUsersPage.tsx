@@ -32,6 +32,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Search, Eye, Pencil, Ban } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useAdminUsers } from "@/hooks/use-admin-users";
 
 interface AdminUser {
@@ -53,16 +55,26 @@ const AdminUsersPage = () => {
 
   const { data: rawUsers = [] } = useAdminUsers();
 
+  // Conjunto de user_ids que são donos de alguma organização → tipo "Organizador".
+  const { data: ownerIds } = useQuery({
+    queryKey: ["admin-org-owner-ids"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("organizations").select("owner_id");
+      if (error) throw error;
+      return new Set((data ?? []).map((o: any) => o.owner_id as string));
+    },
+  });
+
   const users = useMemo<AdminUser[]>(
     () =>
       rawUsers.map((u) => ({
         id: u.user_id,
         nome: u.name ?? "—",
         email: u.email,
-        tipo: "Participante",
+        tipo: ownerIds?.has(u.user_id) ? "Organizador" : "Participante",
         status: "Ativo",
       })),
-    [rawUsers]
+    [rawUsers, ownerIds]
   );
 
   const filtered = useMemo(() => {
