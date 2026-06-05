@@ -37,11 +37,11 @@ const FAQS = [
 
 // Capas de placeholder sóbrias (cores sólidas institucionais, sem arco-íris).
 const GRADIENT_PLACEHOLDERS = [
-  "bg-[#004d00]",
+  "bg-[#0b3d2e]",
   "bg-[#0b3d2e]",
   "bg-slate-700",
   "bg-slate-600",
-  "bg-[#004d00]",
+  "bg-[#0b3d2e]",
   "bg-[#0b3d2e]",
   "bg-slate-700",
   "bg-slate-600",
@@ -225,7 +225,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-14 flex items-center justify-between gap-4">
           {/* Logo */}
           <button onClick={() => navigate("/")} className="flex items-center gap-2 shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-[#004d00] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-[#0b3d2e] flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
             <span className="font-bold text-[#004d00] text-sm hidden sm:block">Guardião Eventos</span>
@@ -477,7 +477,7 @@ const LandingPage = () => {
               { value: "0+", label: "Cursos" },
             ].map((s) => (
               <div key={s.label} className="space-y-2">
-                <p className="text-3xl md:text-4xl font-black text-amber-400">{s.value}</p>
+                <p className="text-3xl md:text-4xl font-black text-emerald-200">{s.value}</p>
                 <p className="text-sm text-emerald-100/70 font-medium">{s.label}</p>
               </div>
             ))}
@@ -522,11 +522,11 @@ const LandingPage = () => {
       </section>
 
       {/* ── ORGANIZER CTA ── */}
-      <section className="bg-[#004d00] py-16">
+      <section className="bg-[#0b3d2e] py-16">
         <div className="max-w-4xl mx-auto px-4 md:px-6 text-center space-y-6">
           <h2 className="text-2xl md:text-4xl font-black text-white leading-tight">
             Organize seu evento na maior plataforma de{" "}
-            <span className="text-amber-400">Eventos</span> do Brasil
+            <span className="text-emerald-200">Eventos</span> do Brasil
           </h2>
           <p className="text-emerald-100/80 text-base max-w-xl mx-auto">
             Crie sua conta gratuitamente e comece a organizar seus eventos em minutos. Sem mensalidade, sem cartão.
@@ -548,7 +548,7 @@ const LandingPage = () => {
             {/* Brand */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#004d00] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-[#0b3d2e] flex items-center justify-center">
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
                 <span className="font-bold text-white">Guardião Eventos</span>
