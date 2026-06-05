@@ -3,27 +3,18 @@ import DOMPurify from "dompurify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
-} from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Plus, Search, Calendar, MapPin, Users, Ticket, User, Mail, ChevronRight,
-  Phone, CreditCard, AlertTriangle, Fingerprint, Video, ArrowRight, Lock,
-  Headset, MessageCircle, Tag, Building2, ClipboardList, Eye, Filter, X, Percent,
+  Search, Calendar, MapPin, Users, Ticket, Video, ArrowRight, Lock,
+  Headset, MessageCircle, Tag, Building2, Eye, X,
 } from "lucide-react";
-import { toast } from "sonner";
-import { useAuth } from "@/hooks/use-auth";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEvents } from "@/hooks/use-events";
-import { useCreateRegistration } from "@/hooks/use-registrations";
 import { usePlatformSettings } from "@/hooks/use-platform-settings";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { CheckoutModal } from "@/components/CheckoutModal";
+import { EventRegistrationModal } from "@/components/EventRegistrationModal";
 import { ChargeSummary, computeCharge } from "@/components/ChargeSummary";
 
 const formatLabelMap: Record<string, string> = {
@@ -72,13 +63,10 @@ const eventToVM = (e: any) => {
 export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const createRegistration = useCreateRegistration();
   const { data: platformSettings } = usePlatformSettings();
   const taxaPercent = Number(platformSettings?.map?.taxa_plataforma_percent ?? 5);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const [checkout, setCheckout] = useState<{ ticketId: string; name: string; quantity: number } | null>(null);
-  const [registering, setRegistering] = useState(false);
+  const [regOpen, setRegOpen] = useState(false);
 
   const { data: fetched } = useQuery({
     queryKey: ["events", "public-slug", slug],
@@ -160,38 +148,7 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
     : null;
   const primaryPriceCents = primaryTicket ? Math.round(Number(primaryTicket.price || 0) * 100) : 0;
   const primaryCharge = computeCharge(primaryPriceCents, 1, taxaPercent);
-
-  const handleBuy = async () => {
-    if (!eventData?.id) return;
-    if (!user) {
-      toast.info("Entre na sua conta para se inscrever.");
-      navigate("/login");
-      return;
-    }
-    const priceCents = primaryTicket ? Math.round(Number(primaryTicket.price || 0) * 100) : 0;
-    // Ingresso pago → checkout Stripe; gratuito → inscrição direta.
-    if (primaryTicket && priceCents > 0) {
-      setCheckout({ ticketId: primaryTicket.id, name: primaryTicket.name, quantity: 1 });
-      return;
-    }
-    setRegistering(true);
-    try {
-      await createRegistration.mutateAsync({
-        event_id: eventData.id,
-        ticket_id: primaryTicket?.id ?? null,
-        user_id: user.id,
-        full_name: (user.user_metadata?.full_name as string) || "Participante",
-        email: user.email || "",
-        status: "confirmed",
-      } as any);
-      toast.success("Inscrição confirmada!");
-      navigate("/participante/meus-ingressos");
-    } catch (e: any) {
-      toast.error("Erro ao confirmar inscrição", { description: e.message });
-    } finally {
-      setRegistering(false);
-    }
-  };
+  const eventTickets = eventData?.tickets || [];
 
   return (
     <div className="min-h-screen bg-[#f6f8f6] font-sans">
@@ -320,10 +277,9 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
 
               <Button
                 className="mt-6 w-full h-12 bg-[#0b3d2e] text-white hover:bg-[#0a3225]"
-                onClick={handleBuy}
-                disabled={registering}
+                onClick={() => setRegOpen(true)}
               >
-                {registering ? "Processando..." : "Garantir minha inscrição"}
+                Garantir minha inscrição
               </Button>
               <p className="mt-3 text-xs text-[#7a8c81]">Pagamento seguro e confirmação imediata.</p>
             </div>
@@ -413,48 +369,16 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
         <MessageCircle className="w-6 h-6" />
       </a>
 
-      {checkout && eventData?.id && (
-        <CheckoutModal
-          eventId={eventData.id}
-          ticketId={checkout.ticketId}
-          ticketName={checkout.name}
-          quantity={checkout.quantity}
-          onClose={() => setCheckout(null)}
+      {eventData?.id && (
+        <EventRegistrationModal
+          open={regOpen}
+          onClose={() => setRegOpen(false)}
+          event={eventData}
+          tickets={eventTickets}
         />
       )}
     </div>
   );
-};
-
-type StandardFieldKey = "nome" | "email" | "cpf" | "nascimento" | "whatsapp";
-
-type UnifiedField =
-  | { kind: "standard"; key: StandardFieldKey; id: string; label: string; required: boolean; icon: any; inputType?: string; placeholder?: string; readOnly?: boolean; helper?: string }
-  | { kind: "custom"; id: string; label: string; required: boolean; type?: string };
-
-const buildUnifiedFields = (event: any): UnifiedField[] => {
-  if (!event) return [];
-  const fields: UnifiedField[] = [];
-  if (event.show_nome !== false) {
-    fields.push({ kind: "standard", key: "nome", id: "fixed_nome", label: "Nome completo", required: true, icon: User, placeholder: "Como deseja ser identificado" });
-  }
-  if (event.show_email !== false) {
-    fields.push({ kind: "standard", key: "email", id: "fixed_email", label: "E-mail", required: true, icon: Mail, inputType: "email", readOnly: true, helper: "E-mail da sua conta Guardião." });
-  }
-  if (event.show_cpf !== false) {
-    fields.push({ kind: "standard", key: "cpf", id: "fixed_cpf", label: "CPF", required: true, icon: Fingerprint, placeholder: "000.000.000-00" });
-  }
-  if (event.show_nascimento === true) {
-    fields.push({ kind: "standard", key: "nascimento", id: "fixed_nascimento", label: "Data de nascimento", required: true, icon: Calendar, inputType: "date" });
-  }
-  if (event.show_whatsapp !== false) {
-    fields.push({ kind: "standard", key: "whatsapp", id: "fixed_tel", label: "Telefone (WhatsApp)", required: true, icon: Phone, inputType: "tel", placeholder: "(00) 00000-0000" });
-  }
-  const custom = event.custom_fields || event.details?.formFields || [];
-  custom.forEach((f: any) => {
-    fields.push({ kind: "custom", id: f.id, label: f.label, required: f.required !== false, type: f.type || "text" });
-  });
-  return fields;
 };
 
 const formatTicketPriceRange = (tickets: any[]): string => {
@@ -493,18 +417,7 @@ const ExploreEventsPage = () => {
   const [events, setEvents] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
-  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
-  const [formValues, setFormValues] = useState<Record<string, any>>({});
-  const [couponCode, setCouponCode] = useState("");
-  const [couponDiscount, setCouponDiscount] = useState<{ modo: "percentual" | "fixo"; valor: string; codigo: string } | null>(null);
-  const [couponError, setCouponError] = useState("");
-  const [checkout, setCheckout] = useState<{ ticketId: string; name: string; quantity: number; coupon: string | null } | null>(null);
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const createRegistration = useCreateRegistration();
-  const { data: platformSettings } = usePlatformSettings();
-  const taxaPercent = Number(platformSettings?.map?.taxa_plataforma_percent ?? 5);
 
   const { data: rawEvents = [] } = useEvents({ visibility: "public", status: "active" });
   const eventIds = useMemo(() => rawEvents.map((e) => e.id), [rawEvents]);
@@ -547,46 +460,6 @@ const ExploreEventsPage = () => {
 
   const activeFilters = (selectedCategory !== "all" ? 1 : 0) + (selectedType !== "all" ? 1 : 0);
 
-  const validateCoupon = async () => {
-    if (!couponCode.trim() || !selectedEvent) return;
-    try {
-      const { data: found, error } = await supabase
-        .from("coupons")
-        .select("*")
-        .eq("event_id", selectedEvent.id)
-        .eq("code", couponCode.trim().toUpperCase())
-        .eq("active", true)
-        .maybeSingle();
-      if (error) throw error;
-      if (!found) {
-        setCouponError("Cupom inválido ou inativo.");
-        setCouponDiscount(null);
-        return;
-      }
-      if (found.max_uses != null && found.used_count >= found.max_uses) {
-        setCouponError("Cupom esgotado.");
-        setCouponDiscount(null);
-        return;
-      }
-      setCouponDiscount({
-        modo: found.discount_kind === "percent" ? "percentual" : "fixo",
-        valor: String(found.discount_value),
-        codigo: found.code,
-      });
-      setCouponError("");
-    } catch {
-      setCouponError("Erro ao validar cupom.");
-    }
-  };
-
-  const calcDiscountedPrice = (price: number) => {
-    if (!couponDiscount || price === 0) return price;
-    if (couponDiscount.modo === "percentual") {
-      return Math.max(0, price - price * (parseFloat(couponDiscount.valor) / 100));
-    }
-    return Math.max(0, price - parseFloat(couponDiscount.valor));
-  };
-
   const handleOpenRegistration = async (event: any) => {
     // Busca os ingressos atuais do evento no Supabase para montar o modal.
     let latest = event;
@@ -609,121 +482,12 @@ const ExploreEventsPage = () => {
       // ignore
     }
     setSelectedEvent(latest);
-    setSelectedTicketId(null);
-    setSelectedPaymentMethod(null);
-    setCouponCode("");
-    setCouponDiscount(null);
-    setCouponError("");
-    const initialValues: Record<string, any> = {
-      fixed_nome: user?.user_metadata?.full_name || "",
-      fixed_cpf: "",
-      fixed_tel: "",
-      fixed_email: user?.email || "",
-      fixed_nascimento: "",
-    };
-    const fields = latest.custom_fields || [];
-    fields.forEach((f: any) => {
-      initialValues[f.id] = f.type === "checkbox" ? false : "";
-    });
-    setFormValues(initialValues);
     setIsModalOpen(true);
   };
 
   const handleViewDetails = (event: any) => {
     const slug = event.slug || event.id;
     navigate(`/evento/${slug}`);
-  };
-
-  const handleFieldChange = (fieldId: string, value: any) => {
-    setFormValues((prev) => ({ ...prev, [fieldId]: value }));
-  };
-
-  // A verificação de duplicidade por CPF agora é responsabilidade do backend (RLS/constraints).
-  const isDuplicate = false;
-
-  // When the organizer hasn't configured any ticket yet, fall back to a synthetic
-  // free entry so the participant can still submit the form.
-  const modalTickets = useMemo(() => {
-    const configured = selectedEvent?.tickets || [];
-    if (configured.length > 0) return configured;
-    return [{ id: "default-free", name: "Inscrição gratuita", price: "0" }];
-  }, [selectedEvent]);
-
-  useEffect(() => {
-    if (isModalOpen && modalTickets.length > 0 && !selectedTicketId) {
-      setSelectedTicketId(modalTickets[0].id);
-    }
-  }, [isModalOpen, modalTickets, selectedTicketId]);
-
-  const unifiedFields = useMemo(() => buildUnifiedFields(selectedEvent), [selectedEvent]);
-
-  const selectedTicket = modalTickets.find((t: any) => t.id === selectedTicketId);
-  const selectedPriceCents = selectedTicket
-    ? Math.round(calcDiscountedPrice(Number(selectedTicket.price || 0)) * 100)
-    : 0;
-  const selectedCharge = computeCharge(selectedPriceCents, 1, taxaPercent);
-
-  const isFormValid = useMemo(() => {
-    if (!selectedTicketId || isDuplicate) return false;
-    return unifiedFields.every((f) => {
-      if (!f.required) return true;
-      const raw = formValues[f.id];
-      if (typeof raw === "boolean") return raw;
-      return typeof raw === "string" ? raw.trim().length > 0 : !!raw;
-    });
-  }, [selectedTicketId, formValues, unifiedFields, isDuplicate]);
-
-  const handleRegister = async () => {
-    if (!selectedEvent) return;
-
-    // Ingresso pago → checkout obrigatório (Stripe). A inscrição só é criada
-    // (pending) pelo backend e confirmada via webhook após o pagamento.
-    if (selectedPriceCents > 0) {
-      if (!user) {
-        toast.info("Entre na sua conta para concluir o pagamento.");
-        navigate("/login");
-        return;
-      }
-      const ticketId = selectedTicketId && selectedTicketId !== "default-free" ? selectedTicketId : null;
-      if (!ticketId) {
-        toast.error("Selecione um ingresso válido para pagamento.");
-        return;
-      }
-      setIsModalOpen(false);
-      setCheckout({
-        ticketId,
-        name: selectedTicket?.name ?? "Ingresso",
-        quantity: 1,
-        coupon: couponDiscount?.codigo ?? null,
-      });
-      return;
-    }
-
-    // Coleta os valores dos campos customizados configurados pelo organizador.
-    const customValues: Record<string, any> = {};
-    (selectedEvent.custom_fields || []).forEach((f: any) => {
-      customValues[f.id] = formValues[f.id];
-    });
-    try {
-      await createRegistration.mutateAsync({
-        event_id: selectedEvent.id,
-        ticket_id: selectedTicketId && selectedTicketId !== "default-free" ? selectedTicketId : null,
-        user_id: user?.id ?? null,
-        full_name: formValues["fixed_nome"] || "",
-        email: formValues["fixed_email"] || "",
-        cpf: formValues["fixed_cpf"] || null,
-        phone: formValues["fixed_tel"] || null,
-        birth_date: formValues["fixed_nascimento"] || null,
-        custom_fields: customValues as any,
-        status: "confirmed",
-      });
-      toast.success("Inscrição confirmada!", {
-        description: `Sua participação no evento "${selectedEvent?.name}" foi registrada.`,
-      });
-      setIsModalOpen(false);
-    } catch (e: any) {
-      toast.error("Erro ao confirmar inscrição", { description: e.message });
-    }
   };
 
   return (
@@ -849,136 +613,13 @@ const ExploreEventsPage = () => {
         })}
       </div>
 
-      {/* Registration Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-0 border-none rounded-2xl shadow-2xl">
-          <div className="bg-primary p-6 text-primary-foreground sticky top-0 z-10">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                <Ticket className="w-6 h-6" /> Inscrição no Evento
-              </DialogTitle>
-              <DialogDescription className="text-primary-foreground/80 font-medium text-lg mt-1">
-                {selectedEvent?.name}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-primary-foreground/80">
-              <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {selectedEvent?.date}</span>
-              {selectedEvent?.location && (
-                <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {selectedEvent.location}</span>
-              )}
-              {selectedEvent?.organizerName && (
-                <span className="flex items-center gap-1"><Building2 className="w-3 h-3" /> {selectedEvent.organizerName}</span>
-              )}
-            </div>
-          </div>
-
-          <div className="p-6 space-y-8 pb-32">
-            {isDuplicate && (
-              <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center gap-3 text-destructive">
-                <AlertTriangle className="w-5 h-5 shrink-0" />
-                <p className="text-sm font-bold">Já identificamos uma inscrição com este CPF.</p>
-              </div>
-            )}
-
-            {/* Unified registration form configured by the organizer */}
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-bold flex items-center gap-2 text-foreground text-sm uppercase tracking-wider">
-                  <ClipboardList className="w-4 h-4 text-primary" /> Formulário de inscrição
-                </h4>
-                <p className="text-xs text-muted-foreground mt-1">Preencha os campos definidos pelo organizador para concluir sua inscrição.</p>
-              </div>
-              {unifiedFields.length === 0 ? (
-                <p className="text-sm text-muted-foreground">O organizador ainda não configurou campos para este formulário.</p>
-              ) : (
-                <div className="grid gap-5">
-                  {unifiedFields.map((field) => {
-                    const Icon = field.kind === "standard" ? field.icon : ClipboardList;
-                    const value = formValues[field.id];
-                    const inputType = field.kind === "standard" ? field.inputType : field.type;
-                    const placeholder = field.kind === "standard" ? field.placeholder : field.label;
-                    const readOnly = field.kind === "standard" && field.readOnly;
-                    return (
-                      <div key={field.id} className="space-y-2">
-                        <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
-                          <Icon className="w-3 h-3" /> {field.label}{field.required ? " *" : ""}
-                        </Label>
-                        <Input
-                          type={inputType || "text"}
-                          placeholder={placeholder || ""}
-                          className={`h-11 ${readOnly ? "bg-muted/30 cursor-not-allowed" : ""}`}
-                          value={typeof value === "string" ? value : value ? String(value) : ""}
-                          readOnly={readOnly}
-                          onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                          maxLength={200}
-                        />
-                        {field.kind === "standard" && field.helper && (
-                          <p className="text-[10px] text-muted-foreground italic">{field.helper}</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="px-6 pb-4 space-y-2">
-            <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
-              <Percent className="w-3 h-3" /> Cupom de desconto
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Digite o código do cupom"
-                value={couponCode}
-                onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); if (!e.target.value) setCouponDiscount(null); }}
-                className="h-10 font-mono uppercase"
-                maxLength={20}
-              />
-              <Button variant="outline" size="sm" className="h-10 px-4 shrink-0" onClick={validateCoupon} disabled={!couponCode.trim()}>
-                Aplicar
-              </Button>
-            </div>
-            {couponError && <p className="text-xs text-destructive">{couponError}</p>}
-            {couponDiscount && (
-              <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-                <Percent className="w-3 h-3" />
-                Cupom "{couponDiscount.codigo}" aplicado —{" "}
-                {couponDiscount.modo === "percentual" ? `${couponDiscount.valor}% de desconto` : `R$ ${couponDiscount.valor} de desconto`}
-              </p>
-            )}
-          </div>
-
-          {selectedTicket && (
-            <div className="px-6 pb-4">
-              <ChargeSummary
-                subtotalCents={selectedCharge.subtotal}
-                taxaCents={selectedCharge.taxa}
-                totalCents={selectedCharge.total}
-                taxaPercent={selectedPriceCents > 0 ? taxaPercent : undefined}
-              />
-            </div>
-          )}
-
-          <DialogFooter className="sticky bottom-0 bg-card border-t p-4">
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-            <Button disabled={!isFormValid} onClick={handleRegister} className="gap-2">
-              <Ticket className="w-4 h-4" /> Confirmar Inscrição
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {checkout && selectedEvent?.id && (
-        <CheckoutModal
-          eventId={selectedEvent.id}
-          ticketId={checkout.ticketId}
-          ticketName={checkout.name}
-          quantity={checkout.quantity}
-          couponCode={checkout.coupon}
-          onClose={() => setCheckout(null)}
-        />
-      )}
+      {/* Modal de inscrição compartilhado (Explorar + página pública) */}
+      <EventRegistrationModal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        event={selectedEvent}
+        tickets={selectedEvent?.tickets ?? []}
+      />
     </div>
   );
 };
