@@ -8,12 +8,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { usePlatformSettings, useUpdatePlatformSetting } from "@/hooks/use-platform-settings";
+import { useCreateAuditLog } from "@/hooks/use-audit-log";
 
 const AdminSettingsPage = () => {
   const { toast } = useToast();
   const { isSuperAdmin } = useAuth();
   const { data: settings } = usePlatformSettings();
   const updateSetting = useUpdatePlatformSetting();
+  const createAuditLog = useCreateAuditLog();
   const [nomePlataforma, setNomePlataforma] = useState("Guardião Eventos");
   const [emailSuporte, setEmailSuporte] = useState("suporte@guardiao.app");
   const [taxaPlataforma, setTaxaPlataforma] = useState("5");
@@ -49,6 +51,18 @@ const AdminSettingsPage = () => {
         updateSetting.mutateAsync({ key: "allow_signups", value: String(novosCadastros) }),
         updateSetting.mutateAsync({ key: "auto_approve_events", value: String(aprovacaoAutomatica) }),
       ]);
+      createAuditLog.mutate({
+        action: "ALTERAR_CONFIGURACOES",
+        entity_type: "platform_settings",
+        entity_id: "configuracoes_gerais",
+        details: {
+          platform_name: nomePlataforma,
+          support_email: emailSuporte,
+          maintenance_mode: manutencao,
+          allow_signups: novosCadastros,
+          auto_approve_events: aprovacaoAutomatica,
+        },
+      });
       toast({ title: "Configurações salvas", description: "As alterações foram aplicadas." });
     } catch (e: any) {
       toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
@@ -63,8 +77,15 @@ const AdminSettingsPage = () => {
       toast({ title: "Valor inválido", description: "Informe uma taxa entre 0 e 100.", variant: "destructive" });
       return;
     }
+    const taxaAnterior = settings?.map?.taxa_plataforma_percent ?? "5";
     try {
       await updateSetting.mutateAsync({ key: "taxa_plataforma_percent", value: String(num) });
+      createAuditLog.mutate({
+        action: "ALTERAR_TAXA_PLATAFORMA",
+        entity_type: "platform_settings",
+        entity_id: "taxa_plataforma_percent",
+        details: { taxa_anterior: taxaAnterior, taxa_nova: String(num) },
+      });
       toast({ title: "Taxa atualizada", description: `Nova taxa da plataforma: ${num}%.` });
     } catch (e: any) {
       toast({ title: "Erro ao salvar taxa", description: e.message, variant: "destructive" });

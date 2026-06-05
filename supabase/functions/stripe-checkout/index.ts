@@ -93,7 +93,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 5) Taxa da plataforma — default 5 se ausente ou não numérica.
+    // 5) Taxa da plataforma — SEMPRE recalculada server-side a partir do banco.
+    // Qualquer valor de taxa enviado no payload é ignorado (o checkoutSchema nem
+    // o aceita). Nunca confie no cliente para o cálculo da cobrança.
     const { data: setting, error: settingErr } = await supabaseAdmin
       .from("platform_settings")
       .select("value")
@@ -104,6 +106,7 @@ Deno.serve(async (req) => {
     }
     const parsedPercent = Number(setting?.value);
     const taxaPercent = Number.isFinite(parsedPercent) && parsedPercent >= 0 ? parsedPercent : 5;
+    console.log("[stripe-checkout] taxa aplicada:", taxaPercent);
 
     // Subtotal (com cupom opcional)
     let subtotal = ticket.price_cents * quantity;

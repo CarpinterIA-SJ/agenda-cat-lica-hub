@@ -67,6 +67,10 @@ export const ChargeSummary = ({
           sistema.
         </span>
       </div>
+      <p className="text-[11px] text-emerald-700/80 italic border-t border-emerald-200 pt-2">
+        Valores exibidos são informativos. A cobrança final é calculada e confirmada pelo servidor
+        no momento do pagamento.
+      </p>
     </div>
   );
 };

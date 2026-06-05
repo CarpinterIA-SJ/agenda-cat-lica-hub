@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import type { AuditLog } from "@/integrations/supabase/types";
 
 export type AuditAcao =
   | "Aprovado"
@@ -110,4 +113,96 @@ export const useAuditLog = () => {
   );
 
   return { entries, log };
+};
+
+// ============================================================
+//  Logs de auditoria persistidos no Supabase (migration 012).
+//  Substitui o localStorage para as ações administrativas reais.
+// ============================================================
+
+export type { AuditLog };
+
+export type AuditLogAction =
+  | "APROVAR_ORGANIZADOR"
+  | "REJEITAR_ORGANIZADOR"
+  | "SUSPENDER_ORGANIZADOR"
+  | "REATIVAR_ORGANIZADOR"
+  | "APROVAR_REPASSE"
+  | "REJEITAR_REPASSE"
+  | "PAGAR_REPASSE"
+  | "ALTERAR_TAXA_PLATAFORMA"
+  | "ALTERAR_CONFIGURACOES"
+  | "SUSPENDER_USUARIO"
+  | "EDITAR_USUARIO"
+  | (string & {});
+
+export type AuditLogEntityType =
+  | "organization"
+  | "withdrawal_request"
+  | "user"
+  | "platform_settings"
+  | (string & {});
+
+export interface CreateAuditLogInput {
+  action: AuditLogAction;
+  entity_type: AuditLogEntityType;
+  entity_id?: string | null;
+  details?: Record<string, unknown>;
+}
+
+export interface AuditLogFilters {
+  action?: string;
+  entity_type?: string;
+  limit?: number;
+}
+
+/** Lista os logs de auditoria do Supabase (mais recentes primeiro). */
+export const useAuditLogs = (filtros?: AuditLogFilters) => {
+  return useQuery({
+    queryKey: [
+      "audit-logs",
+      filtros?.action ?? null,
+      filtros?.entity_type ?? null,
+      filtros?.limit ?? 200,
+    ],
+    queryFn: async () => {
+      let q = supabase
+        .from("audit_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(filtros?.limit ?? 200);
+      if (filtros?.action) q = q.eq("action", filtros.action);
+      if (filtros?.entity_type) q = q.eq("entity_type", filtros.entity_type);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as AuditLog[];
+    },
+  });
+};
+
+/** Insere um log de auditoria atribuído ao usuário autenticado. */
+export const useCreateAuditLog = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateAuditLogInput) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from("audit_logs")
+        .insert({
+          actor_id: user?.id ?? null,
+          actor_email: user?.email ?? null,
+          action: input.action,
+          entity_type: input.entity_type,
+          entity_id: input.entity_id ?? null,
+          details: (input.details ?? {}) as never,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as AuditLog;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
+    },
+  });
 };

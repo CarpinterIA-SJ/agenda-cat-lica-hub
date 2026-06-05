@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -18,49 +19,91 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ClipboardList, Search } from "lucide-react";
-import { useAuditLog, type AuditTipo } from "@/hooks/use-audit-log";
+import { useAuditLogs } from "@/hooks/use-audit-log";
 
-const ACAO_BADGE: Record<string, string> = {
-  Aprovado:   "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
-  Reativado:  "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
-  Pago:       "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
-  Destacado:  "bg-amber-100 text-amber-800 hover:bg-amber-100",
-  Suspenso:   "bg-orange-100 text-orange-800 hover:bg-orange-100",
-  Rejeitado:  "bg-red-100 text-red-800 hover:bg-red-100",
-  Removido:   "bg-slate-200 text-slate-800 hover:bg-slate-200",
+// Rótulo legível e cor por ação registrada no banco.
+const ACTION_LABEL: Record<string, string> = {
+  APROVAR_ORGANIZADOR: "Aprovou organizador",
+  REJEITAR_ORGANIZADOR: "Rejeitou organizador",
+  SUSPENDER_ORGANIZADOR: "Suspendeu organizador",
+  REATIVAR_ORGANIZADOR: "Reativou organizador",
+  EDITAR_ORGANIZADOR: "Editou organizador",
+  APROVAR_REPASSE: "Aprovou repasse",
+  REJEITAR_REPASSE: "Rejeitou repasse",
+  PAGAR_REPASSE: "Pagou repasse",
+  ALTERAR_TAXA_PLATAFORMA: "Alterou taxa",
+  ALTERAR_CONFIGURACOES: "Alterou configurações",
+  SUSPENDER_USUARIO: "Suspendeu usuário",
+  EDITAR_USUARIO: "Editou usuário",
 };
 
-const TIPO_LABEL: Record<AuditTipo, string> = {
-  organizador: "Organizador",
-  repasse:     "Repasse",
-  evento:      "Evento",
-  outro:       "Outro",
+const ACTION_BADGE: Record<string, string> = {
+  APROVAR_ORGANIZADOR: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
+  REATIVAR_ORGANIZADOR: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
+  APROVAR_REPASSE: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
+  PAGAR_REPASSE: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
+  REJEITAR_ORGANIZADOR: "bg-red-100 text-red-800 hover:bg-red-100",
+  REJEITAR_REPASSE: "bg-red-100 text-red-800 hover:bg-red-100",
+  SUSPENDER_ORGANIZADOR: "bg-orange-100 text-orange-800 hover:bg-orange-100",
+  SUSPENDER_USUARIO: "bg-orange-100 text-orange-800 hover:bg-orange-100",
+  ALTERAR_TAXA_PLATAFORMA: "bg-blue-100 text-blue-800 hover:bg-blue-100",
+  ALTERAR_CONFIGURACOES: "bg-blue-100 text-blue-800 hover:bg-blue-100",
+  EDITAR_USUARIO: "bg-slate-200 text-slate-800 hover:bg-slate-200",
+  EDITAR_ORGANIZADOR: "bg-slate-200 text-slate-800 hover:bg-slate-200",
+};
+
+const ENTITY_LABEL: Record<string, string> = {
+  organization: "Organizador",
+  withdrawal_request: "Repasse",
+  user: "Usuário",
+  platform_settings: "Configurações",
+};
+
+const actionLabel = (a: string) => ACTION_LABEL[a] ?? a;
+const entityLabel = (t: string) => ENTITY_LABEL[t] ?? t;
+
+// Transforma o JSON de details em texto curto e legível.
+const formatDetails = (details: unknown): string => {
+  if (!details || typeof details !== "object") return "—";
+  const entries = Object.entries(details as Record<string, unknown>).filter(
+    ([, v]) => v !== null && v !== undefined && v !== "",
+  );
+  if (entries.length === 0) return "—";
+  return entries
+    .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
+    .join(" · ");
 };
 
 const AdminAuditLogsPage = () => {
-  const { entries } = useAuditLog();
+  const { data: logs = [], isLoading } = useAuditLogs({ limit: 500 });
   const [search, setSearch] = useState("");
   const [acaoFilter, setAcaoFilter] = useState<string>("todas");
-  const [tipoFilter, setTipoFilter] = useState<AuditTipo | "todos">("todos");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  const acoesDisponiveis = useMemo(() => {
-    return Array.from(new Set(entries.map((e) => e.acao))).sort();
-  }, [entries]);
+  const acoesDisponiveis = useMemo(
+    () => Array.from(new Set(logs.map((l) => l.action))).sort(),
+    [logs],
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return entries.filter((e) => {
-      const hitsQ = !q || e.alvo.toLowerCase().includes(q) || e.descricao.toLowerCase().includes(q) || e.usuario.toLowerCase().includes(q);
-      const hitsA = acaoFilter === "todas" || e.acao === acaoFilter;
-      const hitsT = tipoFilter === "todos" || e.tipo === tipoFilter;
-      const dateOnly = e.data.slice(0, 10);
+    return logs.filter((l) => {
+      const detailsStr = formatDetails(l.details).toLowerCase();
+      const hitsQ =
+        !q ||
+        (l.actor_email ?? "").toLowerCase().includes(q) ||
+        actionLabel(l.action).toLowerCase().includes(q) ||
+        entityLabel(l.entity_type).toLowerCase().includes(q) ||
+        (l.entity_id ?? "").toLowerCase().includes(q) ||
+        detailsStr.includes(q);
+      const hitsA = acaoFilter === "todas" || l.action === acaoFilter;
+      const dateOnly = l.created_at.slice(0, 10);
       const hitsFrom = !dateFrom || dateOnly >= dateFrom;
       const hitsTo = !dateTo || dateOnly <= dateTo;
-      return hitsQ && hitsA && hitsT && hitsFrom && hitsTo;
+      return hitsQ && hitsA && hitsFrom && hitsTo;
     });
-  }, [entries, search, acaoFilter, tipoFilter, dateFrom, dateTo]);
+  }, [logs, search, acaoFilter, dateFrom, dateTo]);
 
   return (
     <div className="space-y-6">
@@ -70,7 +113,7 @@ const AdminAuditLogsPage = () => {
           Logs de Auditoria
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Histórico de ações administrativas realizadas na plataforma.
+          Histórico de ações administrativas registradas no servidor.
         </p>
       </div>
 
@@ -80,7 +123,7 @@ const AdminAuditLogsPage = () => {
             <div className="relative flex-1 max-w-md">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <Input
-                placeholder="Buscar por alvo, descrição ou usuário"
+                placeholder="Buscar por administrador, ação ou detalhes"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -88,26 +131,14 @@ const AdminAuditLogsPage = () => {
               />
             </div>
             <Select value={acaoFilter} onValueChange={setAcaoFilter}>
-              <SelectTrigger className="w-full md:w-44">
+              <SelectTrigger className="w-full md:w-52">
                 <SelectValue placeholder="Ação" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas as ações</SelectItem>
                 {acoesDisponiveis.map((a) => (
-                  <SelectItem key={a} value={a}>{a}</SelectItem>
+                  <SelectItem key={a} value={a}>{actionLabel(a)}</SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-            <Select value={tipoFilter} onValueChange={(v) => setTipoFilter(v as AuditTipo | "todos")}>
-              <SelectTrigger className="w-full md:w-44">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os tipos</SelectItem>
-                <SelectItem value="organizador">Organizador</SelectItem>
-                <SelectItem value="repasse">Repasse</SelectItem>
-                <SelectItem value="evento">Evento</SelectItem>
-                <SelectItem value="outro">Outro</SelectItem>
               </SelectContent>
             </Select>
             <Input
@@ -131,37 +162,52 @@ const AdminAuditLogsPage = () => {
               <TableHeader>
                 <TableRow className="bg-slate-50">
                   <TableHead>Data/Hora</TableHead>
-                  <TableHead>Usuário</TableHead>
+                  <TableHead>Administrador</TableHead>
                   <TableHead>Ação</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Alvo</TableHead>
-                  <TableHead>Descrição</TableHead>
+                  <TableHead>Entidade</TableHead>
+                  <TableHead>Detalhes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((e) => (
-                  <TableRow key={e.id}>
-                    <TableCell className="text-slate-600 whitespace-nowrap">
-                      {new Date(e.data).toLocaleString("pt-BR")}
-                    </TableCell>
-                    <TableCell className="text-slate-700 font-medium">{e.usuario}</TableCell>
-                    <TableCell>
-                      <Badge className={ACAO_BADGE[e.acao] ?? "bg-slate-100 text-slate-800 hover:bg-slate-100"}>
-                        {e.acao}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="border-slate-200 text-slate-700">
-                        {TIPO_LABEL[e.tipo as AuditTipo] ?? e.tipo}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-slate-700">{e.alvo}</TableCell>
-                    <TableCell className="text-slate-600">{e.descricao}</TableCell>
-                  </TableRow>
-                ))}
-                {filtered.length === 0 && (
+                {isLoading &&
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={`sk-${i}`}>
+                      {Array.from({ length: 5 }).map((__, j) => (
+                        <TableCell key={j}>
+                          <Skeleton className="h-4 w-full" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+
+                {!isLoading &&
+                  filtered.map((l) => (
+                    <TableRow key={l.id}>
+                      <TableCell className="text-slate-600 whitespace-nowrap">
+                        {new Date(l.created_at).toLocaleString("pt-BR")}
+                      </TableCell>
+                      <TableCell className="text-slate-700 font-medium">
+                        {l.actor_email ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={ACTION_BADGE[l.action] ?? "bg-slate-100 text-slate-800 hover:bg-slate-100"}>
+                          {actionLabel(l.action)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="border-slate-200 text-slate-700">
+                          {entityLabel(l.entity_type)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-slate-600 text-xs max-w-md">
+                        {formatDetails(l.details)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+
+                {!isLoading && filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-slate-500 py-8">
+                    <TableCell colSpan={5} className="text-center text-slate-500 py-8">
                       Nenhum registro encontrado.
                     </TableCell>
                   </TableRow>

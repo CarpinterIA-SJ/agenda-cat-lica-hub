@@ -45,7 +45,14 @@ import {
   useUpdateWithdrawalStatus,
   useWithdrawalRequests,
 } from "@/hooks/use-withdrawal-requests";
+import { useCreateAuditLog, type AuditLogAction } from "@/hooks/use-audit-log";
 import { WithdrawalStatus } from "@/integrations/supabase/types";
+
+const WITHDRAWAL_ACTION_BY_STATUS: Partial<Record<WithdrawalStatus, AuditLogAction>> = {
+  approved: "APROVAR_REPASSE",
+  paid: "PAGAR_REPASSE",
+  rejected: "REJEITAR_REPASSE",
+};
 
 const STATUS_LABEL: Record<WithdrawalStatus, string> = {
   pending: "Pendente",
@@ -71,6 +78,7 @@ const AdminWithdrawalsPage = () => {
     statusFilter === "todos" ? undefined : { status: statusFilter },
   );
   const updateStatus = useUpdateWithdrawalStatus();
+  const createAuditLog = useCreateAuditLog();
 
   const [payTarget, setPayTarget] = useState<WithdrawalRequestWithOrg | null>(null);
   const [rejectTarget, setRejectTarget] = useState<WithdrawalRequestWithOrg | null>(null);
@@ -103,6 +111,19 @@ const AdminWithdrawalsPage = () => {
             title: `Repasse ${STATUS_LABEL[status].toLowerCase()}`,
             description: r.organization?.name ?? fmtBRL(r.amount_cents),
           });
+          const action = WITHDRAWAL_ACTION_BY_STATUS[status];
+          if (action) {
+            createAuditLog.mutate({
+              action,
+              entity_type: "withdrawal_request",
+              entity_id: r.id,
+              details: {
+                valor: r.amount_cents,
+                nome: r.organization?.name ?? null,
+                ...(admin_notes ? { motivo: admin_notes } : {}),
+              },
+            });
+          }
         },
         onError: (e: any) => {
           toast({

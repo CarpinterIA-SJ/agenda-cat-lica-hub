@@ -302,6 +302,20 @@ export interface WithdrawalRequest {
   updated_at:       string
 }
 
+// Migration 012 — logs de auditoria administrativa
+
+export interface AuditLog {
+  id:           string
+  actor_id:     string | null
+  actor_email:  string | null
+  action:       string
+  entity_type:  string
+  entity_id:    string | null
+  details:      Json
+  ip_address:   string | null
+  created_at:   string
+}
+
 // ─── Database type (usado pelo createClient<Database>) ──────────────────────
 
 export type Database = {
@@ -513,6 +527,19 @@ export type Database = {
           paid_at?:      string | null
         }
         Update: Partial<Omit<WithdrawalRequest, 'id' | 'organization_id' | 'created_at'>>
+      }
+      audit_logs: {
+        Row:    AuditLog
+        Insert: Omit<AuditLog, 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+          actor_id?: string | null
+          actor_email?: string | null
+          entity_id?: string | null
+          details?: Json
+          ip_address?: string | null
+        }
+        Update: Partial<Pick<AuditLog, 'details'>>
       }
     }
     Views: {

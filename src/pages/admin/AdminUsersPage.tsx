@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminUsers } from "@/hooks/use-admin-users";
+import { useCreateAuditLog } from "@/hooks/use-audit-log";
 
 interface AdminUser {
   id: string;
@@ -54,6 +55,7 @@ const AdminUsersPage = () => {
   const [suspendUser, setSuspendUser] = useState<AdminUser | null>(null);
 
   const { data: rawUsers = [] } = useAdminUsers();
+  const createAuditLog = useCreateAuditLog();
 
   // Conjunto de user_ids que são donos de alguma organização → tipo "Organizador".
   const { data: ownerIds } = useQuery({
@@ -93,12 +95,24 @@ const AdminUsersPage = () => {
 
   const saveEdit = () => {
     if (!editUser) return;
+    createAuditLog.mutate({
+      action: "EDITAR_USUARIO",
+      entity_type: "user",
+      entity_id: editUser.id,
+      details: { nome: editNome, email: editEmail },
+    });
     toast({ title: "Usuário atualizado" });
     setEditUser(null);
   };
 
   const confirmSuspend = () => {
     if (!suspendUser) return;
+    createAuditLog.mutate({
+      action: "SUSPENDER_USUARIO",
+      entity_type: "user",
+      entity_id: suspendUser.id,
+      details: { nome: suspendUser.nome, novo_status: suspendUser.status === "Ativo" ? "banido" : "ativo" },
+    });
     toast({
       title: suspendUser.status === "Ativo" ? "Conta suspensa" : "Conta reativada",
       description: suspendUser.nome,

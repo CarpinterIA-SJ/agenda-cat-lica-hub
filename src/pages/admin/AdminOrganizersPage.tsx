@@ -46,7 +46,15 @@ import {
   useAdminOrganizers,
   useUpdateOrganizerStatus,
 } from "@/hooks/use-admin-organizers";
+import { useCreateAuditLog, type AuditLogAction } from "@/hooks/use-audit-log";
 import { OrganizerStatus } from "@/integrations/supabase/types";
+
+const ORG_ACTION_BY_STATUS: Record<OrganizerStatus, AuditLogAction> = {
+  approved: "APROVAR_ORGANIZADOR",
+  rejected: "REJEITAR_ORGANIZADOR",
+  suspended: "SUSPENDER_ORGANIZADOR",
+  pending: "EDITAR_ORGANIZADOR",
+};
 
 const STATUS_LABEL: Record<OrganizerStatus, string> = {
   pending: "Pendente",
@@ -66,6 +74,7 @@ const AdminOrganizersPage = () => {
   const { toast } = useToast();
   const { data: organizers, isLoading } = useAdminOrganizers();
   const updateStatus = useUpdateOrganizerStatus();
+  const createAuditLog = useCreateAuditLog();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrganizerStatus | "todos">("todos");
@@ -92,6 +101,13 @@ const AdminOrganizersPage = () => {
       {
         onSuccess: () => {
           toast({ title: `Organizador ${STATUS_LABEL[status].toLowerCase()}`, description: o.name });
+          // Log de auditoria (não bloqueia a ação principal em caso de falha).
+          createAuditLog.mutate({
+            action: ORG_ACTION_BY_STATUS[status],
+            entity_type: "organization",
+            entity_id: o.id,
+            details: { nome: o.name, status, ...(reason ? { motivo: reason } : {}) },
+          });
         },
         onError: (e: any) => {
           toast({
