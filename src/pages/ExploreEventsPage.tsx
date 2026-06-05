@@ -555,7 +555,7 @@ const ExploreEventsPage = () => {
                     <img src={event.bannerUrl} alt={event.name} className="w-full h-full object-cover" />
                   </div>
                 ) : (
-                  <div className="h-28 w-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                  <div className="h-28 w-full bg-slate-100 flex items-center justify-center">
                     <Calendar className="w-10 h-10 text-primary/50" />
                   </div>
                 )}

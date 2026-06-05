@@ -35,15 +35,16 @@ const FAQS = [
   { q: "A maior plataforma também processa eventos pagos?", a: "Sim. Para eventos gratuitos, não cobramos nada. Para eventos pagos, aplicamos uma taxa de 7,3% por inscrição, sem mensalidades ou taxas de cadastro." },
 ];
 
+// Capas de placeholder sóbrias (cores sólidas institucionais, sem arco-íris).
 const GRADIENT_PLACEHOLDERS = [
-  "from-emerald-400 to-teal-600",
-  "from-purple-400 to-indigo-600",
-  "from-amber-400 to-orange-600",
-  "from-rose-400 to-pink-600",
-  "from-blue-400 to-cyan-600",
-  "from-green-400 to-emerald-600",
-  "from-violet-400 to-purple-600",
-  "from-orange-400 to-red-600",
+  "bg-[#004d00]",
+  "bg-[#0b3d2e]",
+  "bg-slate-700",
+  "bg-slate-600",
+  "bg-[#004d00]",
+  "bg-[#0b3d2e]",
+  "bg-slate-700",
+  "bg-slate-600",
 ];
 
 const formatPrice = (tickets: any[]): string => {
@@ -66,7 +67,7 @@ const EventCard = ({ event, index, onClick }: { event: any; index: number; onCli
       onClick={onClick}
       className="group flex-shrink-0 w-64 md:w-72 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all cursor-pointer overflow-hidden"
     >
-      <div className={`h-36 relative overflow-hidden bg-gradient-to-br ${gradient}`}>
+      <div className={`h-36 relative overflow-hidden ${gradient}`}>
         {event.bannerUrl ? (
           <img src={event.bannerUrl} alt={event.name} className="w-full h-full object-cover" />
         ) : (
@@ -110,7 +111,7 @@ const EventCardGrid = ({ event, index, onClick }: { event: any; index: number; o
       onClick={onClick}
       className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all cursor-pointer overflow-hidden"
     >
-      <div className={`h-40 relative overflow-hidden bg-gradient-to-br ${gradient}`}>
+      <div className={`h-40 relative overflow-hidden ${gradient}`}>
         {event.bannerUrl ? (
           <img src={event.bannerUrl} alt={event.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
         ) : (
@@ -521,7 +522,7 @@ const LandingPage = () => {
       </section>
 
       {/* ── ORGANIZER CTA ── */}
-      <section className="bg-gradient-to-br from-[#0b3d2e] to-[#004d00] py-16">
+      <section className="bg-[#004d00] py-16">
         <div className="max-w-4xl mx-auto px-4 md:px-6 text-center space-y-6">
           <h2 className="text-2xl md:text-4xl font-black text-white leading-tight">
             Organize seu evento na maior plataforma de{" "}

@@ -329,7 +329,7 @@ const LoginPage = () => {
           alt="Evento"
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#004d00]/95 via-[#007600]/65 to-[#007600]/30" />
+        <div className="absolute inset-0 bg-[#004d00]/80" />
         <div className="absolute bottom-12 left-12 right-12 text-white">
           <h2 className="text-4xl font-bold mb-3 leading-tight">
             Melhor plataforma de eventos do Brasil
