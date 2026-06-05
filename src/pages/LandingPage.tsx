@@ -14,16 +14,16 @@ import {
 } from "lucide-react";
 
 const CATEGORIES = [
-  { key: "shows", label: "Shows Católicos", icon: Music, color: "bg-purple-50 text-purple-700 border-purple-200" },
-  { key: "congressos", label: "Congressos e Seminários", icon: Mic2, color: "bg-blue-50 text-blue-700 border-blue-200" },
-  { key: "retiros", label: "Retiros", icon: Mountain, color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  { key: "acampamentos", label: "Acampamentos", icon: Tent, color: "bg-amber-50 text-amber-700 border-amber-200" },
-  { key: "cursos", label: "Cursos e Workshops", icon: BookOpen, color: "bg-rose-50 text-rose-700 border-rose-200" },
-  { key: "encontros", label: "Encontros de Formação", icon: Heart, color: "bg-pink-50 text-pink-700 border-pink-200" },
-  { key: "espiritualidade", label: "Encontros de Espiritualidade", icon: Sparkles, color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-  { key: "seminario-espirito", label: "Seminário de Vida no Espírito Santo", icon: Flame, color: "bg-red-50 text-red-700 border-red-200" },
-  { key: "palestras", label: "Palestras", icon: Star, color: "bg-orange-50 text-orange-700 border-orange-200" },
-  { key: "catequese", label: "Catequese", icon: BookOpen, color: "bg-teal-50 text-teal-700 border-teal-200" },
+  { key: "shows", label: "Shows Católicos", icon: Music, color: "bg-white text-slate-700 border-slate-200" },
+  { key: "congressos", label: "Congressos e Seminários", icon: Mic2, color: "bg-white text-slate-700 border-slate-200" },
+  { key: "retiros", label: "Retiros", icon: Mountain, color: "bg-white text-slate-700 border-slate-200" },
+  { key: "acampamentos", label: "Acampamentos", icon: Tent, color: "bg-white text-slate-700 border-slate-200" },
+  { key: "cursos", label: "Cursos e Workshops", icon: BookOpen, color: "bg-white text-slate-700 border-slate-200" },
+  { key: "encontros", label: "Encontros de Formação", icon: Heart, color: "bg-white text-slate-700 border-slate-200" },
+  { key: "espiritualidade", label: "Encontros de Espiritualidade", icon: Sparkles, color: "bg-white text-slate-700 border-slate-200" },
+  { key: "seminario-espirito", label: "Seminário de Vida no Espírito Santo", icon: Flame, color: "bg-white text-slate-700 border-slate-200" },
+  { key: "palestras", label: "Palestras", icon: Star, color: "bg-white text-slate-700 border-slate-200" },
+  { key: "catequese", label: "Catequese", icon: BookOpen, color: "bg-white text-slate-700 border-slate-200" },
 ];
 
 const FAQS = [
@@ -325,7 +325,7 @@ const LandingPage = () => {
           </span>
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white leading-tight max-w-4xl mx-auto">
             A Maior Plataforma de{" "}
-            <span className="text-amber-400">Eventos</span>{" "}
+            <span className="text-emerald-200">Eventos</span>{" "}
             do Brasil
           </h1>
           <p className="text-base md:text-lg text-emerald-100/80 max-w-2xl mx-auto">
@@ -380,8 +380,8 @@ const LandingPage = () => {
               onClick={() => handleCategoryClick(cat.key)}
               className={`flex flex-col items-center gap-2 rounded-2xl border p-3 text-center hover:scale-105 transition-all ${cat.color}`}
             >
-              <div className="w-9 h-9 rounded-xl bg-white/60 flex items-center justify-center">
-                <cat.icon className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center">
+                <cat.icon className="w-5 h-5 text-[#004d00]" />
               </div>
               <span className="text-[10px] font-semibold leading-tight">{cat.label}</span>
             </button>
