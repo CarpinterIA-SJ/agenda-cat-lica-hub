@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Calendar, ChevronLeft, FileText, Loader2 } from "lucide-react";
+import { Calendar, ChevronLeft, FileText, Loader2, QrCode } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,8 +9,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useCheckins } from "@/hooks/use-checkins";
+import QRCodeGenerator from "@/components/QRCodeGenerator";
 
 const CheckinsRealizadosPage = () => {
   const navigate = useNavigate();
@@ -20,6 +28,8 @@ const CheckinsRealizadosPage = () => {
   const [ticketType, setTicketType] = useState<string>("");
   const [accessPoint, setAccessPoint] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
+  // Check-in selecionado para exibir o QR Code do ingresso.
+  const [qrTarget, setQrTarget] = useState<(typeof checkins)[number] | null>(null);
 
   const handleGenerateReport = async () => {
     if (!ticketType || !accessPoint) {
@@ -155,18 +165,19 @@ const CheckinsRealizadosPage = () => {
                 <th className="px-4 py-3 text-left font-bold">Participante</th>
                 <th className="px-4 py-3 text-left font-bold">E-mail</th>
                 <th className="px-4 py-3 text-left font-bold">Realizado em</th>
+                <th className="px-4 py-3 text-right font-bold">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={4} className="px-4 py-12 text-center text-slate-500">
                     <Loader2 className="w-5 h-5 animate-spin inline" />
                   </td>
                 </tr>
               ) : checkins.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={4} className="px-4 py-12 text-center text-slate-500">
                     Nenhum check-in realizado.
                   </td>
                 </tr>
@@ -178,6 +189,17 @@ const CheckinsRealizadosPage = () => {
                     <td className="px-4 py-3 text-slate-600">
                       {c.checked_at ? new Date(c.checked_at).toLocaleString("pt-BR") : "-"}
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 border-slate-200 text-slate-600 hover:border-[#004d00] hover:text-[#004d00]"
+                        onClick={() => setQrTarget(c)}
+                      >
+                        <QrCode className="w-4 h-4" />
+                        Ver QR Code
+                      </Button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -185,6 +207,24 @@ const CheckinsRealizadosPage = () => {
           </table>
         </div>
       </div>
+
+      {/* QR Code do ingresso */}
+      <Dialog open={!!qrTarget} onOpenChange={(o) => !o && setQrTarget(null)}>
+        <DialogContent className="sm:max-w-sm rounded-md border-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-slate-900">QR Code do ingresso</DialogTitle>
+            <DialogDescription>
+              {qrTarget?.registration?.full_name ?? "Participante"}
+            </DialogDescription>
+          </DialogHeader>
+          {qrTarget && (
+            <QRCodeGenerator
+              registrationId={qrTarget.registration_id}
+              eventId={qrTarget.event_id}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

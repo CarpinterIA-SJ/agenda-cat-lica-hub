@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { QRCodeCanvas } from "qrcode.react";
+import QRCodeGenerator from "@/components/QRCodeGenerator";
 import {
   ArrowLeft,
   MapPin,
@@ -149,7 +149,6 @@ const MyTicketDetailPage = () => {
     : null;
 
   const ticketCode = `#${String(registration.id).toUpperCase().slice(-10)}`;
-  const qrValue = `GUARDIAO:${registration.id}:${registration.event_id}`;
 
   const organizerName: string | null = null;
   const organizerInitials = "GE";
@@ -328,22 +327,21 @@ const MyTicketDetailPage = () => {
                 </div>
               )}
             </div>
-
-            {/* QR Code */}
-            <div className="flex justify-start">
-              <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm inline-block">
-                <QRCodeCanvas
-                  id="ticket-qr"
-                  value={qrValue}
-                  size={140}
-                  bgColor="#ffffff"
-                  fgColor="#1e293b"
-                  level="H"
-                />
-              </div>
-            </div>
           </div>
         </div>
+      </div>
+
+      {/* QR Code de acesso */}
+      <div className="space-y-3">
+        <h3 className="font-bold text-slate-900 text-base border-b-2 border-primary pb-1 w-fit">
+          Seu QR Code de acesso
+        </h3>
+        <p className="text-sm text-slate-500">Apresente este QR Code na entrada do evento.</p>
+        <QRCodeGenerator
+          registrationId={registration.id}
+          eventId={registration.event_id}
+          eventName={eventName}
+        />
       </div>
     </div>
   );

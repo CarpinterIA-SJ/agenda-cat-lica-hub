@@ -4,20 +4,34 @@ import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface QRCodeGeneratorProps {
-  /** Id da inscrição (event_registrations.id) codificado no QR Code. */
+  /** Id da inscrição (event_registrations.id). */
   registrationId: string;
+  /** Id do evento — compõe o conteúdo do QR Code. */
+  eventId: string;
+  /** Nome do evento (opcional) — usado no nome do arquivo PNG. */
+  eventName?: string;
   /** Tamanho do QR em pixels. Default 200. */
   size?: number;
-  /** Nome usado no arquivo PNG baixado. Default "ingresso". */
-  fileName?: string;
 }
 
+/** Remove acentos/caracteres especiais para um nome de arquivo seguro. */
+const slugify = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "ingresso";
+
 /**
- * Gera o QR Code de um ingresso a partir do registrationId.
- * O código lido pelo leitor de check-in é exatamente esse registrationId.
+ * Gera o QR Code de um ingresso. O conteúdo codificado é
+ * `GUARDIAO:<registrationId>:<eventId>` — exatamente o formato esperado
+ * pelo leitor de check-in (QRCodeReader / CheckinsPage).
  */
-const QRCodeGenerator = ({ registrationId, size = 200, fileName = "ingresso" }: QRCodeGeneratorProps) => {
+const QRCodeGenerator = ({ registrationId, eventId, eventName, size = 200 }: QRCodeGeneratorProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const qrValue = `GUARDIAO:${registrationId}:${eventId}`;
 
   const handleDownload = () => {
     const canvas = containerRef.current?.querySelector("canvas");
@@ -25,17 +39,17 @@ const QRCodeGenerator = ({ registrationId, size = 200, fileName = "ingresso" }: 
     const url = canvas.toDataURL("image/png");
     const link = document.createElement("a");
     link.href = url;
-    link.download = `qrcode-${fileName}.png`;
+    link.download = `qrcode-${slugify(eventName ?? registrationId)}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div ref={containerRef} className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+    <div className="flex flex-col items-center gap-4 rounded-md border border-slate-200 bg-white p-6">
+      <div ref={containerRef} className="rounded-md border border-slate-200 bg-white p-3">
         <QRCodeCanvas
-          value={registrationId}
+          value={qrValue}
           size={size}
           bgColor="#ffffff"
           fgColor="#1e293b"
