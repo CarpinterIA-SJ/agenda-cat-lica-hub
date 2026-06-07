@@ -71,8 +71,17 @@ import {
   Building2,
   Calendar,
   Ticket,
+  FileText,
+  Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  generateFinancialReport,
+  generateEventReport,
+  generateOrgReport,
+  PdfTxRow,
+} from "@/lib/pdf-export";
 import {
   useAdminFinancialData,
   EnrichedPayment,
@@ -105,6 +114,34 @@ const sum = <T,>(arr: T[], pick: (t: T) => number) => arr.reduce((s, x) => s + (
 
 type SortDir = "asc" | "desc";
 
+// Mapeia um pagamento para a linha do PDF (mesma estrutura do CSV).
+const toPdfTx = (p: EnrichedPayment): PdfTxRow => ({
+  eventName: p.eventName,
+  organizationName: p.organizationName,
+  participantName: p.participantName,
+  date: p.paid_at ?? p.created_at,
+  amountCents: p.amount_cents,
+  feeCents: p.fee_cents,
+  netCents: p.net_cents,
+  method: PAYMENT_METHOD_LABEL[p.method],
+  status: PAYMENT_STATUS_LABEL[p.status],
+});
+
+// Estado de loading + geração assíncrona (deixa o spinner renderizar antes).
+const usePdfExport = () => {
+  const [loading, setLoading] = useState(false);
+  const run = async (fn: () => void) => {
+    setLoading(true);
+    try {
+      await new Promise((r) => setTimeout(r, 30));
+      fn();
+    } finally {
+      setLoading(false);
+    }
+  };
+  return { loading, run };
+};
+
 // ============================================================
 //  Página
 // ============================================================
@@ -112,6 +149,9 @@ type SortDir = "asc" | "desc";
 const AdminFinancialPage = () => {
   const { data, isLoading } = useAdminFinancialData();
   const { data: withdrawals = [] } = useWithdrawalRequests();
+  const { user } = useAuth();
+  const adminName =
+    (user?.user_metadata?.full_name as string) || user?.email || "Administrador";
   const [tab, setTab] = useState("visao-geral");
 
   const empty: AdminFinancialData = { payments: [], tickets: [], events: [], organizations: [] };
@@ -194,9 +234,13 @@ const AdminFinancialPage = () => {
         </TabsList>
       </Tabs>
 
-      {tab === "visao-geral" && <OverviewTab paid={paid} all={fin.payments} isLoading={isLoading} />}
-      {tab === "por-evento" && <EventRevenueTab fin={fin} paid={paid} />}
-      {tab === "por-organizacao" && <OrgRevenueTab fin={fin} paid={paid} withdrawals={withdrawals} />}
+      {tab === "visao-geral" && (
+        <OverviewTab paid={paid} all={fin.payments} isLoading={isLoading} summary={summary} adminName={adminName} />
+      )}
+      {tab === "por-evento" && <EventRevenueTab fin={fin} paid={paid} adminName={adminName} />}
+      {tab === "por-organizacao" && (
+        <OrgRevenueTab fin={fin} paid={paid} withdrawals={withdrawals} adminName={adminName} />
+      )}
       {tab === "saques" && <SaquesTab />}
     </div>
   );
@@ -221,12 +265,17 @@ const OverviewTab = ({
   paid,
   all,
   isLoading,
+  summary,
+  adminName,
 }: {
   paid: EnrichedPayment[];
   all: EnrichedPayment[];
   isLoading: boolean;
+  summary: { volume: number; taxa: number; aRepassar: number; repassado: number; ticketMedio: number };
+  adminName: string;
 }) => {
   const { toast } = useToast();
+  const pdf = usePdfExport();
   const [gran, setGran] = useState<Granularity>("dia");
   const [range, setRange] = useState<RangePreset>("30");
   const [customStart, setCustomStart] = useState("");
@@ -331,6 +380,29 @@ const OverviewTab = ({
     toast({ title: "CSV exportado", description: `${filteredTx.length} transações.` });
   };
 
+  const periodLabel = useMemo(() => {
+    if (range === "custom") {
+      const f = (s: string) => (s ? new Date(s).toLocaleDateString("pt-BR") : "…");
+      return customStart || customEnd ? `${f(customStart)} a ${f(customEnd)}` : "Período completo";
+    }
+    return {
+      "7": "Últimos 7 dias",
+      "30": "Últimos 30 dias",
+      "90": "Últimos 90 dias",
+      ano: "Ano corrente",
+    }[range];
+  }, [range, customStart, customEnd]);
+
+  const exportPdf = () =>
+    pdf.run(() =>
+      generateFinancialReport({
+        generatedBy: adminName,
+        periodLabel,
+        summary,
+        transactions: filteredTx.map(toPdfTx),
+      }),
+    );
+
   return (
     <div className="space-y-6">
       {/* Gráfico */}
@@ -420,6 +492,9 @@ const OverviewTab = ({
             <Button variant="outline" onClick={exportCsv} disabled={filteredTx.length === 0} className="gap-2">
               <Download className="w-4 h-4" /> Exportar CSV
             </Button>
+            <Button variant="outline" onClick={exportPdf} disabled={filteredTx.length === 0 || pdf.loading} className="gap-2">
+              {pdf.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Exportar PDF
+            </Button>
           </div>
 
           <div className="rounded-xl border border-slate-200 overflow-x-auto">
@@ -502,10 +577,43 @@ interface EventRow {
   ocupacao: number | null;
 }
 
-const EventRevenueTab = ({ fin, paid }: { fin: AdminFinancialData; paid: EnrichedPayment[] }) => {
+const EventRevenueTab = ({
+  fin,
+  paid,
+  adminName,
+}: {
+  fin: AdminFinancialData;
+  paid: EnrichedPayment[];
+  adminName: string;
+}) => {
+  const pdf = usePdfExport();
   const [sortKey, setSortKey] = useState<keyof EventRow>("bruta");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [detail, setDetail] = useState<EventRow | null>(null);
+
+  const exportEventPdf = (r: EventRow) =>
+    pdf.run(() => {
+      const meta = fin.events.find((e) => e.id === r.eventId);
+      generateEventReport({
+        generatedBy: adminName,
+        event: {
+          name: r.eventName,
+          organizationName: r.organizationName,
+          date: meta?.start_at ?? null,
+          location: "—", // localização não carregada pela query (fora do escopo)
+          capacity: r.capacity,
+          vendidos: r.vendidos,
+          ocupacao: r.ocupacao,
+          bruta: r.bruta,
+          taxa: r.taxa,
+          liquida: r.liquida,
+        },
+        tickets: fin.tickets
+          .filter((t) => t.event_id === r.eventId)
+          .map((t) => ({ name: t.name, type: t.type, quantity: t.quantity, sold: t.sold, priceCents: t.price_cents })),
+        transactions: fin.payments.filter((p) => p.event_id === r.eventId).map(toPdfTx),
+      });
+    });
 
   const capacityByEvent = useMemo(() => {
     const m = new Map<string, number>();
@@ -588,6 +696,7 @@ const EventRevenueTab = ({ fin, paid }: { fin: AdminFinancialData; paid: Enriche
                 <SortHead k="taxa" label="Taxa" right />
                 <SortHead k="liquida" label="Líquida org" right />
                 <SortHead k="ocupacao" label="% ocupação" right />
+                <TableHead className="text-right">PDF</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -600,11 +709,22 @@ const EventRevenueTab = ({ fin, paid }: { fin: AdminFinancialData; paid: Enriche
                   <TableCell className="text-right text-amber-700">{fmtBRL(r.taxa)}</TableCell>
                   <TableCell className="text-right text-emerald-700">{fmtBRL(r.liquida)}</TableCell>
                   <TableCell className="text-right">{r.ocupacao !== null ? `${r.ocupacao}%` : "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Exportar PDF do evento"
+                      disabled={pdf.loading}
+                      onClick={(e) => { e.stopPropagation(); exportEventPdf(r); }}
+                    >
+                      {pdf.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {sorted.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-slate-500 py-8">
+                  <TableCell colSpan={8} className="text-center text-slate-500 py-8">
                     Nenhuma receita por evento ainda.
                   </TableCell>
                 </TableRow>
@@ -648,6 +768,12 @@ const EventRevenueTab = ({ fin, paid }: { fin: AdminFinancialData; paid: Enriche
                     </div>
                   )}
                 </div>
+                <div className="pt-2 border-t border-slate-100">
+                  <Button className="w-full gap-2 bg-[#004d00] hover:bg-[#003300]" disabled={pdf.loading}
+                    onClick={() => exportEventPdf(detail)}>
+                    {pdf.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Exportar PDF
+                  </Button>
+                </div>
               </div>
             </>
           )}
@@ -675,14 +801,47 @@ const OrgRevenueTab = ({
   fin,
   paid,
   withdrawals,
+  adminName,
 }: {
   fin: AdminFinancialData;
   paid: EnrichedPayment[];
   withdrawals: WithdrawalRequestWithOrg[];
+  adminName: string;
 }) => {
+  const pdf = usePdfExport();
   const [sortKey, setSortKey] = useState<keyof OrgRow>("arrecadado");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [detail, setDetail] = useState<OrgRow | null>(null);
+
+  const exportOrgPdf = (r: OrgRow) =>
+    pdf.run(() => {
+      // Eventos da org ranqueados por receita (a partir dos pagamentos pagos).
+      const byEvent = new Map<string, { name: string; status: string; brutaCents: number; vendidos: number }>();
+      paid
+        .filter((p) => p.organization_id === r.orgId && p.event_id)
+        .forEach((p) => {
+          const meta = fin.events.find((e) => e.id === p.event_id);
+          const cur = byEvent.get(p.event_id!) ?? { name: p.eventName, status: meta?.status ?? "—", brutaCents: 0, vendidos: 0 };
+          cur.brutaCents += p.amount_cents;
+          cur.vendidos += 1;
+          byEvent.set(p.event_id!, cur);
+        });
+      const events = Array.from(byEvent.values()).sort((a, b) => b.brutaCents - a.brutaCents);
+      generateOrgReport({
+        generatedBy: adminName,
+        org: {
+          name: r.orgName,
+          arrecadado: r.arrecadado,
+          taxaRetida: r.taxaRetida,
+          saldoDisponivel: r.saldoDisponivel,
+          totalSacado: r.totalSacado,
+        },
+        events,
+        withdrawals: withdrawals
+          .filter((w) => w.organization_id === r.orgId)
+          .map((w) => ({ date: w.created_at, amountCents: w.amount_cents, status: W_STATUS_LABEL[w.status] })),
+      });
+    });
 
   const sacadoByOrg = useMemo(() => {
     const m = new Map<string, number>();
@@ -781,6 +940,7 @@ const OrgRevenueTab = ({
                 <SortHead k="taxaRetida" label="Taxa retida" right />
                 <SortHead k="saldoDisponivel" label="Saldo p/ saque" right />
                 <SortHead k="totalSacado" label="Total sacado" right />
+                <TableHead className="text-right">PDF</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -792,11 +952,22 @@ const OrgRevenueTab = ({
                   <TableCell className="text-right text-amber-700">{fmtBRL(r.taxaRetida)}</TableCell>
                   <TableCell className="text-right text-blue-700">{fmtBRL(r.saldoDisponivel)}</TableCell>
                   <TableCell className="text-right text-emerald-700">{fmtBRL(r.totalSacado)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Exportar PDF da organização"
+                      disabled={pdf.loading}
+                      onClick={(e) => { e.stopPropagation(); exportOrgPdf(r); }}
+                    >
+                      {pdf.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {sorted.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-slate-500 py-8">
+                  <TableCell colSpan={7} className="text-center text-slate-500 py-8">
                     Nenhuma receita por organização ainda.
                   </TableCell>
                 </TableRow>
@@ -856,6 +1027,12 @@ const OrgRevenueTab = ({
                       ))}
                     </div>
                   )}
+                </div>
+                <div className="pt-2 border-t border-slate-100">
+                  <Button className="w-full gap-2 bg-[#004d00] hover:bg-[#003300]" disabled={pdf.loading}
+                    onClick={() => exportOrgPdf(detail)}>
+                    {pdf.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Exportar PDF
+                  </Button>
                 </div>
               </div>
             </>
