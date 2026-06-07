@@ -14,7 +14,7 @@ export interface UpsertEventMessageInput {
 }
 
 /** Mensagens (templates) salvas de um evento. */
-export const useEventMessages = (eventId: string | undefined) => {
+export const useEventMessages = (eventId: string | undefined, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ["event-messages", eventId],
     queryFn: async () => {
@@ -27,7 +27,7 @@ export const useEventMessages = (eventId: string | undefined) => {
       if (error) throw error;
       return data as EventMessage[];
     },
-    enabled: !!eventId,
+    enabled: (options?.enabled ?? true) && !!eventId,
   });
 };
 

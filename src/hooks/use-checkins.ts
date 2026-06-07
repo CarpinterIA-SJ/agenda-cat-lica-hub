@@ -7,7 +7,7 @@ type CheckinTypeInsert = Database["public"]["Tables"]["checkin_types"]["Insert"]
 type Checkin = Database["public"]["Tables"]["checkins"]["Row"];
 type CheckinInsert = Database["public"]["Tables"]["checkins"]["Insert"];
 
-export const useCheckinTypes = (eventId: string | undefined) => {
+export const useCheckinTypes = (eventId: string | undefined, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ["checkin-types", eventId],
     queryFn: async () => {
@@ -20,7 +20,7 @@ export const useCheckinTypes = (eventId: string | undefined) => {
       if (error) throw error;
       return data as CheckinType[];
     },
-    enabled: !!eventId,
+    enabled: (options?.enabled ?? true) && !!eventId,
   });
 };
 
@@ -51,7 +51,7 @@ export const useDeleteCheckinType = () => {
   });
 };
 
-export const useCheckins = (eventId: string | undefined) => {
+export const useCheckins = (eventId: string | undefined, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ["checkins", eventId],
     queryFn: async () => {
@@ -64,7 +64,7 @@ export const useCheckins = (eventId: string | undefined) => {
       if (error) throw error;
       return data as (Checkin & { registration: Database["public"]["Tables"]["event_registrations"]["Row"] | null })[];
     },
-    enabled: !!eventId,
+    enabled: (options?.enabled ?? true) && !!eventId,
   });
 };
 

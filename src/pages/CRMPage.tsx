@@ -58,7 +58,7 @@ const CRMPage = () => {
   ];
 
   const { data: org } = useMyOrganization();
-  const { data: crmContacts = [] } = useCrmContacts(org?.id);
+  const { data: crmContacts = [] } = useCrmContacts(org?.id, { enabled: !!org?.id });
   const createCrmContact = useCreateCrmContact();
   const deleteCrmContact = useDeleteCrmContact();
 
@@ -86,7 +86,7 @@ const CRMPage = () => {
     notes: "",
   });
 
-  const { data: groups = [] } = useCrmGroups(org?.id);
+  const { data: groups = [] } = useCrmGroups(org?.id, { enabled: !!org?.id });
   const createCrmGroup = useCreateCrmGroup();
   const deleteCrmGroup = useDeleteCrmGroup();
   const [groupOpen, setGroupOpen] = useState(false);
@@ -103,19 +103,19 @@ const CRMPage = () => {
     address: "",
   });
 
-  const { data: sectors = [] } = useCrmSectors(org?.id);
+  const { data: sectors = [] } = useCrmSectors(org?.id, { enabled: !!org?.id });
   const createCrmSector = useCreateCrmSector();
   const deleteCrmSector = useDeleteCrmSector();
   const [sectorOpen, setSectorOpen] = useState(false);
   const [sectorForm, setSectorForm] = useState({ name: "", description: "" });
 
-  const { data: tags = [] } = useCrmTags(org?.id);
+  const { data: tags = [] } = useCrmTags(org?.id, { enabled: !!org?.id });
   const createCrmTag = useCreateCrmTag();
   const deleteCrmTag = useDeleteCrmTag();
   const [tagOpen, setTagOpen] = useState(false);
   const [tagForm, setTagForm] = useState({ name: "", color: tagColors[0] });
 
-  const { data: categories = [] } = useCrmCategories(org?.id);
+  const { data: categories = [] } = useCrmCategories(org?.id, { enabled: !!org?.id });
   const createCrmCategory = useCreateCrmCategory();
   const deleteCrmCategory = useDeleteCrmCategory();
   const [categoryOpen, setCategoryOpen] = useState(false);

@@ -6,7 +6,7 @@ type Coupon = Database["public"]["Tables"]["coupons"]["Row"];
 type CouponInsert = Database["public"]["Tables"]["coupons"]["Insert"];
 type CouponUpdate = Database["public"]["Tables"]["coupons"]["Update"];
 
-export const useCoupons = (eventId: string | undefined) => {
+export const useCoupons = (eventId: string | undefined, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ["coupons", eventId],
     queryFn: async () => {
@@ -19,7 +19,7 @@ export const useCoupons = (eventId: string | undefined) => {
       if (error) throw error;
       return data as Coupon[];
     },
-    enabled: !!eventId,
+    enabled: (options?.enabled ?? true) && !!eventId,
   });
 };
 

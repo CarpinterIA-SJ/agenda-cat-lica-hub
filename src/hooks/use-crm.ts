@@ -6,7 +6,10 @@ type CrmContact = Database["public"]["Tables"]["crm_contacts"]["Row"];
 type CrmContactInsert = Database["public"]["Tables"]["crm_contacts"]["Insert"];
 type CrmContactUpdate = Database["public"]["Tables"]["crm_contacts"]["Update"];
 
-export const useCrmContacts = (organizationId: string | undefined) => {
+export const useCrmContacts = (
+  organizationId: string | undefined,
+  options?: { enabled?: boolean },
+) => {
   return useQuery({
     queryKey: ["crm-contacts", organizationId],
     queryFn: async () => {
@@ -19,7 +22,7 @@ export const useCrmContacts = (organizationId: string | undefined) => {
       if (error) throw error;
       return data as CrmContact[];
     },
-    enabled: !!organizationId,
+    enabled: (options?.enabled ?? true) && !!organizationId,
   });
 };
 
@@ -74,7 +77,7 @@ const makeOrgScopedHooks = <T extends OrgScopedTable>(table: T, key: string) => 
   type Insert = Database["public"]["Tables"][T]["Insert"];
   type Update = Database["public"]["Tables"][T]["Update"];
 
-  const useList = (organizationId: string | undefined) =>
+  const useList = (organizationId: string | undefined, options?: { enabled?: boolean }) =>
     useQuery({
       queryKey: [key, organizationId],
       queryFn: async () => {
@@ -87,7 +90,7 @@ const makeOrgScopedHooks = <T extends OrgScopedTable>(table: T, key: string) => 
         if (error) throw error;
         return data as Row[];
       },
-      enabled: !!organizationId,
+      enabled: (options?.enabled ?? true) && !!organizationId,
     });
 
   const useCreate = () => {

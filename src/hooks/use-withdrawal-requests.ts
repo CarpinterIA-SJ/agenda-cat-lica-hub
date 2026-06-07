@@ -20,9 +20,13 @@ interface WithdrawalFilters {
  * Lista solicitações de repasse (admin enxerga todas via RLS; organizador vê
  * apenas as da própria org). Aceita filtros opcionais por status e org.
  */
-export const useWithdrawalRequests = (filters?: WithdrawalFilters) => {
+export const useWithdrawalRequests = (
+  filters?: WithdrawalFilters,
+  options?: { enabled?: boolean },
+) => {
   return useQuery({
     queryKey: ["withdrawal-requests", filters ?? {}],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       let query = supabase
         .from("withdrawal_requests")

@@ -6,7 +6,7 @@ type Ticket = Database["public"]["Tables"]["event_tickets"]["Row"];
 type TicketInsert = Database["public"]["Tables"]["event_tickets"]["Insert"];
 type TicketUpdate = Database["public"]["Tables"]["event_tickets"]["Update"];
 
-export const useTickets = (eventId: string | undefined) => {
+export const useTickets = (eventId: string | undefined, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ["tickets", eventId],
     queryFn: async () => {
@@ -15,7 +15,7 @@ export const useTickets = (eventId: string | undefined) => {
       if (error) throw error;
       return data as Ticket[];
     },
-    enabled: !!eventId,
+    enabled: (options?.enabled ?? true) && !!eventId,
   });
 };
 
