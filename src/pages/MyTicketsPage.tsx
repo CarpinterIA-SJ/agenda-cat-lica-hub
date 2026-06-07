@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Ticket, Search, Calendar, MapPin, ArrowRight, ExternalLink, MessageCircle } from "lucide-react";
+import { Ticket, Search, Calendar, MapPin, ArrowRight, ExternalLink, MessageCircle, Clock, BellRing, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useMyRegistrations } from "@/hooks/use-registrations";
+import { useMyWaitlist, useLeaveWaitlist } from "@/hooks/use-waitlist";
 
 const statusLabel: Record<string, string> = {
   confirmed: "Confirmado",
@@ -19,9 +22,18 @@ const locationLabel = (loc: any) => {
   return loc.name || loc.city || loc.address || "Local a confirmar";
 };
 
+const WAITLIST_STATUS_LABEL: Record<string, string> = {
+  waiting: "Aguardando",
+  notified: "Vaga disponível!",
+  expired: "Expirado",
+  converted: "Convertido",
+};
+
 const MyTicketsPage = () => {
   const navigate = useNavigate();
   const { data: registrations = [], isLoading: loading } = useMyRegistrations();
+  const { data: waitlist = [] } = useMyWaitlist();
+  const leaveWaitlist = useLeaveWaitlist();
   const [search, setSearch] = useState("");
 
   const tickets = registrations.map((reg) => ({
@@ -166,6 +178,90 @@ const MyTicketsPage = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+      {waitlist.length > 0 && (
+        <div className="space-y-4 pt-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Fila de espera</h2>
+            <p className="text-slate-500 mt-1">Eventos esgotados em que você aguarda uma vaga.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {waitlist.map((w) => {
+              const notified = w.status === "notified";
+              return (
+                <Card
+                  key={w.id}
+                  className={`overflow-hidden border shadow-sm ${notified ? "border-emerald-300" : "border-slate-200"}`}
+                >
+                  <CardContent className="p-6 space-y-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-bold text-lg text-slate-900 leading-tight">
+                        {w.event?.name || "Evento"}
+                      </h3>
+                      <Badge
+                        className={
+                          notified
+                            ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100 gap-1"
+                            : w.status === "expired"
+                            ? "bg-slate-200 text-slate-600 hover:bg-slate-200"
+                            : "bg-amber-100 text-amber-800 hover:bg-amber-100"
+                        }
+                      >
+                        {notified && <BellRing className="w-3 h-3" />}
+                        {WAITLIST_STATUS_LABEL[w.status] ?? w.status}
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-2 text-sm text-slate-500 font-medium">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-primary/70" />
+                        {w.event?.start_at
+                          ? new Date(w.event.start_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })
+                          : "Data a confirmar"}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-primary/70" />
+                        {w.status === "waiting" ? `Posição ${w.position} na fila` : `Posição ${w.position}`}
+                      </div>
+                    </div>
+
+                    {notified && (
+                      <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800">
+                        Vaga disponível! Você tem até{" "}
+                        <b>{w.expires_at ? new Date(w.expires_at).toLocaleString("pt-BR") : "o prazo informado"}</b>{" "}
+                        para se inscrever.
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 pt-1">
+                      {notified && w.event?.slug && (
+                        <Button
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 gap-1"
+                          onClick={() => navigate(`/evento/${w.event!.slug}`)}
+                        >
+                          Inscrever agora <ArrowRight className="w-4 h-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        className="flex-1 gap-1 text-slate-600"
+                        disabled={leaveWaitlist.isPending}
+                        onClick={() =>
+                          leaveWaitlist.mutate(
+                            { id: w.id, eventId: w.event_id },
+                            { onSuccess: () => toast.success("Você saiu da fila de espera.") },
+                          )
+                        }
+                      >
+                        <LogOut className="w-4 h-4" /> Sair da fila
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

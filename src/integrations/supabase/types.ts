@@ -317,6 +317,28 @@ export interface AuditLog {
   created_at:   string
 }
 
+// Migration 015 — fila de espera (waitlist)
+
+export type WaitlistStatus = 'waiting' | 'notified' | 'expired' | 'converted'
+
+export interface EventWaitlist {
+  id:              string
+  event_id:        string
+  user_id:         string
+  ticket_type_id:  string | null
+  position:        number
+  status:          WaitlistStatus
+  notified_at:     string | null
+  expires_at:      string | null
+  created_at:      string
+}
+
+/** Linha retornada por get_event_waitlist (inclui nome/e-mail do participante). */
+export interface EventWaitlistRow extends EventWaitlist {
+  user_name:  string | null
+  user_email: string | null
+}
+
 // ─── Database type (usado pelo createClient<Database>) ──────────────────────
 
 export type Database = {
@@ -542,6 +564,18 @@ export type Database = {
         }
         Update: Partial<Pick<AuditLog, 'details'>>
       }
+      event_waitlist: {
+        Row:    EventWaitlist
+        Insert: Omit<EventWaitlist, 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+          ticket_type_id?: string | null
+          status?: WaitlistStatus
+          notified_at?: string | null
+          expires_at?: string | null
+        }
+        Update: Partial<Pick<EventWaitlist, 'status' | 'position' | 'notified_at' | 'expires_at' | 'ticket_type_id'>>
+      }
     }
     Views: {
       [_ in never]: never
@@ -592,6 +626,22 @@ export type Database = {
           discount_kind:  DiscountKind | null
           discount_value: number | null
         }[]
+      }
+      waitlist_join: {
+        Args:    { p_event_id: string; p_ticket_type_id?: string | null }
+        Returns: EventWaitlist
+      }
+      waitlist_leave: {
+        Args:    { p_id: string }
+        Returns: undefined
+      }
+      waitlist_notify_next: {
+        Args:    { p_event_id: string }
+        Returns: EventWaitlist
+      }
+      get_event_waitlist: {
+        Args:    { p_event_id: string }
+        Returns: EventWaitlistRow[]
       }
     }
     Enums: {

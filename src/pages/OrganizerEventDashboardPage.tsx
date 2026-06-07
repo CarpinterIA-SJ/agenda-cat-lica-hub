@@ -38,10 +38,33 @@ import {
   Copy,
 } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Users, BellRing, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { useEvent } from "@/hooks/use-events";
 import { useRegistrations } from "@/hooks/use-registrations";
+import { useEventWaitlist, useNotifyWaitlist } from "@/hooks/use-waitlist";
+
+const WL_STATUS_LABEL: Record<string, string> = {
+  waiting: "Aguardando",
+  notified: "Notificado",
+  expired: "Expirado",
+  converted: "Convertido",
+};
+const WL_STATUS_BADGE: Record<string, string> = {
+  waiting: "bg-amber-100 text-amber-800 hover:bg-amber-100",
+  notified: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
+  expired: "bg-slate-200 text-slate-600 hover:bg-slate-200",
+  converted: "bg-blue-100 text-blue-800 hover:bg-blue-100",
+};
 
 const OrganizerEventDashboardPage = () => {
   const navigate = useNavigate();
@@ -49,6 +72,9 @@ const OrganizerEventDashboardPage = () => {
   const { toast } = useToast();
   const { data: event } = useEvent(id);
   const { data: registrations = [] } = useRegistrations(id);
+  const { data: waitlist = [] } = useEventWaitlist(id);
+  const notifyWaitlist = useNotifyWaitlist(id);
+  const waitingCount = waitlist.filter((w) => w.status === "waiting").length;
   const [duplicateOpen, setDuplicateOpen] = useState(false);
   const [syncOpen, setSyncOpen] = useState(false);
   const [duplicateName, setDuplicateName] = useState("");
@@ -80,6 +106,18 @@ const OrganizerEventDashboardPage = () => {
     } catch {
       toast({ title: "Não foi possível copiar", description: "Copie manualmente o link.", variant: "destructive" });
     }
+  };
+
+  const handleNotifyNext = () => {
+    notifyWaitlist.mutate(undefined, {
+      onSuccess: (row) =>
+        toast({
+          title: "Próximo da fila notificado",
+          description: `A posição ${row?.position} tem 48h para se inscrever.`,
+        }),
+      onError: (e: any) =>
+        toast({ title: "Erro ao notificar", description: e.message, variant: "destructive" }),
+    });
   };
 
   const handleDownloadQR = () => {
@@ -322,6 +360,76 @@ const OrganizerEventDashboardPage = () => {
               />
             </LineChart>
           </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Fila de espera */}
+      <Card className="shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-lg">Fila de espera</CardTitle>
+            <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 gap-1">
+              <Users className="w-3 h-3" /> {waitingCount} {waitingCount === 1 ? "pessoa" : "pessoas"} na fila
+            </Badge>
+          </div>
+          <Button
+            className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
+            disabled={waitingCount === 0 || notifyWaitlist.isPending}
+            onClick={handleNotifyNext}
+          >
+            <BellRing className="w-4 h-4" />
+            Notificar próximo
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {waitlist.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Ninguém na fila de espera deste evento.
+            </p>
+          ) : (
+            <div className="rounded-lg border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead className="w-16">Posição</TableHead>
+                    <TableHead>Participante</TableHead>
+                    <TableHead>E-mail</TableHead>
+                    <TableHead>Entrou em</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Notificado / expira</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {waitlist.map((w) => (
+                    <TableRow key={w.id}>
+                      <TableCell className="font-semibold">{w.position}</TableCell>
+                      <TableCell>{w.user_name || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">{w.user_email || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(w.created_at).toLocaleDateString("pt-BR")}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={WL_STATUS_BADGE[w.status] ?? ""}>
+                          {WL_STATUS_LABEL[w.status] ?? w.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {w.notified_at ? (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {new Date(w.notified_at).toLocaleDateString("pt-BR")}
+                            {w.expires_at ? ` → ${new Date(w.expires_at).toLocaleDateString("pt-BR")}` : ""}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 

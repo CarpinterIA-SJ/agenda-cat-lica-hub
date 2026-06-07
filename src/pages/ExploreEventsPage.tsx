@@ -10,8 +10,12 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useEvents } from "@/hooks/use-events";
+import { useAuth } from "@/hooks/use-auth";
+import { useMyRegistrations } from "@/hooks/use-registrations";
+import { useMyWaitlistEntry, useJoinWaitlist, useLeaveWaitlist } from "@/hooks/use-waitlist";
 import { usePlatformSettings } from "@/hooks/use-platform-settings";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { EventRegistrationModal } from "@/components/EventRegistrationModal";
@@ -90,6 +94,8 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
         name: t.name,
         price: String((t.price_cents ?? 0) / 100),
         type: t.type,
+        quantity: t.quantity ?? 0,
+        sold: t.sold ?? 0,
       }));
       return vm;
     },
@@ -97,6 +103,25 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
   });
 
   const eventData = eventProp || fetched || null;
+
+  // ─── Fila de espera (quando o evento está esgotado) ───────
+  const { user } = useAuth();
+  const { data: myRegs } = useMyRegistrations();
+  const alreadyRegistered = useMemo(
+    () => (myRegs ?? []).some((r: any) => r.event_id === eventData?.id && r.status !== "cancelled"),
+    [myRegs, eventData?.id],
+  );
+  const soldOut = useMemo(() => {
+    const ts = eventData?.tickets ?? [];
+    if (!ts.length) return false;
+    return ts.every((t: any) => Number(t.quantity) > 0 && Number(t.sold) >= Number(t.quantity));
+  }, [eventData]);
+  const waitlistActive = soldOut && !alreadyRegistered;
+  const { data: myWaitEntry } = useMyWaitlistEntry(eventData?.id, {
+    enabled: waitlistActive && !!user,
+  });
+  const joinWaitlist = useJoinWaitlist();
+  const leaveWaitlist = useLeaveWaitlist();
 
   const eventDate = useMemo(() => {
     if (!eventData) return null;
@@ -275,13 +300,77 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
                 />
               )}
 
-              <Button
-                className="mt-6 w-full h-12 bg-[#0b3d2e] text-white hover:bg-[#0a3225]"
-                onClick={() => setRegOpen(true)}
-              >
-                Garantir minha inscrição
-              </Button>
-              <p className="mt-3 text-xs text-[#7a8c81]">Pagamento seguro e confirmação imediata.</p>
+              {waitlistActive ? (
+                myWaitEntry ? (
+                  <div className="mt-6 rounded-xl border border-[#0b3d2e]/20 bg-[#0b3d2e]/5 p-4 text-center space-y-3">
+                    {myWaitEntry.status === "notified" ? (
+                      <p className="text-sm font-semibold text-emerald-700">
+                        Vaga disponível! Garanta sua inscrição
+                        {myWaitEntry.expires_at ? ` até ${new Date(myWaitEntry.expires_at).toLocaleString("pt-BR")}` : ""}.
+                      </p>
+                    ) : (
+                      <p className="text-sm font-semibold text-[#0b3d2e]">
+                        Você está na posição {myWaitEntry.position} da fila de espera.
+                      </p>
+                    )}
+                    {myWaitEntry.status === "notified" && (
+                      <Button
+                        className="w-full h-11 bg-emerald-600 text-white hover:bg-emerald-700"
+                        onClick={() => setRegOpen(true)}
+                      >
+                        Inscrever agora
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      className="w-full border-[#0b3d2e] text-[#0b3d2e] hover:bg-[#0b3d2e]/10"
+                      disabled={leaveWaitlist.isPending}
+                      onClick={() =>
+                        leaveWaitlist.mutate(
+                          { id: myWaitEntry.id, eventId: eventData.id },
+                          { onSuccess: () => toast.success("Você saiu da fila de espera.") },
+                        )
+                      }
+                    >
+                      Sair da fila
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      className="mt-6 w-full h-12 bg-[#0b3d2e] text-white hover:bg-[#0a3225]"
+                      disabled={joinWaitlist.isPending}
+                      onClick={() => {
+                        if (!user) {
+                          toast.info("Entre na sua conta para entrar na fila de espera.");
+                          navigate("/login");
+                          return;
+                        }
+                        joinWaitlist.mutate(
+                          { eventId: eventData.id },
+                          {
+                            onSuccess: () => toast.success("Você entrou na fila de espera!"),
+                            onError: (e: any) => toast.error(e.message),
+                          },
+                        );
+                      }}
+                    >
+                      Entrar na fila de espera
+                    </Button>
+                    <p className="mt-3 text-xs text-[#7a8c81]">Ingressos esgotados. Avisaremos quando abrir vaga.</p>
+                  </>
+                )
+              ) : (
+                <>
+                  <Button
+                    className="mt-6 w-full h-12 bg-[#0b3d2e] text-white hover:bg-[#0a3225]"
+                    onClick={() => setRegOpen(true)}
+                  >
+                    Garantir minha inscrição
+                  </Button>
+                  <p className="mt-3 text-xs text-[#7a8c81]">Pagamento seguro e confirmação imediata.</p>
+                </>
+              )}
             </div>
 
             <div className="rounded-2xl border border-[#dfe8df] bg-white p-5 flex items-center gap-4">
