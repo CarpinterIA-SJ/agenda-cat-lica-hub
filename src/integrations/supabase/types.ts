@@ -84,6 +84,7 @@ export interface Event {
   custom_fields:    Json
   show_fields:      Json
   payment_config:   Json
+  rejection_reason: string | null
   created_at:       string
   updated_at:       string
 }
