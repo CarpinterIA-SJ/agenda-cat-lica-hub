@@ -14,9 +14,13 @@ const slugify = (str: string) =>
     .replace(/[^\w\s-]/g, "")
     .replace(/\s+/g, "-");
 
-export const useEvents = (filters?: { status?: string; visibility?: string; organization_id?: string }) => {
+export const useEvents = (
+  filters?: { status?: string; visibility?: string; organization_id?: string },
+  options?: { enabled?: boolean },
+) => {
   return useQuery({
     queryKey: ["events", filters],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       let query = supabase.from("events").select("*");
       if (filters?.status) query = query.eq("status", filters.status);

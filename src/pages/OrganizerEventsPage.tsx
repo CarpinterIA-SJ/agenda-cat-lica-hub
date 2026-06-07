@@ -50,8 +50,11 @@ const OrganizerEventsPage = () => {
   const location = useLocation();
   const { toast } = useToast();
   const { data: org } = useMyOrganization();
+  // Sem org resolvida, NÃO buscar: query sem filtro retornaria todos os eventos
+  // públicos via RLS (vazamento). "Meus eventos" só mostra os da org do usuário.
   const { data: events = [], isLoading } = useEvents(
     org?.id ? { organization_id: org.id } : undefined,
+    { enabled: !!org?.id },
   );
   const deleteEvent = useDeleteEvent();
   const updateEvent = useUpdateEvent();

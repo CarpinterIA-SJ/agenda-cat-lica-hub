@@ -20,7 +20,12 @@ const DashboardPage = () => {
   const location = useLocation();
 
   const { data: org } = useMyOrganization();
-  const { data: events = [] } = useEvents(org?.id ? { organization_id: org.id } : undefined);
+  // Sem org resolvida, NÃO buscar: query sem filtro retornaria todos os eventos
+  // públicos via RLS (vazamento). Só consulta com organization_id do usuário.
+  const { data: events = [] } = useEvents(
+    org?.id ? { organization_id: org.id } : undefined,
+    { enabled: !!org?.id },
+  );
   const eventIds = events.map((e) => e.id);
 
   // Inscrições reais somadas em todos os eventos da organização.
