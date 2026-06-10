@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Plus, Search, Filter, Pencil, Trash2, ChevronLeft, ChevronRight, Upload, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   useMyOrganizations,
   useCreateOrganization,
@@ -34,7 +34,6 @@ interface Organizador {
 const OrganizadoresPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
   const { data: orgs = [], isLoading } = useMyOrganizations();
   const createOrg = useCreateOrganization();
   const updateOrg = useUpdateOrganization();
@@ -103,13 +102,17 @@ const OrganizadoresPage = () => {
       toast({ title: "Informe o nome do organizador", variant: "destructive" });
       return;
     }
-    if (!user?.id) {
+    // Resolve o usuário autenticado na hora: força refresh do token e garante
+    // que owner_id == auth.uid() vigente. Se a sessão expirou, falha aqui com
+    // mensagem clara em vez do RLS "violates row-level security policy".
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser?.id) {
       toast({ title: "Sessão expirada", description: "Faça login novamente.", variant: "destructive" });
       return;
     }
     const name = newNome.trim().toUpperCase();
     try {
-      await createOrg.mutateAsync({ name, slug: buildOrgSlug(name), owner_id: user.id });
+      await createOrg.mutateAsync({ name, slug: buildOrgSlug(name), owner_id: authUser.id });
       resetForm();
       setShowAddDialog(false);
       toast({ title: "Organizador adicionado com sucesso" });
