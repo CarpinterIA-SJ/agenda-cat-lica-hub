@@ -207,7 +207,7 @@ const OrganizerEventsPage = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row items-center gap-2 border-t border-slate-100 pt-3">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
                   <Button
                     variant="outline"
                     className="w-full sm:flex-1"
