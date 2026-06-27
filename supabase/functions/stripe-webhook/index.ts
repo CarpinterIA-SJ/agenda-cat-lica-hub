@@ -188,18 +188,13 @@ async function handleSucceeded(pi: Stripe.PaymentIntent) {
   });
   if (payErr) throw payErr;
 
-  // Atualiza sold do ingresso
-  const { data: ticket } = await supabaseAdmin
-    .from("event_tickets")
-    .select("sold")
-    .eq("id", ticketId)
-    .single();
-  if (ticket) {
-    await supabaseAdmin
-      .from("event_tickets")
-      .update({ sold: (ticket.sold ?? 0) + quantity })
-      .eq("id", ticketId);
-  }
+  // Incremento atômico de sold (RPC migration 018). Evita race entre
+  // confirmações simultâneas que o read-then-update anterior perdia.
+  const { error: soldErr } = await supabaseAdmin.rpc("increment_ticket_sold", {
+    p_ticket_id: ticketId,
+    p_quantity: quantity,
+  });
+  if (soldErr) throw soldErr;
 }
 
 async function handleUnpaid(pi: Stripe.PaymentIntent, reason: "failed" | "cancelled") {
