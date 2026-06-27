@@ -10,10 +10,43 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Plus, Search, Filter, Pencil, Trash2, ChevronLeft, ChevronRight, Upload, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+
+const LOGO_BUCKET = "organization-logos";
+const LOGO_MAX_BYTES = 2 * 1024 * 1024; // 2MB
+const LOGO_MIME = ["image/png", "image/jpeg", "image/webp"];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Iniciais da org para o fallback do avatar (1 palavra → 2 letras; senão 1ª+última). */
+const getOrgInitials = (name: string): string => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+/** Extrai o path interno do bucket a partir da URL pública (para remover o arquivo). */
+const logoPathFromUrl = (url: string): string | null => {
+  const marker = `/${LOGO_BUCKET}/`;
+  const i = url.indexOf(marker);
+  return i === -1 ? null : url.slice(i + marker.length);
+};
+
+/** Faz upload do logo sob a pasta do próprio usuário e devolve path + URL pública. */
+const uploadLogo = async (userId: string, file: File): Promise<{ path: string; url: string }> => {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+  const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from(LOGO_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw error;
+  const { data } = supabase.storage.from(LOGO_BUCKET).getPublicUrl(path);
+  return { path, url: data.publicUrl };
+};
 import {
   useMyOrganizations,
   useCreateOrganization,
@@ -46,39 +79,47 @@ const OrganizadoresPage = () => {
   const [newNome, setNewNome] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newDescricao, setNewDescricao] = useState("");
-  const [newLogo, setNewLogo] = useState<string | null>(null);
+  const [newLogo, setNewLogo] = useState<string | null>(null);     // preview: data URL (novo) ou URL pública (edição)
+  const [newLogoFile, setNewLogoFile] = useState<File | null>(null); // arquivo pendente de upload
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Linhas reais da tabela organizations (email/descrição/logo não têm coluna
-  // no schema atual — exibidos apenas no formulário, não persistidos).
+  // Linhas reais da tabela organizations (colunas persistidas via migration 017).
   const organizadores: Organizador[] = orgs.map((o) => ({
     id: o.id,
     nome: o.name,
-    email: "",
-    descricao: "",
-    logo: null,
+    email: o.contact_email ?? "",
+    descricao: o.description ?? "",
+    logo: o.logo_url,
     dataCriacao: new Date(o.created_at).toLocaleDateString("pt-BR"),
   }));
 
+  // Valida tipo/tamanho e prepara preview + arquivo para upload.
+  const processLogoFile = useCallback((file: File) => {
+    if (!LOGO_MIME.includes(file.type)) {
+      toast({ title: "Formato inválido", description: "Use PNG, JPEG ou WEBP.", variant: "destructive" });
+      return;
+    }
+    if (file.size > LOGO_MAX_BYTES) {
+      toast({ title: "Imagem muito grande", description: "O logo deve ter no máximo 2MB.", variant: "destructive" });
+      return;
+    }
+    setNewLogoFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setNewLogo(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  }, [toast]);
+
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => setNewLogo(ev.target?.result as string);
-      reader.readAsDataURL(file);
-    }
-  }, []);
+    if (file) processLogoFile(file);
+  }, [processLogoFile]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (ev) => setNewLogo(ev.target?.result as string);
-      reader.readAsDataURL(file);
-    }
-  }, []);
+    if (file) processLogoFile(file);
+  }, [processLogoFile]);
 
   const filtered = organizadores.filter(
     (o) =>
@@ -95,13 +136,28 @@ const OrganizadoresPage = () => {
     setNewEmail("");
     setNewDescricao("");
     setNewLogo(null);
+    setNewLogoFile(null);
+  };
+
+  // Valida os campos compartilhados do formulário (add/edit). Retorna ok + mensagem.
+  const validateForm = (): { ok: boolean } => {
+    if (!newNome.trim()) {
+      toast({ title: "Informe o nome do organizador", variant: "destructive" });
+      return { ok: false };
+    }
+    if (!EMAIL_RE.test(newEmail.trim())) {
+      toast({ title: "E-mail inválido", description: "Informe um e-mail de contato válido.", variant: "destructive" });
+      return { ok: false };
+    }
+    if (newDescricao.trim().length < 10) {
+      toast({ title: "Descrição muito curta", description: "Use ao menos 10 caracteres.", variant: "destructive" });
+      return { ok: false };
+    }
+    return { ok: true };
   };
 
   const handleAdd = async () => {
-    if (!newNome.trim()) {
-      toast({ title: "Informe o nome do organizador", variant: "destructive" });
-      return;
-    }
+    if (!validateForm().ok) return;
     // Resolve o usuário autenticado na hora: força refresh do token e garante
     // que owner_id == auth.uid() vigente. Se a sessão expirou, falha aqui com
     // mensagem clara em vez do RLS "violates row-level security policy".
@@ -111,30 +167,71 @@ const OrganizadoresPage = () => {
       return;
     }
     const name = newNome.trim().toUpperCase();
+    let uploadedPath: string | null = null; // p/ cleanup se o INSERT falhar
     try {
-      await createOrg.mutateAsync({ name, slug: buildOrgSlug(name), owner_id: authUser.id });
+      let logoUrl: string | null = null;
+      if (newLogoFile) {
+        const up = await uploadLogo(authUser.id, newLogoFile);
+        uploadedPath = up.path;
+        logoUrl = up.url;
+      }
+      await createOrg.mutateAsync({
+        name,
+        slug: buildOrgSlug(name),
+        owner_id: authUser.id,
+        contact_email: newEmail.trim(),
+        description: newDescricao.trim(),
+        logo_url: logoUrl,
+      });
       resetForm();
       setShowAddDialog(false);
       toast({ title: "Organizador adicionado com sucesso" });
     } catch (e: any) {
+      if (uploadedPath) {
+        await supabase.storage.from(LOGO_BUCKET).remove([uploadedPath]).catch(() => {});
+      }
       toast({ title: "Erro ao adicionar organizador", description: e.message, variant: "destructive" });
     }
   };
 
   const handleEdit = async () => {
-    if (!selectedOrganizador || !newNome.trim()) return;
+    if (!selectedOrganizador) return;
+    if (!validateForm().ok) return;
     const name = newNome.trim().toUpperCase();
+    let uploadedPath: string | null = null;
+    let logoUrl: string | null = selectedOrganizador.logo; // mantém o atual por padrão
     try {
+      if (newLogoFile) {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser?.id) {
+          toast({ title: "Sessão expirada", description: "Faça login novamente.", variant: "destructive" });
+          return;
+        }
+        const up = await uploadLogo(authUser.id, newLogoFile);
+        uploadedPath = up.path;
+        logoUrl = up.url;
+      }
       await updateOrg.mutateAsync({
         id: selectedOrganizador.id,
         name,
         slug: buildOrgSlug(name, selectedOrganizador.id.slice(0, 8)),
+        contact_email: newEmail.trim(),
+        description: newDescricao.trim(),
+        logo_url: logoUrl,
       });
+      // Logo substituído com sucesso → remove o antigo (best-effort, evita órfão).
+      const oldPath = selectedOrganizador.logo ? logoPathFromUrl(selectedOrganizador.logo) : null;
+      if (uploadedPath && oldPath && oldPath !== uploadedPath) {
+        await supabase.storage.from(LOGO_BUCKET).remove([oldPath]).catch(() => {});
+      }
       setShowEditDialog(false);
       setSelectedOrganizador(null);
       resetForm();
       toast({ title: "Organizador atualizado com sucesso" });
     } catch (e: any) {
+      if (uploadedPath) {
+        await supabase.storage.from(LOGO_BUCKET).remove([uploadedPath]).catch(() => {});
+      }
       toast({ title: "Erro ao atualizar organizador", description: e.message, variant: "destructive" });
     }
   };
@@ -157,6 +254,7 @@ const OrganizadoresPage = () => {
     setNewEmail(org.email);
     setNewDescricao(org.descricao);
     setNewLogo(org.logo);
+    setNewLogoFile(null);
     setShowEditDialog(true);
   };
 
@@ -177,10 +275,7 @@ const OrganizadoresPage = () => {
           </Button>
           <Button
             onClick={() => {
-              setNewNome("");
-              setNewEmail("");
-              setNewDescricao("");
-              setNewLogo(null);
+              resetForm();
               setShowAddDialog(true);
             }}
             className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
@@ -240,7 +335,17 @@ const OrganizadoresPage = () => {
               ) : (
                 paginatedItems.map((org) => (
                   <TableRow key={org.id}>
-                    <TableCell className="text-primary font-medium">{org.nome}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8 shrink-0">
+                          {org.logo ? <AvatarImage src={org.logo} alt={org.nome} className="object-cover" /> : null}
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                            {getOrgInitials(org.nome)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-primary font-medium">{org.nome}</span>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{org.email || "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{org.dataCriacao}</TableCell>
                     <TableCell>
@@ -316,7 +421,7 @@ const OrganizadoresPage = () => {
           <div className="space-y-4 py-2">
             {/* Logo Upload */}
             <div className="space-y-2">
-              <Label><span className="text-destructive">*</span> Logo:</Label>
+              <Label>Logo: <span className="text-xs text-muted-foreground font-normal">(opcional)</span></Label>
               <div
                 className="border-2 border-dashed border-border rounded-lg p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/50 transition-colors"
                 onDragOver={(e) => e.preventDefault()}
@@ -381,7 +486,7 @@ const OrganizadoresPage = () => {
           <div className="space-y-4 py-2">
             {/* Logo Upload */}
             <div className="space-y-2">
-              <Label><span className="text-destructive">*</span> Logo:</Label>
+              <Label>Logo: <span className="text-xs text-muted-foreground font-normal">(opcional)</span></Label>
               <div
                 className="border-2 border-dashed border-border rounded-lg p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/50 transition-colors"
                 onDragOver={(e) => e.preventDefault()}

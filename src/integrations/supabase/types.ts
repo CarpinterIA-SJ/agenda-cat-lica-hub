@@ -40,11 +40,14 @@ export interface Profile {
 }
 
 export interface Organization {
-  id:         string
-  name:       string
-  slug:       string
-  owner_id:   string
-  created_at: string
+  id:            string
+  name:          string
+  slug:          string
+  owner_id:      string
+  contact_email: string | null
+  description:   string | null
+  logo_url:      string | null
+  created_at:    string
 }
 
 export interface OrganizationMember {
@@ -354,16 +357,20 @@ export type Database = {
       }
       organizations: {
         Row:    OrganizationWithStatus
-        Insert: Omit<Organization, 'id' | 'created_at'> & {
+        Insert: Omit<Organization, 'id' | 'created_at' | 'contact_email' | 'description' | 'logo_url'> & {
           id?: string
           created_at?: string
+          contact_email?:     string | null
+          description?:       string | null
+          logo_url?:          string | null
           status?:            OrganizerStatus
           status_updated_by?: string | null
           status_updated_at?: string | null
           rejection_reason?:  string | null
         }
         Update: Partial<Pick<OrganizationWithStatus,
-          'name' | 'slug' | 'status' | 'status_updated_by' | 'status_updated_at' | 'rejection_reason'>>
+          'name' | 'slug' | 'contact_email' | 'description' | 'logo_url' |
+          'status' | 'status_updated_by' | 'status_updated_at' | 'rejection_reason'>>
       }
       organization_members: {
         Row:    OrganizationMember
