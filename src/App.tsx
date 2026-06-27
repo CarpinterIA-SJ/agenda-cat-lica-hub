@@ -63,6 +63,7 @@ import {
   History,
   Wallet,
   Download,
+  Loader2,
   Link as LinkIcon,
   MapPin,
   Video,
@@ -128,8 +129,9 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { useMyOrganization, useMyOrganizations } from "@/hooks/use-organizations";
 import { useEvent, useCreateEvent, useUpdateEvent } from "@/hooks/use-events";
 import { useTickets, useCreateTicket, useDeleteTicket } from "@/hooks/use-tickets";
-import { useRegistrations } from "@/hooks/use-registrations";
+import { useRegistrations, useEventPayments } from "@/hooks/use-registrations";
 import { useCheckins } from "@/hooks/use-checkins";
+import { generateAttendeesReport } from "@/lib/pdf-export";
 import { useCoupons, useCreateCoupon, useUpdateCoupon, useDeleteCoupon } from "@/hooks/use-coupons";
 import { useEventMessages, useUpsertEventMessage } from "@/hooks/use-event-messages";
 
@@ -2010,24 +2012,156 @@ const OrganizerEventIngressosPage = () => {
   );
 };
 
+const PART_REG_STATUS_LABEL: Record<string, string> = {
+  pending: "Pendente",
+  confirmed: "Confirmado",
+  cancelled: "Cancelado",
+  waitlist: "Fila de espera",
+};
+const PART_REG_STATUS_BADGE: Record<string, string> = {
+  confirmed: "bg-emerald-100 text-emerald-800 hover:bg-emerald-100",
+  pending: "bg-amber-100 text-amber-800 hover:bg-amber-100",
+  cancelled: "bg-slate-200 text-slate-600 hover:bg-slate-200",
+  waitlist: "bg-blue-100 text-blue-800 hover:bg-blue-100",
+};
+const PART_PAY_STATUS_LABEL: Record<string, string> = {
+  pending: "Pendente",
+  paid: "Pago",
+  refunded: "Reembolsado",
+  failed: "Falhou",
+  cancelled: "Cancelado",
+};
+const partSlugify = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "evento";
+
 const OrganizerEventParticipantesPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [ticketFilter, setTicketFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState<null | "csv" | "pdf">(null);
+
+  const { data: event } = useEvent(id);
   const { data: registrations = [], isLoading } = useRegistrations(id);
   const { data: checkins = [] } = useCheckins(id);
+  const { data: tickets = [] } = useTickets(id);
+  const { data: payments = [] } = useEventPayments(id);
+  const { data: organizadores = [] } = useMyOrganizations();
 
   const confirmedCount = registrations.filter((r) => r.status === "confirmed").length;
   const pendingCount = registrations.filter((r) => r.status === "pending").length;
   const checkinCount = checkins.length;
 
-  const filteredParticipants = registrations.filter((participant) => {
-    const query = search.toLowerCase();
-    return (
-      participant.full_name.toLowerCase().includes(query) ||
-      (participant.email ?? "").toLowerCase().includes(query)
-    );
+  const ticketName = (tid: string | null) => tickets.find((t) => t.id === tid)?.name ?? "—";
+
+  // Pagamento por inscrição: prioriza o 'paid'; senão mantém o primeiro encontrado.
+  const payByReg = new Map<string, any>();
+  for (const p of payments) {
+    if (!p.registration_id) continue;
+    const cur = payByReg.get(p.registration_id);
+    if (!cur || (p.status === "paid" && cur.status !== "paid")) payByReg.set(p.registration_id, p);
+  }
+
+  const orgName = organizadores.find((o) => o.id === event?.organization_id)?.name ?? "—";
+
+  // Linhas enriquecidas: inscrição + tipo de ingresso + pagamento.
+  const rows = registrations.map((r) => {
+    const pay = payByReg.get(r.id) ?? null;
+    return {
+      id: r.id,
+      ticketId: r.ticket_id ?? "",
+      name: r.full_name,
+      email: r.email ?? "",
+      phone: r.phone ?? "",
+      ticket: ticketName(r.ticket_id),
+      registeredAt: r.registered_at,
+      regStatus: r.status as string,
+      payStatus: pay ? (pay.status as string) : null,
+      amountCents: pay ? (pay.amount_cents as number) : null,
+    };
   });
+
+  const filteredParticipants = rows
+    .filter((r) => {
+      const q = search.toLowerCase();
+      const matchesSearch = r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q);
+      const matchesStatus = statusFilter === "all" || r.regStatus === statusFilter;
+      const matchesTicket = ticketFilter === "all" || r.ticketId === ticketFilter;
+      return matchesSearch && matchesStatus && matchesTicket;
+    })
+    .sort((a, b) => new Date(b.registeredAt).getTime() - new Date(a.registeredAt).getTime());
+
+  const pageSize = 20;
+  const totalPages = Math.max(1, Math.ceil(filteredParticipants.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = filteredParticipants.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const moneyBRL = (cents: number | null) =>
+    cents == null ? "—" : (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const fileBase = `inscritos-${event?.slug || partSlugify(event?.name ?? "evento")}-${new Date().toISOString().slice(0, 10)}`;
+
+  // Exporta os inscritos FILTRADOS visíveis. UTF-8 BOM, mesmo padrão do projeto.
+  const handleExportCsv = () => {
+    setExporting("csv");
+    try {
+      const header = ["Nome", "E-mail", "Telefone", "Tipo de ingresso", "Data de inscricao", "Status", "Valor pago"];
+      const cell = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+      const lines = filteredParticipants.map((r) =>
+        [
+          r.name,
+          r.email || "—",
+          r.phone || "—",
+          r.ticket,
+          r.registeredAt ? new Date(r.registeredAt).toLocaleString("pt-BR") : "—",
+          PART_REG_STATUS_LABEL[r.regStatus] ?? r.regStatus,
+          r.amountCents == null ? "—" : (r.amountCents / 100).toFixed(2),
+        ].map(cell).join(","),
+      );
+      const csv = [header.map(cell).join(","), ...lines].join("\r\n");
+      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${fileBase}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "CSV exportado", description: `${filteredParticipants.length} inscritos.` });
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportPdf = () => {
+    setExporting("pdf");
+    try {
+      generateAttendeesReport({
+        generatedBy: orgName,
+        event: {
+          name: event?.name ?? "Evento",
+          organizationName: orgName,
+          date: event?.start_at ?? null,
+          slug: event?.slug || partSlugify(event?.name ?? "evento"),
+          total: filteredParticipants.length,
+        },
+        attendees: filteredParticipants.map((r) => ({
+          name: r.name,
+          email: r.email || "—",
+          phone: r.phone || "—",
+          ticket: r.ticket,
+          status: PART_REG_STATUS_LABEL[r.regStatus] ?? r.regStatus,
+          date: r.registeredAt,
+        })),
+      });
+      toast({ title: "PDF exportado", description: `${filteredParticipants.length} inscritos.` });
+    } finally {
+      setExporting(null);
+    }
+  };
 
   return (
     <div className="min-h-[calc(100vh-4rem)] -m-6 p-6 bg-slate-100/70 space-y-6">
@@ -2103,63 +2237,114 @@ const OrganizerEventParticipantesPage = () => {
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
             <div className="w-fit border-b-4 border-[#004d00] pb-1">
-              <CardTitle className="text-lg">Lista de participantes</CardTitle>
+              <CardTitle className="text-lg">Lista de inscritos</CardTitle>
             </div>
           </div>
-          <Button variant="outline" className="border-slate-200 text-slate-500 hover:bg-slate-50">
-            <FileText className="h-4 w-4" />
-            Exportar relatório
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="border-slate-200 text-slate-600 hover:bg-slate-50"
+              onClick={handleExportCsv}
+              disabled={exporting !== null || filteredParticipants.length === 0}
+            >
+              {exporting === "csv" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Exportar CSV
+            </Button>
+            <Button
+              variant="outline"
+              className="border-slate-200 text-slate-600 hover:bg-slate-50"
+              onClick={handleExportPdf}
+              disabled={exporting !== null || filteredParticipants.length === 0}
+            >
+              {exporting === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              Exportar PDF
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative max-w-sm w-full">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 className="pl-9"
-                placeholder="Buscar..."
+                placeholder="Buscar por nome ou e-mail..."
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => { setSearch(event.target.value); setPage(1); }}
                 maxLength={100}
               />
             </div>
-            <Button variant="outline" className="border-slate-200 text-slate-500 hover:bg-slate-50">
-              <Filter className="h-4 w-4" />
-            </Button>
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="confirmed">Confirmado</SelectItem>
+                <SelectItem value="pending">Pendente</SelectItem>
+                <SelectItem value="cancelled">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
+            {tickets.length > 1 && (
+              <Select value={ticketFilter} onValueChange={(v) => { setTicketFilter(v); setPage(1); }}>
+                <SelectTrigger className="w-full sm:w-56">
+                  <SelectValue placeholder="Tipo de ingresso" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os ingressos</SelectItem>
+                  {tickets.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-slate-200">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium">Nome</th>
-                  <th className="px-4 py-3 text-left font-medium">E-mail</th>
-                  <th className="px-4 py-3 text-left font-medium">Status</th>
-                  <th className="px-4 py-3 text-left font-medium">Data de inscrição</th>
+                  <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Nome</th>
+                  <th className="px-4 py-3 text-left font-medium whitespace-nowrap">E-mail</th>
+                  <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Telefone</th>
+                  <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Ingresso</th>
+                  <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Inscrição</th>
+                  <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Status</th>
+                  <th className="px-4 py-3 text-left font-medium whitespace-nowrap">Pagamento</th>
+                  <th className="px-4 py-3 text-right font-medium whitespace-nowrap">Valor pago</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={4} className="bg-slate-50 px-4 py-12 text-center text-slate-500">
+                    <td colSpan={8} className="bg-slate-50 px-4 py-12 text-center text-slate-500">
                       Carregando...
                     </td>
                   </tr>
-                ) : filteredParticipants.length === 0 ? (
+                ) : pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="bg-slate-50 px-4 py-12 text-center text-slate-500">
-                      Nenhum dado adicionado.
+                    <td colSpan={8} className="bg-slate-50 px-4 py-12 text-center text-slate-500">
+                      Nenhum inscrito encontrado.
                     </td>
                   </tr>
                 ) : (
-                  filteredParticipants.map((participant) => (
-                    <tr key={participant.id} className="border-t border-slate-100">
-                      <td className="px-4 py-3 text-slate-700">{participant.full_name}</td>
-                      <td className="px-4 py-3 text-slate-500">{participant.email}</td>
-                      <td className="px-4 py-3 text-slate-500">{participant.status}</td>
-                      <td className="px-4 py-3 text-slate-500">
-                        {participant.registered_at ? new Date(participant.registered_at).toLocaleDateString("pt-BR") : "-"}
+                  pageRows.map((r) => (
+                    <tr key={r.id} className="border-t border-slate-100">
+                      <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{r.name}</td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{r.email || "—"}</td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{r.phone || "—"}</td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{r.ticket}</td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                        {r.registeredAt ? new Date(r.registeredAt).toLocaleDateString("pt-BR") : "—"}
                       </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <Badge className={PART_REG_STATUS_BADGE[r.regStatus] ?? ""}>
+                          {PART_REG_STATUS_LABEL[r.regStatus] ?? r.regStatus}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                        {r.payStatus ? (PART_PAY_STATUS_LABEL[r.payStatus] ?? r.payStatus) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-700 whitespace-nowrap">{moneyBRL(r.amountCents)}</td>
                     </tr>
                   ))
                 )}
@@ -2168,15 +2353,25 @@ const OrganizerEventParticipantesPage = () => {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-slate-200 pt-4">
-            <span className="text-xs text-slate-500">Exibindo 1 de 0 páginas</span>
+            <span className="text-xs text-slate-500">
+              {filteredParticipants.length} inscrito(s) — página {safePage} de {totalPages}
+            </span>
             <div className="flex items-center gap-2">
-              <button className="h-8 w-8 rounded-full border border-slate-200 text-slate-400 hover:text-[#004d00]">
+              <button
+                className="h-8 w-8 rounded-full border border-slate-200 text-slate-400 hover:text-[#004d00] disabled:opacity-40"
+                disabled={safePage <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
                 <ChevronLeft className="h-4 w-4 mx-auto" />
               </button>
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#004d00] text-xs font-semibold text-white">
-                1
+                {safePage}
               </span>
-              <button className="h-8 w-8 rounded-full border border-slate-200 text-slate-400 hover:text-[#004d00]">
+              <button
+                className="h-8 w-8 rounded-full border border-slate-200 text-slate-400 hover:text-[#004d00] disabled:opacity-40"
+                disabled={safePage >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
                 <ChevronRight className="h-4 w-4 mx-auto" />
               </button>
             </div>

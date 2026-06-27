@@ -4,6 +4,24 @@ import { Database } from "@/integrations/supabase/types";
 
 type Registration = Database["public"]["Tables"]["event_registrations"]["Row"];
 type RegistrationInsert = Database["public"]["Tables"]["event_registrations"]["Insert"];
+type Payment = Database["public"]["Tables"]["payments"]["Row"];
+
+/**
+ * Pagamentos de um evento (status + valor por inscrição). RLS "payments:
+ * admin da org lê" já garante que só o organizador dono enxerga.
+ */
+export const useEventPayments = (eventId: string | undefined) => {
+  return useQuery({
+    queryKey: ["payments", "event", eventId],
+    queryFn: async () => {
+      if (!eventId) return [];
+      const { data, error } = await supabase.from("payments").select("*").eq("event_id", eventId);
+      if (error) throw error;
+      return data as Payment[];
+    },
+    enabled: !!eventId,
+  });
+};
 
 export const useRegistrations = (eventId: string | undefined) => {
   return useQuery({

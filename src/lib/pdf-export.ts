@@ -76,6 +76,25 @@ export interface EventReportInput {
   transactions: PdfTxRow[];
 }
 
+export interface AttendeesReportInput {
+  generatedBy: string;
+  event: {
+    name: string;
+    organizationName: string;
+    date: string | null; // ISO
+    slug: string;
+    total: number;
+  };
+  attendees: {
+    name: string;
+    email: string;
+    phone: string;
+    ticket: string;
+    status: string; // já rotulado (Confirmado / Pendente…)
+    date: string | null; // ISO da inscrição
+  }[];
+}
+
 export interface OrgReportInput {
   generatedBy: string;
   org: {
@@ -265,6 +284,31 @@ export const generateEventReport = (input: EventReportInput): void => {
 
   drawFooters(doc);
   doc.save(fileName("evento"));
+};
+
+// ─── 4. Relatório de inscritos (foco no participante) ───────
+
+export const generateAttendeesReport = (input: AttendeesReportInput): void => {
+  const doc = newDoc();
+  const ev = input.event;
+  const y = drawCover(doc, `Inscritos — ${ev.name}`, [
+    `Organização: ${ev.organizationName}`,
+    `Data do evento: ${dt(ev.date)}`,
+    `Total de inscritos: ${ev.total}`,
+    `Gerado em: ${dt(new Date().toISOString())}`,
+    `Gerado por: ${input.generatedBy}`,
+  ]);
+
+  const yTable = sectionTitle(doc, "Lista de inscritos", y);
+  autoTable(doc, {
+    ...baseTableOpts(doc),
+    startY: yTable,
+    head: [["Nome", "E-mail", "Telefone", "Tipo de ingresso", "Status", "Data de inscrição"]],
+    body: input.attendees.map((a) => [a.name, a.email, a.phone, a.ticket, a.status, dt(a.date)]),
+  });
+
+  drawFooters(doc);
+  doc.save(`inscritos-${ev.slug}-${new Date().toISOString().slice(0, 10)}.pdf`);
 };
 
 // ─── 3. Relatório por organização ───────────────────────────
