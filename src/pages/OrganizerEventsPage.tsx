@@ -210,13 +210,13 @@ const OrganizerEventsPage = () => {
                 <div className="flex flex-col sm:flex-row items-center gap-2 border-t border-slate-100 pt-3">
                   <Button
                     variant="outline"
-                    className="w-full sm:w-auto"
+                    className="w-full sm:flex-1"
                     onClick={() => handleViewEvent(event.id)}
                   >
                     Visualizar
                   </Button>
                   <Button
-                    className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+                    className="w-full sm:flex-1 bg-primary hover:bg-primary/90"
                     onClick={() => handleManageEvent(event.id)}
                   >
                     Gerenciar
@@ -224,7 +224,7 @@ const OrganizerEventsPage = () => {
                   {event.status === "active" ? (
                     <Button
                       variant="outline"
-                      className="w-full sm:w-auto border-slate-300 text-slate-600 hover:bg-slate-100"
+                      className="w-full sm:flex-1 border-slate-300 text-slate-600 hover:bg-slate-100"
                       disabled={updateEvent.isPending}
                       onClick={() => handleToggleStatus(event.id, event.name, false)}
                     >
@@ -233,7 +233,7 @@ const OrganizerEventsPage = () => {
                   ) : (
                     <Button
                       variant="outline"
-                      className="w-full sm:w-auto border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                      className="w-full sm:flex-1 border-emerald-600 text-emerald-700 hover:bg-emerald-50"
                       disabled={updateEvent.isPending}
                       onClick={() => handleToggleStatus(event.id, event.name, true)}
                     >
@@ -243,7 +243,7 @@ const OrganizerEventsPage = () => {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-slate-400 hover:text-destructive hover:bg-destructive/10 sm:ml-auto"
+                    className="text-slate-400 hover:text-destructive hover:bg-destructive/10 shrink-0"
                     onClick={() => setDeleteTarget({ id: event.id, title: event.name })}
                     title="Excluir evento"
                   >
