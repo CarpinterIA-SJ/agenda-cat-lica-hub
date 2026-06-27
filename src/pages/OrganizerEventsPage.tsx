@@ -13,6 +13,8 @@ import {
   MapPin,
   Users,
   Trash2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -223,21 +225,27 @@ const OrganizerEventsPage = () => {
                   </Button>
                   {event.status === "active" ? (
                     <Button
-                      variant="outline"
-                      className="w-full sm:flex-1 border-slate-300 text-slate-600 hover:bg-slate-100"
+                      variant="ghost"
+                      size="icon"
+                      className="text-slate-400 hover:text-amber-600 hover:bg-amber-50 shrink-0"
                       disabled={updateEvent.isPending}
                       onClick={() => handleToggleStatus(event.id, event.name, false)}
+                      title="Despublicar evento"
+                      aria-label="Despublicar evento"
                     >
-                      Despublicar
+                      <EyeOff className="w-4 h-4" />
                     </Button>
                   ) : (
                     <Button
-                      variant="outline"
-                      className="w-full sm:flex-1 border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                      variant="ghost"
+                      size="icon"
+                      className="text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 shrink-0"
                       disabled={updateEvent.isPending}
                       onClick={() => handleToggleStatus(event.id, event.name, true)}
+                      title="Publicar evento"
+                      aria-label="Publicar evento"
                     >
-                      Publicar
+                      <Eye className="w-4 h-4" />
                     </Button>
                   )}
                   <Button
