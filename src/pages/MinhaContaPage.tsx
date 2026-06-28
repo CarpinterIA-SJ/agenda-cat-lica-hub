@@ -153,6 +153,12 @@ const MinhaContaPage = () => {
     }
   };
 
+  // Cadastro completo = perfil da org (e-mail/descrição/logo da migration 017)
+  // + ao menos uma conta de repasse. Só então o alerta de pendência some.
+  const orgComplete = !!(org?.contact_email && org?.description && org?.logo_url);
+  const hasPayoutAccount = payoutAccounts.length > 0;
+  const cadastroCompleto = orgComplete && hasPayoutAccount;
+
   return (
     <div className="min-h-screen bg-muted/30 p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -226,23 +232,25 @@ const MinhaContaPage = () => {
                   <div className="w-8 h-0.5 bg-blue-600 mb-4" />
                 </div>
 
-                {/* Alert */}
-                <Card className="border-orange-200 bg-orange-50">
-                  <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
-                    <AlertTriangle className="w-6 h-6 text-orange-500 shrink-0" />
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-semibold text-foreground">
-                        Complete seu cadastro para liberar os repasses das suas vendas.
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Para viabilizar o repasse das suas vendas de forma segura, é indispensável concluir o preenchimento dos dados cadastrais.
-                      </p>
-                    </div>
-                    <Button variant="outline" className="shrink-0" onClick={() => navigate("/organizadores")}>
-                      Completar cadastro
-                    </Button>
-                  </CardContent>
-                </Card>
+                {/* Alert — só quando o cadastro ainda está incompleto */}
+                {!cadastroCompleto && (
+                  <Card className="border-orange-200 bg-orange-50">
+                    <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                      <AlertTriangle className="w-6 h-6 text-orange-500 shrink-0" />
+                      <div className="flex-1 space-y-1">
+                        <p className="text-sm font-semibold text-foreground">
+                          Complete seu cadastro para liberar os repasses das suas vendas.
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Para viabilizar o repasse das suas vendas de forma segura, é indispensável concluir o preenchimento dos dados cadastrais.
+                        </p>
+                      </div>
+                      <Button variant="outline" className="shrink-0" onClick={() => navigate("/organizadores")}>
+                        Completar cadastro
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Contas de repasse */}
                 <div className="space-y-3">
