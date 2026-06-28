@@ -367,6 +367,15 @@ export interface EventWaitlistRow extends EventWaitlist {
   user_email: string | null
 }
 
+/** Contagem de vagas por opção de campo customizado (Fase C). */
+export interface EventOptionCount {
+  id:           string
+  event_id:     string
+  field_id:     string
+  option_label: string
+  count:        number
+}
+
 // ─── Database type (usado pelo createClient<Database>) ──────────────────────
 
 export type Database = {
@@ -626,6 +635,11 @@ export type Database = {
         }
         Update: Partial<Pick<EventWaitlist, 'status' | 'position' | 'notified_at' | 'expires_at' | 'ticket_type_id'>>
       }
+      event_option_counts: {
+        Row:    EventOptionCount
+        Insert: Omit<EventOptionCount, 'id' | 'count'> & { id?: string; count?: number }
+        Update: Partial<Pick<EventOptionCount, 'count'>>
+      }
     }
     Views: {
       [_ in never]: never
@@ -692,6 +706,14 @@ export type Database = {
       get_event_waitlist: {
         Args:    { p_event_id: string }
         Returns: EventWaitlistRow[]
+      }
+      reserve_option_counts: {
+        Args:    { p_event_id: string; p_selections: Json }
+        Returns: undefined
+      }
+      tally_option_counts: {
+        Args:    { p_event_id: string; p_selections: Json }
+        Returns: undefined
       }
     }
     Enums: {

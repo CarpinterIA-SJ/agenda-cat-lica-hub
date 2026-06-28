@@ -15,8 +15,9 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useCreateRegistration } from "@/hooks/use-registrations";
+import { useCreateRegistration, useEventOptionCounts } from "@/hooks/use-registrations";
 import { usePlatformSettings } from "@/hooks/use-platform-settings";
 import { CheckoutModal } from "@/components/CheckoutModal";
 import { ChargeSummary, computeCharge } from "@/components/ChargeSummary";
@@ -25,7 +26,7 @@ type StandardFieldKey = "nome" | "email" | "cpf" | "nascimento" | "whatsapp";
 
 type UnifiedField =
   | { kind: "standard"; key: StandardFieldKey; id: string; label: string; required: boolean; icon: any; inputType?: string; placeholder?: string; readOnly?: boolean; helper?: string }
-  | { kind: "custom"; id: string; label: string; required: boolean; type?: string; options?: string[] };
+  | { kind: "custom"; id: string; label: string; required: boolean; type?: string; options?: string[]; optionLimits?: Record<string, number> };
 
 /** Monta a lista unificada de campos (padrão + customizados) configurada pelo organizador. */
 export const buildUnifiedFields = (event: any): UnifiedField[] => {
@@ -55,6 +56,7 @@ export const buildUnifiedFields = (event: any): UnifiedField[] => {
       required: f.required !== false,
       type: f.type || "text",
       options: Array.isArray(f.options) ? f.options : undefined,
+      optionLimits: f.option_limits && typeof f.option_limits === "object" ? f.option_limits : undefined,
     });
   });
   return fields;
@@ -78,7 +80,10 @@ interface EventRegistrationModalProps {
 export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventRegistrationModalProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const createRegistration = useCreateRegistration();
+  // Contagem de vagas por opção (Fase C) — marca opções esgotadas no form.
+  const { data: optionCounts } = useEventOptionCounts(event?.id, open);
   const { data: platformSettings } = usePlatformSettings();
   const taxaPercent = Number(platformSettings?.map?.taxa_plataforma_percent ?? 5);
 
@@ -179,15 +184,30 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
     : 0;
   const selectedCharge = computeCharge(selectedPriceCents, 1, taxaPercent);
 
+  // Vaga esgotada para uma opção COM limite (Fase C).
+  const isOptionFull = (fieldId: string, opt: string, limits?: Record<string, number>) => {
+    const limit = limits?.[opt];
+    if (limit == null) return false;
+    return (optionCounts?.[`${fieldId}::${opt}`] ?? 0) >= limit;
+  };
+
   const isFormValid = useMemo(() => {
     if (!selectedTicketId || isDuplicate) return false;
     return unifiedFields.every((f) => {
+      // Bloqueia envio se uma opção esgotada estiver selecionada (defesa
+      // client-side; a trava real é server-side via RPC).
+      if (f.kind === "custom" && f.optionLimits) {
+        const raw = formValues[f.id];
+        const chosen = Array.isArray(raw) ? raw : raw ? [raw] : [];
+        if (chosen.some((o: string) => isOptionFull(f.id, o, f.optionLimits))) return false;
+      }
       if (!f.required) return true;
       const raw = formValues[f.id];
       if (Array.isArray(raw)) return raw.length > 0;
       return typeof raw === "string" ? raw.trim().length > 0 : !!raw;
     });
-  }, [selectedTicketId, formValues, unifiedFields, isDuplicate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTicketId, formValues, unifiedFields, isDuplicate, optionCounts]);
 
   const handleRegister = async () => {
     if (!event) return;
@@ -196,6 +216,19 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
     const customValues: Record<string, any> = {};
     (event.custom_fields || []).forEach((f: any) => {
       customValues[f.id] = formValues[f.id];
+    });
+
+    // Opções escolhidas que possuem limite (Fase C). No caminho gratuito,
+    // estas são reservadas atomicamente ANTES de gravar; no pago, a
+    // contagem acontece na confirmação (webhook), via custom_fields.
+    const limitedSelections: { field_id: string; option_label: string }[] = [];
+    (event.custom_fields || []).forEach((f: any) => {
+      if (!f.option_limits || typeof f.option_limits !== "object") return;
+      const val = formValues[f.id];
+      const chosen = Array.isArray(val) ? val : val ? [val] : [];
+      chosen.forEach((opt: string) => {
+        if (f.option_limits[opt] != null) limitedSelections.push({ field_id: f.id, option_label: String(opt) });
+      });
     });
 
     // Ingresso pago → checkout obrigatório (Stripe). A inscrição é criada
@@ -224,6 +257,21 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
     }
 
     try {
+      // Reserva atômica das vagas por opção (Fase C). Se uma opção esgotou
+      // entre carregar o form e enviar, a RPC falha e a inscrição NÃO é criada.
+      if (limitedSelections.length) {
+        const { error: reserveErr } = await supabase.rpc("reserve_option_counts", {
+          p_event_id: event.id,
+          p_selections: limitedSelections as any,
+        });
+        if (reserveErr) {
+          await queryClient.invalidateQueries({ queryKey: ["option-counts", event.id] });
+          toast.error("Vaga esgotada", {
+            description: "Uma das opções escolhidas acabou de esgotar. Escolha outra e tente novamente.",
+          });
+          return;
+        }
+      }
       await createRegistration.mutateAsync({
         event_id: event.id,
         ticket_id: selectedTicketId && selectedTicketId !== "default-free" ? selectedTicketId : null,
@@ -236,6 +284,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
         custom_fields: customValues as any,
         status: "confirmed",
       });
+      await queryClient.invalidateQueries({ queryKey: ["option-counts", event.id] });
       toast.success("Inscrição confirmada!", {
         description: `Sua participação no evento "${event?.name}" foi registrada.`,
       });
@@ -341,12 +390,20 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
                               onValueChange={(v) => handleFieldChange(field.id, v)}
                               className="space-y-1"
                             >
-                              {field.options.map((opt) => (
-                                <div key={opt} className="flex items-center gap-2">
-                                  <RadioGroupItem value={opt} id={`${field.id}-${opt}`} />
-                                  <Label htmlFor={`${field.id}-${opt}`} className="text-sm font-normal text-foreground cursor-pointer">{opt}</Label>
-                                </div>
-                              ))}
+                              {field.options.map((opt) => {
+                                const full = isOptionFull(field.id, opt, field.optionLimits);
+                                return (
+                                  <div key={opt} className="flex items-center gap-2">
+                                    <RadioGroupItem value={opt} id={`${field.id}-${opt}`} disabled={full} />
+                                    <Label
+                                      htmlFor={`${field.id}-${opt}`}
+                                      className={`text-sm font-normal cursor-pointer ${full ? "text-muted-foreground line-through" : "text-foreground"}`}
+                                    >
+                                      {opt}{full ? " (esgotado)" : ""}
+                                    </Label>
+                                  </div>
+                                );
+                              })}
                             </RadioGroup>
                           </div>
                         );
@@ -357,18 +414,28 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
                           <div key={field.id} className="space-y-2">
                             {labelEl}
                             <div className="space-y-1">
-                              {field.options.map((opt) => (
-                                <div key={opt} className="flex items-center gap-2">
-                                  <Checkbox
-                                    id={`${field.id}-${opt}`}
-                                    checked={arr.includes(opt)}
-                                    onCheckedChange={(c) =>
-                                      handleFieldChange(field.id, c === true ? [...arr, opt] : arr.filter((o) => o !== opt))
-                                    }
-                                  />
-                                  <Label htmlFor={`${field.id}-${opt}`} className="text-sm font-normal text-foreground cursor-pointer">{opt}</Label>
-                                </div>
-                              ))}
+                              {field.options.map((opt) => {
+                                const checked = arr.includes(opt);
+                                const full = isOptionFull(field.id, opt, field.optionLimits);
+                                return (
+                                  <div key={opt} className="flex items-center gap-2">
+                                    <Checkbox
+                                      id={`${field.id}-${opt}`}
+                                      checked={checked}
+                                      disabled={full && !checked}
+                                      onCheckedChange={(c) =>
+                                        handleFieldChange(field.id, c === true ? [...arr, opt] : arr.filter((o) => o !== opt))
+                                      }
+                                    />
+                                    <Label
+                                      htmlFor={`${field.id}-${opt}`}
+                                      className={`text-sm font-normal cursor-pointer ${full && !checked ? "text-muted-foreground line-through" : "text-foreground"}`}
+                                    >
+                                      {opt}{full && !checked ? " (esgotado)" : ""}
+                                    </Label>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         );
@@ -380,9 +447,14 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
                           <Select value={typeof value === "string" ? value : ""} onValueChange={(v) => handleFieldChange(field.id, v)}>
                             <SelectTrigger className="h-11"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                             <SelectContent>
-                              {field.options.map((opt) => (
-                                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                              ))}
+                              {field.options.map((opt) => {
+                                const full = isOptionFull(field.id, opt, field.optionLimits);
+                                return (
+                                  <SelectItem key={opt} value={opt} disabled={full}>
+                                    {opt}{full ? " (esgotado)" : ""}
+                                  </SelectItem>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
                         </div>

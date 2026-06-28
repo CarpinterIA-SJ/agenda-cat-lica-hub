@@ -32,12 +32,16 @@ export const FormFieldsEditor = ({ value, onChange }: FormFieldsEditorProps) => 
   const [label, setLabel] = useState("");
   const [type, setType] = useState<CustomFieldType>("text");
   const [options, setOptions] = useState<string[]>(["", ""]);
+  // Limite de vagas por opção (Fase C), alinhado por índice com `options`.
+  // "" = ilimitado. String para permitir input vazio sem virar 0.
+  const [optionLimits, setOptionLimits] = useState<string[]>(["", ""]);
 
   const openAdd = () => {
     setEditId(null);
     setLabel("");
     setType("text");
     setOptions(["", ""]);
+    setOptionLimits(["", ""]);
     setOpen(true);
   };
 
@@ -45,7 +49,12 @@ export const FormFieldsEditor = ({ value, onChange }: FormFieldsEditorProps) => 
     setEditId(f.id);
     setLabel(f.label);
     setType(f.type);
-    setOptions(fieldHasOptions(f.type) && f.options?.length ? [...f.options] : ["", ""]);
+    const opts = fieldHasOptions(f.type) && f.options?.length ? [...f.options] : ["", ""];
+    setOptions(opts);
+    setOptionLimits(opts.map((o) => {
+      const n = f.option_limits?.[o];
+      return n ? String(n) : "";
+    }));
     setOpen(true);
   };
 
@@ -55,12 +64,21 @@ export const FormFieldsEditor = ({ value, onChange }: FormFieldsEditorProps) => 
       return;
     }
     let cleanOptions: string[] | undefined;
+    let cleanLimits: Record<string, number> | undefined;
     if (fieldHasOptions(type)) {
       cleanOptions = options.map((o) => o.trim()).filter(Boolean);
       if (cleanOptions.length < 2) {
         toast({ title: "Adicione ao menos 2 opções", variant: "destructive" });
         return;
       }
+      // Limite por opção: alinhado por índice com `options` (antes do filtro).
+      const limits: Record<string, number> = {};
+      options.forEach((opt, i) => {
+        const label = opt.trim();
+        const n = parseInt(optionLimits[i] ?? "", 10);
+        if (label && Number.isInteger(n) && n >= 1) limits[label] = n;
+      });
+      if (Object.keys(limits).length) cleanLimits = limits;
     }
     const field: CustomFormField = {
       id: editId ?? Date.now().toString(),
@@ -68,6 +86,7 @@ export const FormFieldsEditor = ({ value, onChange }: FormFieldsEditorProps) => 
       type,
       required: true,
       options: cleanOptions,
+      option_limits: cleanLimits,
     };
     onChange(editId ? value.map((f) => (f.id === editId ? field : f)) : [...value, field]);
     setOpen(false);
@@ -154,6 +173,9 @@ export const FormFieldsEditor = ({ value, onChange }: FormFieldsEditorProps) => 
             {fieldHasOptions(type) && (
               <div className="space-y-2">
                 <Label>Opções</Label>
+                <p className="text-xs text-slate-500">
+                  Defina um limite de vagas por opção (deixe vazio = ilimitado).
+                </p>
                 <div className="space-y-2">
                   {options.map((opt, i) => (
                     <div key={i} className="flex items-center gap-2">
@@ -165,9 +187,23 @@ export const FormFieldsEditor = ({ value, onChange }: FormFieldsEditorProps) => 
                         placeholder={`Opção ${i + 1}`}
                         maxLength={120}
                       />
+                      <Input
+                        type="number"
+                        min={1}
+                        value={optionLimits[i] ?? ""}
+                        onChange={(e) =>
+                          setOptionLimits((prev) => prev.map((l, j) => (j === i ? e.target.value : l)))
+                        }
+                        placeholder="∞"
+                        className="w-20 shrink-0"
+                        title="Limite de vagas (vazio = ilimitado)"
+                      />
                       <button
                         type="button"
-                        onClick={() => setOptions((prev) => prev.filter((_, j) => j !== i))}
+                        onClick={() => {
+                          setOptions((prev) => prev.filter((_, j) => j !== i));
+                          setOptionLimits((prev) => prev.filter((_, j) => j !== i));
+                        }}
                         className="text-slate-400 hover:text-red-500 shrink-0 disabled:opacity-30"
                         disabled={options.length <= 2}
                         title="Remover opção"
@@ -181,7 +217,10 @@ export const FormFieldsEditor = ({ value, onChange }: FormFieldsEditorProps) => 
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setOptions((prev) => [...prev, ""])}
+                  onClick={() => {
+                    setOptions((prev) => [...prev, ""]);
+                    setOptionLimits((prev) => [...prev, ""]);
+                  }}
                 >
                   <Plus className="w-4 h-4 mr-2" /> Adicionar opção
                 </Button>

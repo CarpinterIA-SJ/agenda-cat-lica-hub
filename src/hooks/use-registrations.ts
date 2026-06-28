@@ -23,6 +23,33 @@ export const useEventPayments = (eventId: string | undefined) => {
   });
 };
 
+type OptionCount = Database["public"]["Tables"]["event_option_counts"]["Row"];
+
+/**
+ * Contagem de vagas por opção de um evento (Fase C). Leitura pública (RLS
+ * `using(true)`) para o formulário marcar opções "(esgotado)". Retorna um
+ * mapa `${field_id}::${option_label}` → count.
+ */
+export const useEventOptionCounts = (eventId: string | undefined, enabled = true) => {
+  return useQuery({
+    queryKey: ["option-counts", eventId],
+    queryFn: async () => {
+      const map: Record<string, number> = {};
+      if (!eventId) return map;
+      const { data, error } = await supabase
+        .from("event_option_counts")
+        .select("field_id, option_label, count")
+        .eq("event_id", eventId);
+      if (error) throw error;
+      for (const r of (data as Pick<OptionCount, "field_id" | "option_label" | "count">[]) ?? []) {
+        map[`${r.field_id}::${r.option_label}`] = r.count;
+      }
+      return map;
+    },
+    enabled: enabled && !!eventId,
+  });
+};
+
 export const useRegistrations = (eventId: string | undefined) => {
   return useQuery({
     queryKey: ["registrations", eventId],

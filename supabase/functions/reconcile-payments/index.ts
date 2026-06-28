@@ -13,6 +13,7 @@
 import Stripe from "npm:stripe@^17.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { buildLimitedSelections } from "../_shared/option-counts.ts";
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -61,12 +62,14 @@ Deno.serve(async (req) => {
     const cutoff = new Date(Date.now() - STALE_HOURS * 60 * 60 * 1000).toISOString();
 
     // Inscrições presas em 'pending' há mais de STALE_HOURS.
+    // NB: a coluna de criação em event_registrations é `registered_at`
+    // (não `created_at`) — usar o nome errado fazia a query falhar (400).
     const { data: stale, error: staleErr } = await supabaseAdmin
       .from("event_registrations")
-      .select("id, event_id, ticket_id, user_id, payment_intent_id, created_at")
+      .select("id, event_id, ticket_id, user_id, payment_intent_id, custom_fields, registered_at")
       .eq("status", "pending")
-      .lt("created_at", cutoff)
-      .order("created_at", { ascending: true })
+      .lt("registered_at", cutoff)
+      .order("registered_at", { ascending: true })
       .limit(200);
     if (staleErr) throw staleErr;
 
@@ -107,7 +110,7 @@ Deno.serve(async (req) => {
 // Mesma materialização do webhook (idempotente via gateway_transaction_id).
 async function handleSucceeded(
   pi: Stripe.PaymentIntent,
-  reg: { id: string; event_id: string; ticket_id: string; user_id: string | null },
+  reg: { id: string; event_id: string; ticket_id: string; user_id: string | null; custom_fields?: unknown },
 ) {
   const m = pi.metadata ?? {};
   const eventId = m.event_id || reg.event_id;
@@ -138,7 +141,7 @@ async function handleSucceeded(
 
   const { data: event } = await supabaseAdmin
     .from("events")
-    .select("organization_id")
+    .select("organization_id, custom_fields")
     .eq("id", eventId)
     .single();
   if (!event) return;
@@ -187,6 +190,17 @@ async function handleSucceeded(
     p_quantity: quantity,
   });
   if (soldErr) throw soldErr;
+
+  // Fase C: contabiliza vagas por opção (incondicional — venda final).
+  // Mesma lógica do webhook; best-effort, não derruba a reconciliação.
+  const selections = buildLimitedSelections((event as any).custom_fields, reg.custom_fields);
+  if (selections.length) {
+    const { error: optErr } = await supabaseAdmin.rpc("tally_option_counts", {
+      p_event_id: eventId,
+      p_selections: selections,
+    });
+    if (optErr) console.error("[reconcile-payments] tally_option_counts falhou", optErr);
+  }
 }
 
 async function markCancelled(regId: string) {

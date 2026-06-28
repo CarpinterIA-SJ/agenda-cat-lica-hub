@@ -7,6 +7,7 @@
 import Stripe from "npm:stripe@^17.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { buildLimitedSelections } from "../_shared/option-counts.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2024-06-20",
@@ -113,10 +114,10 @@ async function handleSucceeded(pi: Stripe.PaymentIntent) {
     .maybeSingle();
   if (existing) return;
 
-  // organization_id do evento
+  // organization_id + schema de campos (custom_fields p/ contagem Fase C)
   const { data: event } = await supabaseAdmin
     .from("events")
-    .select("organization_id")
+    .select("organization_id, custom_fields")
     .eq("id", eventId)
     .single();
   if (!event) return;
@@ -137,13 +138,15 @@ async function handleSucceeded(pi: Stripe.PaymentIntent) {
   // Promove a inscrição PENDING (criada no início do checkout) a 'confirmed'.
   // Fallback: se não existir (checkout antigo / falha ao criar), insere nova.
   let registration: { id: string };
+  let regAnswers: unknown = null; // respostas p/ contagem de vagas (Fase C)
   const { data: pendingReg } = await supabaseAdmin
     .from("event_registrations")
-    .select("id")
+    .select("id, custom_fields")
     .eq("payment_intent_id", pi.id)
     .maybeSingle();
 
   if (pendingReg) {
+    regAnswers = (pendingReg as any).custom_fields ?? null;
     const { data: updated, error: updErr } = await supabaseAdmin
       .from("event_registrations")
       .update({ status: "confirmed", full_name: fullName, email: email || "sem-email@guardiaoeventos.com" })
@@ -195,6 +198,17 @@ async function handleSucceeded(pi: Stripe.PaymentIntent) {
     p_quantity: quantity,
   });
   if (soldErr) throw soldErr;
+
+  // Fase C: contabiliza vagas por opção (incondicional — venda final).
+  // Best-effort: nunca derruba o webhook (pagamento já registrado/sold já feito).
+  const selections = buildLimitedSelections((event as any).custom_fields, regAnswers);
+  if (selections.length) {
+    const { error: optErr } = await supabaseAdmin.rpc("tally_option_counts", {
+      p_event_id: eventId,
+      p_selections: selections,
+    });
+    if (optErr) console.error("[stripe-webhook] tally_option_counts falhou", optErr);
+  }
 }
 
 async function handleUnpaid(pi: Stripe.PaymentIntent, reason: "failed" | "cancelled") {

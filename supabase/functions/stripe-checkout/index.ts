@@ -7,6 +7,7 @@ import Stripe from "npm:stripe@^17.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "npm:zod@^3.23.8";
 import { corsHeaders } from "../_shared/cors.ts";
+import { buildLimitedSelections } from "../_shared/option-counts.ts";
 
 // Valida o payload antes de qualquer processamento.
 const checkoutSchema = z.object({
@@ -135,6 +136,33 @@ Deno.serve(async (req) => {
     const total = subtotal + taxa;
 
     if (total < 1) return json({ error: "Valor total inválido para cobrança." }, 400);
+
+    // Fase C: soft-gate de vagas por opção. Se uma opção escolhida já
+    // esgotou, rejeita ANTES de criar o PaymentIntent (não deixa pagar por
+    // vaga inexistente). A contagem DEFINITIVA acontece no webhook (succeeded),
+    // espelhando o sold — por isso aqui é só leitura, não reserva.
+    if (custom_fields && Object.keys(custom_fields).length) {
+      const { data: ev } = await supabaseAdmin
+        .from("events")
+        .select("custom_fields")
+        .eq("id", event_id)
+        .maybeSingle();
+      const selections = buildLimitedSelections((ev as any)?.custom_fields, custom_fields);
+      if (selections.length) {
+        const { data: counts } = await supabaseAdmin
+          .from("event_option_counts")
+          .select("field_id, option_label, count")
+          .eq("event_id", event_id);
+        const used = new Map<string, number>();
+        for (const c of (counts as any[]) ?? []) used.set(`${c.field_id}::${c.option_label}`, c.count);
+        for (const s of selections) {
+          const cur = used.get(`${s.field_id}::${s.option_label}`) ?? 0;
+          if (cur >= s.limit) {
+            return json({ error: `A opção "${s.option_label}" esgotou. Volte ao formulário e escolha outra.` }, 409);
+          }
+        }
+      }
+    }
 
     // Prazo de pagamento configurado pelo organizador → expiração no gateway
     // para o método assíncrono (boleto). Limites do Stripe respeitados.
