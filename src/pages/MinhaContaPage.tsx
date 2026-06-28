@@ -136,7 +136,7 @@ const MinhaContaPage = () => {
                         Para viabilizar o repasse das suas vendas de forma segura, é indispensável concluir o preenchimento dos dados cadastrais.
                       </p>
                     </div>
-                    <Button variant="outline" className="shrink-0">
+                    <Button variant="outline" className="shrink-0" onClick={() => navigate("/organizadores")}>
                       Completar cadastro
                     </Button>
                   </CardContent>
