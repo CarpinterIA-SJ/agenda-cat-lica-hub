@@ -65,9 +65,13 @@ export const useCreateOrganization = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (org: OrganizationInsert) => {
-      const { data, error } = await supabase.from("organizations").insert(org).select().single();
+      // Sem .select() de retorno: o read-back de INSERT...RETURNING aplica a
+      // policy de SELECT à linha recém-criada e falhava para não-admins
+      // (membro ainda não visível no mesmo statement). handleAdd não usa o
+      // retorno; a lista recarrega via invalidateQueries. Migration 020
+      // ainda garante a leitura do dono como defesa em profundidade.
+      const { error } = await supabase.from("organizations").insert(org);
       if (error) throw error;
-      return data as Organization;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] });
