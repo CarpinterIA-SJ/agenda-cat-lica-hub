@@ -132,6 +132,8 @@ import { useTickets, useCreateTicket, useDeleteTicket } from "@/hooks/use-ticket
 import { useRegistrations, useEventPayments } from "@/hooks/use-registrations";
 import { useCheckins } from "@/hooks/use-checkins";
 import { generateAttendeesReport } from "@/lib/pdf-export";
+import { FormFieldsEditor } from "@/components/FormFieldsEditor";
+import { CustomFormField, normalizeCustomField, serializeCustomField } from "@/lib/form-fields";
 import { useCoupons, useCreateCoupon, useUpdateCoupon, useDeleteCoupon } from "@/hooks/use-coupons";
 import { useEventMessages, useUpsertEventMessage } from "@/hooks/use-event-messages";
 
@@ -278,9 +280,7 @@ const OrganizerEventNewPage = () => {
   const [frmCpfEnabled, setFrmCpfEnabled] = useState(true);
   const [frmBirthEnabled, setFrmBirthEnabled] = useState(false);
   const [frmPhoneEnabled, setFrmPhoneEnabled] = useState(true);
-  const [frmCustomFields, setFrmCustomFields] = useState<{ id: string; label: string; enabled: boolean }[]>([]);
-  const [frmAddFieldOpen, setFrmAddFieldOpen] = useState(false);
-  const [frmNewFieldLabel, setFrmNewFieldLabel] = useState("");
+  const [frmCustomFields, setFrmCustomFields] = useState<CustomFormField[]>([]);
 
   // Mensagens (templates) state
   const upsertMsg = useUpsertEventMessage();
@@ -671,9 +671,7 @@ const OrganizerEventNewPage = () => {
           nascimento: frmBirthEnabled,
           whatsapp: frmPhoneEnabled,
         } as any,
-        custom_fields: frmCustomFields
-          .filter((f) => f.enabled)
-          .map((f) => ({ id: f.id, label: f.label, type: "text", required: true })) as any,
+        custom_fields: frmCustomFields.map(serializeCustomField) as any,
       });
       advanceTab();
     } catch (e: any) {
@@ -1529,44 +1527,7 @@ const OrganizerEventNewPage = () => {
                   </div>
                 ))}
 
-                {frmCustomFields.map((cf) => (
-                  <div
-                    key={cf.id}
-                    className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="space-y-2 sm:flex-1">
-                      <label className="text-sm font-medium text-slate-700">{cf.label}</label>
-                      <Input disabled placeholder={cf.label} className="bg-slate-50" />
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Switch
-                        checked={cf.enabled}
-                        onCheckedChange={(val) =>
-                          setFrmCustomFields((prev) =>
-                            prev.map((f) => (f.id === cf.id ? { ...f, enabled: val } : f))
-                          )
-                        }
-                        className="data-[state=checked]:bg-emerald-700"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setFrmCustomFields((prev) => prev.filter((f) => f.id !== cf.id))}
-                        className="text-slate-400 hover:text-red-500 transition text-lg leading-none"
-                        title="Remover campo"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                <Button
-                  variant="outline"
-                  className="w-fit border-emerald-100 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                  onClick={() => { setFrmNewFieldLabel(""); setFrmAddFieldOpen(true); }}
-                >
-                  + Adicionar campo
-                </Button>
+                <FormFieldsEditor value={frmCustomFields} onChange={setFrmCustomFields} />
               </CardContent>
             </Card>
 
@@ -1583,50 +1544,6 @@ const OrganizerEventNewPage = () => {
               </Button>
             </div>
           </TabsContent>
-
-          {/* Dialog: adicionar campo customizado */}
-          <Dialog open={frmAddFieldOpen} onOpenChange={setFrmAddFieldOpen}>
-            <DialogContent className="sm:max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Adicionar campo</DialogTitle>
-                <DialogDescription>Informe o nome do campo que deseja adicionar ao formulário.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Nome do campo</label>
-                <Input
-                  placeholder="Ex: RG, Diocese, Paróquia..."
-                  value={frmNewFieldLabel}
-                  onChange={(e) => setFrmNewFieldLabel(e.target.value)}
-                  maxLength={200}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && frmNewFieldLabel.trim()) {
-                      setFrmCustomFields((prev) => [
-                        ...prev,
-                        { id: Date.now().toString(), label: frmNewFieldLabel.trim(), enabled: true },
-                      ]);
-                      setFrmAddFieldOpen(false);
-                    }
-                  }}
-                />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setFrmAddFieldOpen(false)}>Cancelar</Button>
-                <Button
-                  className="bg-emerald-700 text-white hover:bg-emerald-800"
-                  disabled={!frmNewFieldLabel.trim()}
-                  onClick={() => {
-                    setFrmCustomFields((prev) => [
-                      ...prev,
-                      { id: Date.now().toString(), label: frmNewFieldLabel.trim(), enabled: true },
-                    ]);
-                    setFrmAddFieldOpen(false);
-                  }}
-                >
-                  Adicionar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
 
           {/* ── Aba 6: Mensagens ── */}
           <TabsContent value="mensagens" className="space-y-6 mt-0">
@@ -4071,9 +3988,7 @@ const OrganizerEventFormularioConfiguracoesPage = () => {
   const [cpfEnabled, setCpfEnabled] = useState<boolean>(true);
   const [birthEnabled, setBirthEnabled] = useState<boolean>(false);
   const [phoneEnabled, setPhoneEnabled] = useState<boolean>(true);
-  const [customFields, setCustomFields] = useState<{ id: string; label: string; enabled: boolean }[]>([]);
-  const [addFieldOpen, setAddFieldOpen] = useState(false);
-  const [newFieldLabel, setNewFieldLabel] = useState("");
+  const [customFields, setCustomFields] = useState<CustomFormField[]>([]);
 
   useEffect(() => {
     if (!eventData) return;
@@ -4084,7 +3999,7 @@ const OrganizerEventFormularioConfiguracoesPage = () => {
     setBirthEnabled(sf.nascimento ?? false);
     setPhoneEnabled(sf.whatsapp ?? true);
     const cf: any[] = Array.isArray(eventData.custom_fields) ? eventData.custom_fields : [];
-    setCustomFields(cf.map((f: any) => ({ id: f.id, label: f.label, enabled: true })));
+    setCustomFields(cf.map(normalizeCustomField));
   }, [eventData]);
 
   const handleSave = async () => {
@@ -4099,9 +4014,7 @@ const OrganizerEventFormularioConfiguracoesPage = () => {
           nascimento: birthEnabled,
           whatsapp: phoneEnabled,
         } as any,
-        custom_fields: customFields
-          .filter((f) => f.enabled)
-          .map((f) => ({ id: f.id, label: f.label, type: "text", required: true })) as any,
+        custom_fields: customFields.map(serializeCustomField) as any,
       });
       toast({ title: "Formulário salvo!", description: "As configurações foram atualizadas para os participantes." });
     } catch (e: any) {
@@ -4247,41 +4160,7 @@ const OrganizerEventFormularioConfiguracoesPage = () => {
             </div>
           ))}
 
-          {customFields.map((cf) => (
-            <div key={cf.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-2 sm:flex-1">
-                <label className="text-sm font-medium text-slate-700">{cf.label}</label>
-                <Input disabled placeholder={cf.label} className="bg-slate-50" />
-              </div>
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={cf.enabled}
-                  onCheckedChange={(val) =>
-                    setCustomFields((prev) =>
-                      prev.map((f) => (f.id === cf.id ? { ...f, enabled: val } : f))
-                    )
-                  }
-                  className="data-[state=checked]:bg-[#004d00]"
-                />
-                <button
-                  type="button"
-                  onClick={() => setCustomFields((prev) => prev.filter((f) => f.id !== cf.id))}
-                  className="text-slate-400 hover:text-red-500 transition text-lg leading-none"
-                  title="Remover campo"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          ))}
-
-          <Button
-            variant="outline"
-            className="w-fit border-emerald-100 bg-emerald-50 text-[#004d00] hover:bg-emerald-100"
-            onClick={() => { setNewFieldLabel(""); setAddFieldOpen(true); }}
-          >
-            + Adicionar campo
-          </Button>
+          <FormFieldsEditor value={customFields} onChange={setCustomFields} />
         </CardContent>
       </Card>
 
@@ -4289,47 +4168,6 @@ const OrganizerEventFormularioConfiguracoesPage = () => {
         <Button className="bg-[#004d00] text-white hover:bg-[#003a00]" onClick={handleSave}>Salvar configurações do formulário</Button>
       </div>
 
-      <Dialog open={addFieldOpen} onOpenChange={setAddFieldOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Adicionar campo</DialogTitle>
-            <DialogDescription>Informe o nome do campo que deseja adicionar ao formulário.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Nome do campo</label>
-            <Input
-              placeholder="Ex: RG, Diocese, Paróquia..."
-              value={newFieldLabel}
-              onChange={(e) => setNewFieldLabel(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newFieldLabel.trim()) {
-                  setCustomFields((prev) => [
-                    ...prev,
-                    { id: Date.now().toString(), label: newFieldLabel.trim(), enabled: true },
-                  ]);
-                  setAddFieldOpen(false);
-                }
-              }}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddFieldOpen(false)}>Cancelar</Button>
-            <Button
-              className="bg-[#004d00] text-white hover:bg-[#003a00]"
-              disabled={!newFieldLabel.trim()}
-              onClick={() => {
-                setCustomFields((prev) => [
-                  ...prev,
-                  { id: Date.now().toString(), label: newFieldLabel.trim(), enabled: true },
-                ]);
-                setAddFieldOpen(false);
-              }}
-            >
-              Adicionar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

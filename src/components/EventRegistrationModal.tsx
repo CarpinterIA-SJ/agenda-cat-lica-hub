@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
@@ -22,7 +25,7 @@ type StandardFieldKey = "nome" | "email" | "cpf" | "nascimento" | "whatsapp";
 
 type UnifiedField =
   | { kind: "standard"; key: StandardFieldKey; id: string; label: string; required: boolean; icon: any; inputType?: string; placeholder?: string; readOnly?: boolean; helper?: string }
-  | { kind: "custom"; id: string; label: string; required: boolean; type?: string };
+  | { kind: "custom"; id: string; label: string; required: boolean; type?: string; options?: string[] };
 
 /** Monta a lista unificada de campos (padrão + customizados) configurada pelo organizador. */
 export const buildUnifiedFields = (event: any): UnifiedField[] => {
@@ -45,7 +48,14 @@ export const buildUnifiedFields = (event: any): UnifiedField[] => {
   }
   const custom = event.custom_fields || event.details?.formFields || [];
   custom.forEach((f: any) => {
-    fields.push({ kind: "custom", id: f.id, label: f.label, required: f.required !== false, type: f.type || "text" });
+    fields.push({
+      kind: "custom",
+      id: f.id,
+      label: f.label,
+      required: f.required !== false,
+      type: f.type || "text",
+      options: Array.isArray(f.options) ? f.options : undefined,
+    });
   });
   return fields;
 };
@@ -102,7 +112,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
       fixed_nascimento: "",
     };
     (event.custom_fields || []).forEach((f: any) => {
-      initialValues[f.id] = f.type === "checkbox" ? false : "";
+      initialValues[f.id] = f.type === "checkbox" ? [] : "";
     });
     setFormValues(initialValues);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -174,7 +184,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
     return unifiedFields.every((f) => {
       if (!f.required) return true;
       const raw = formValues[f.id];
-      if (typeof raw === "boolean") return raw;
+      if (Array.isArray(raw)) return raw.length > 0;
       return typeof raw === "string" ? raw.trim().length > 0 : !!raw;
     });
   }, [selectedTicketId, formValues, unifiedFields, isDuplicate]);
@@ -307,14 +317,82 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
                   {unifiedFields.map((field) => {
                     const Icon = field.kind === "standard" ? field.icon : ClipboardList;
                     const value = formValues[field.id];
-                    const inputType = field.kind === "standard" ? field.inputType : field.type;
+                    const labelEl = (
+                      <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
+                        <Icon className="w-3 h-3" /> {field.label}{field.required ? " *" : ""}
+                      </Label>
+                    );
+
+                    // Campos customizados com opções (radio / checkbox / select).
+                    if (
+                      field.kind === "custom" &&
+                      field.options?.length &&
+                      (field.type === "radio" || field.type === "checkbox" || field.type === "select")
+                    ) {
+                      if (field.type === "radio") {
+                        return (
+                          <div key={field.id} className="space-y-2">
+                            {labelEl}
+                            <RadioGroup
+                              value={typeof value === "string" ? value : ""}
+                              onValueChange={(v) => handleFieldChange(field.id, v)}
+                              className="space-y-1"
+                            >
+                              {field.options.map((opt) => (
+                                <div key={opt} className="flex items-center gap-2">
+                                  <RadioGroupItem value={opt} id={`${field.id}-${opt}`} />
+                                  <Label htmlFor={`${field.id}-${opt}`} className="text-sm font-normal text-foreground cursor-pointer">{opt}</Label>
+                                </div>
+                              ))}
+                            </RadioGroup>
+                          </div>
+                        );
+                      }
+                      if (field.type === "checkbox") {
+                        const arr: string[] = Array.isArray(value) ? value : [];
+                        return (
+                          <div key={field.id} className="space-y-2">
+                            {labelEl}
+                            <div className="space-y-1">
+                              {field.options.map((opt) => (
+                                <div key={opt} className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`${field.id}-${opt}`}
+                                    checked={arr.includes(opt)}
+                                    onCheckedChange={(c) =>
+                                      handleFieldChange(field.id, c === true ? [...arr, opt] : arr.filter((o) => o !== opt))
+                                    }
+                                  />
+                                  <Label htmlFor={`${field.id}-${opt}`} className="text-sm font-normal text-foreground cursor-pointer">{opt}</Label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      // select
+                      return (
+                        <div key={field.id} className="space-y-2">
+                          {labelEl}
+                          <Select value={typeof value === "string" ? value : ""} onValueChange={(v) => handleFieldChange(field.id, v)}>
+                            <SelectTrigger className="h-11"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                            <SelectContent>
+                              {field.options.map((opt) => (
+                                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      );
+                    }
+
+                    // Texto / campos padrão (comportamento original).
+                    const inputType = field.kind === "standard" ? field.inputType : undefined;
                     const placeholder = field.kind === "standard" ? field.placeholder : field.label;
                     const readOnly = field.kind === "standard" && field.readOnly;
                     return (
                       <div key={field.id} className="space-y-2">
-                        <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1">
-                          <Icon className="w-3 h-3" /> {field.label}{field.required ? " *" : ""}
-                        </Label>
+                        {labelEl}
                         <Input
                           type={inputType || "text"}
                           placeholder={placeholder || ""}
