@@ -15,6 +15,8 @@ const checkoutSchema = z.object({
   quantity:    z.number().int().min(1).max(10),
   user_id:     z.string().uuid({ message: "user_id deve ser um uuid válido" }),
   coupon_code: z.string().max(50).nullish(),
+  // Respostas dos campos personalizados (mesmo objeto do fluxo gratuito).
+  custom_fields: z.record(z.any()).optional(),
 });
 
 // Variáveis de ambiente (lidas uma vez; ausência derruba a function com erro claro).
@@ -58,7 +60,7 @@ Deno.serve(async (req) => {
       const field = issue.path.join(".") || "payload";
       return json({ error: `Dados inválidos: ${field} — ${issue.message}` }, 400);
     }
-    const { event_id, ticket_id, quantity, user_id, coupon_code } = parsed.data;
+    const { event_id, ticket_id, quantity, user_id, coupon_code, custom_fields } = parsed.data;
 
     // 4) Ingresso (apenas colunas garantidas no schema base).
     const { data: ticket, error: ticketErr } = await supabaseAdmin
@@ -186,6 +188,9 @@ Deno.serve(async (req) => {
       email: email || "sem-email@guardiaoeventos.com",
       status: "pending",
       payment_intent_id: paymentIntent.id,
+      // Opção 1: grava as respostas direto no pending. O webhook só promove
+      // o status (UPDATE não toca custom_fields), então elas persistem.
+      custom_fields: custom_fields ?? {},
     });
     if (regErr) {
       // Não bloqueia o pagamento: webhook tem fallback de insert idempotente.

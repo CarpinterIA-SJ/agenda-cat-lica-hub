@@ -32,6 +32,8 @@ interface CheckoutModalProps {
   quantity: number;
   ticketName?: string;
   couponCode?: string | null;
+  /** Respostas dos campos personalizados, gravadas no registro pending (Fase B). */
+  customFields?: Record<string, any>;
   onClose: () => void;
 }
 
@@ -50,6 +52,7 @@ export const CheckoutModal = ({
   quantity,
   ticketName,
   couponCode,
+  customFields,
   onClose,
 }: CheckoutModalProps) => {
   const { user } = useAuth();
@@ -73,6 +76,7 @@ export const CheckoutModal = ({
             quantity,
             user_id: user?.id ?? null,
             coupon_code: couponCode ?? null,
+            custom_fields: customFields ?? {},
           },
         });
         if (fnErr) throw fnErr;

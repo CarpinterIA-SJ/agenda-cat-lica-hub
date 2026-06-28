@@ -87,7 +87,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
   const [couponCode, setCouponCode] = useState("");
   const [couponDiscount, setCouponDiscount] = useState<{ modo: "percentual" | "fixo"; valor: string; codigo: string } | null>(null);
   const [couponError, setCouponError] = useState("");
-  const [checkout, setCheckout] = useState<{ ticketId: string; name: string; quantity: number; coupon: string | null } | null>(null);
+  const [checkout, setCheckout] = useState<{ ticketId: string; name: string; quantity: number; coupon: string | null; customFields: Record<string, any> } | null>(null);
 
   // Quando o organizador ainda não cadastrou ingressos, oferece uma entrada
   // gratuita sintética para o participante conseguir enviar o formulário.
@@ -192,8 +192,15 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
   const handleRegister = async () => {
     if (!event) return;
 
+    // Respostas dos campos personalizados (mesmo objeto no fluxo pago e no gratuito).
+    const customValues: Record<string, any> = {};
+    (event.custom_fields || []).forEach((f: any) => {
+      customValues[f.id] = formValues[f.id];
+    });
+
     // Ingresso pago → checkout obrigatório (Stripe). A inscrição é criada
     // (pending) pelo backend e confirmada via webhook após o pagamento.
+    // As respostas seguem no body do checkout → gravadas no pending (Fase B).
     if (selectedPriceCents > 0) {
       if (!user) {
         toast.info("Entre na sua conta para concluir o pagamento.");
@@ -211,15 +218,11 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
         name: selectedTicket?.name ?? "Ingresso",
         quantity: 1,
         coupon: couponDiscount?.codigo ?? null,
+        customFields: customValues,
       });
       return;
     }
 
-    // Coleta os valores dos campos customizados configurados pelo organizador.
-    const customValues: Record<string, any> = {};
-    (event.custom_fields || []).forEach((f: any) => {
-      customValues[f.id] = formValues[f.id];
-    });
     try {
       await createRegistration.mutateAsync({
         event_id: event.id,
@@ -466,6 +469,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
           ticketName={checkout.name}
           quantity={checkout.quantity}
           couponCode={checkout.coupon}
+          customFields={checkout.customFields}
           onClose={() => setCheckout(null)}
         />
       )}
