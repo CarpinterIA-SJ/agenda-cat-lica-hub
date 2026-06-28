@@ -306,6 +306,31 @@ export interface WithdrawalRequest {
   updated_at:       string
 }
 
+// Migration 019 — contas de repasse (PIX / bancária) do organizador
+
+export type PayoutAccountKind = 'pix' | 'bank'
+export type PixKeyType = 'cpf' | 'cnpj' | 'email' | 'phone' | 'random'
+export type BankAccountType = 'corrente' | 'poupanca'
+
+export interface PayoutAccount {
+  id:                 string
+  organization_id:    string
+  label:              string | null
+  account_kind:       PayoutAccountKind
+  holder_name:        string
+  holder_document:    string
+  pix_key_type:       PixKeyType | null
+  pix_key:            string | null
+  bank_code:          string | null
+  bank_name:          string | null
+  bank_agency:        string | null
+  bank_account:       string | null
+  bank_account_type:  BankAccountType | null
+  is_default:         boolean
+  created_at:         string
+  updated_at:         string
+}
+
 // Migration 012 — logs de auditoria administrativa
 
 export interface AuditLog {
@@ -557,6 +582,24 @@ export type Database = {
           paid_at?:      string | null
         }
         Update: Partial<Omit<WithdrawalRequest, 'id' | 'organization_id' | 'created_at'>>
+      }
+      organization_payout_accounts: {
+        Row:    PayoutAccount
+        Insert: Omit<PayoutAccount, 'id' | 'created_at' | 'updated_at' | 'is_default'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          label?: string | null
+          pix_key_type?: PixKeyType | null
+          pix_key?: string | null
+          bank_code?: string | null
+          bank_name?: string | null
+          bank_agency?: string | null
+          bank_account?: string | null
+          bank_account_type?: BankAccountType | null
+          is_default?: boolean
+        }
+        Update: Partial<Omit<PayoutAccount, 'id' | 'organization_id' | 'created_at'>>
       }
       audit_logs: {
         Row:    AuditLog
