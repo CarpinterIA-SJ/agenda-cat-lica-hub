@@ -190,6 +190,41 @@ const OrganizadoresPage = () => {
       if (uploadedPath) {
         await supabase.storage.from(LOGO_BUCKET).remove([uploadedPath]).catch(() => {});
       }
+      // ─── DEBUG TEMPORÁRIO (remover após captura) ───────────────
+      // Diagnostica RLS "violates ... for table organizations": compara o
+      // owner_id enviado com o sub do JWT que o cliente realmente usa nas
+      // requests ao PostgREST (= auth.uid() server-side). Se não baterem,
+      // ou a sessão estiver ausente/expirada, é descasamento de token.
+      let jwtSub = "n/a";
+      let hasSession = false;
+      let expired: boolean | string = "n/a";
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        hasSession = !!session;
+        const tok = session?.access_token;
+        if (tok) {
+          const payload = JSON.parse(atob(tok.split(".")[1]));
+          jwtSub = payload.sub ?? "no-sub";
+          expired = typeof payload.exp === "number" ? payload.exp * 1000 < Date.now() : "no-exp";
+        }
+      } catch (decodeErr) {
+        jwtSub = "decode-fail";
+      }
+      const dbg =
+        `owner_id=${authUser.id} | jwt.sub=${jwtSub} | match=${authUser.id === jwtSub} ` +
+        `| hasSession=${hasSession} | expired=${expired} | code=${e?.code ?? ""} | ${e?.message ?? ""}`;
+      console.error("[handleAdd DEBUG RLS]", {
+        ownerIdEnviado: authUser.id,
+        jwtSub,
+        match: authUser.id === jwtSub,
+        hasSession,
+        expired,
+        errorCode: e?.code,
+        errorMessage: e?.message,
+        error: e,
+      });
+      toast({ title: "DEBUG — copie e envie este texto", description: dbg, variant: "destructive" });
+      // ─── FIM DEBUG TEMPORÁRIO ──────────────────────────────────
       toast({ title: "Erro ao adicionar organizador", description: e.message, variant: "destructive" });
     }
   };
