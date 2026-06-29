@@ -79,8 +79,20 @@ export const CheckoutModal = ({
             custom_fields: customFields ?? {},
           },
         });
-        if (fnErr) throw fnErr;
-        if (res?.error) throw new Error(res.error);
+        if (fnErr) {
+          // Erro não-2xx: extrai a mensagem amigável do corpo (ex: valor_minimo,
+          // opção esgotada) em vez do genérico "non-2xx status code".
+          let msg = fnErr.message;
+          const ctx = (fnErr as any).context;
+          if (ctx && typeof ctx.json === "function") {
+            try {
+              const body = await ctx.json();
+              msg = body?.message || body?.error || msg;
+            } catch { /* corpo não-JSON: mantém msg padrão */ }
+          }
+          throw new Error(msg);
+        }
+        if (res?.error) throw new Error(res.message || res.error);
         if (!cancelled) setData(res as CheckoutData);
       } catch (e: any) {
         if (!cancelled) {

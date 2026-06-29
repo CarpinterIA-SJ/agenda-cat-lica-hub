@@ -20,6 +20,11 @@ const checkoutSchema = z.object({
   custom_fields: z.record(z.any()).optional(),
 });
 
+// Valor mínimo de um ingresso pago, em centavos. Espelha src/lib/pricing.ts —
+// manter em sincronia. Stripe BR rejeita boleto < R$ 5,00 (amount_too_small);
+// como card+boleto dividem o PaymentIntent, o mínimo efetivo é R$ 5,00.
+const MIN_PAID_TICKET_CENTS = 500;
+
 // Variáveis de ambiente (lidas uma vez; ausência derruba a function com erro claro).
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -136,6 +141,15 @@ Deno.serve(async (req) => {
     const total = subtotal + taxa;
 
     if (total < 1) return json({ error: "Valor total inválido para cobrança." }, 400);
+
+    // Mínimo da processadora (boleto R$ 5,00). Defesa estruturada: erro claro
+    // ANTES de criar o PaymentIntent, em vez do "amount_too_small" cru do Stripe.
+    if (total < MIN_PAID_TICKET_CENTS) {
+      return json({
+        error: "valor_minimo",
+        message: `O valor total ficou em R$ ${(total / 100).toFixed(2).replace(".", ",")}, abaixo do mínimo de R$ ${(MIN_PAID_TICKET_CENTS / 100).toFixed(2).replace(".", ",")} aceito pela processadora de pagamento. Adicione mais ingressos ou peça ao organizador para ajustar o preço.`,
+      }, 400);
+    }
 
     // Fase C: soft-gate de vagas por opção. Se uma opção escolhida já
     // esgotou, rejeita ANTES de criar o PaymentIntent (não deixa pagar por

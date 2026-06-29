@@ -128,6 +128,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import Placeholder from "@tiptap/extension-placeholder";
 import { useMyOrganization, useMyOrganizations } from "@/hooks/use-organizations";
 import { useEvent, useCreateEvent, useUpdateEvent } from "@/hooks/use-events";
+import { MIN_PAID_TICKET_CENTS, MIN_PAID_TICKET_BRL, MIN_PAID_TICKET_MESSAGE, brlInputToCents } from "@/lib/pricing";
 import { useTickets, useCreateTicket, useDeleteTicket } from "@/hooks/use-tickets";
 import { useRegistrations, useEventPayments } from "@/hooks/use-registrations";
 import { useCheckins } from "@/hooks/use-checkins";
@@ -248,6 +249,11 @@ const OrganizerEventNewPage = () => {
 
   const handleSalvarIngresso = () => {
     if (!ingressoNome.trim() || !ingressoQtd) return;
+    // Ingresso pago abaixo do mínimo da processadora → bloqueia antes de gravar.
+    if (dialogTipoIngresso === "pago" && brlInputToCents(ingressoPreco) < MIN_PAID_TICKET_CENTS) {
+      toast({ title: "Preço abaixo do mínimo", description: MIN_PAID_TICKET_MESSAGE, variant: "destructive" });
+      return;
+    }
     const novo: Ingresso = {
       id: Date.now().toString(),
       nome: ingressoNome,
@@ -1612,6 +1618,9 @@ const OrganizerEventNewPage = () => {
                   <div className="space-y-1">
                     <label className="text-sm font-medium">Preço (R$)</label>
                     <Input placeholder="0,00" value={ingressoPreco} onChange={(e) => setIngressoPreco(e.target.value)} maxLength={10} />
+                    <p className={`text-xs ${ingressoPreco && brlInputToCents(ingressoPreco) < MIN_PAID_TICKET_CENTS ? "text-destructive" : "text-muted-foreground"}`}>
+                      Mínimo de R$ {MIN_PAID_TICKET_BRL.toFixed(2).replace(".", ",")} para ingressos pagos.
+                    </p>
                   </div>
                 )}
               </div>
@@ -1764,6 +1773,11 @@ const OrganizerEventIngressosPage = () => {
 
   const handleSaveTicket = async () => {
     if (!ticketNome.trim() || !ticketQtd || !id) return;
+    // Ingresso pago abaixo do mínimo da processadora → bloqueia antes de gravar.
+    if (dialogType === "pago" && brlInputToCents(ticketPreco) < MIN_PAID_TICKET_CENTS) {
+      toast({ title: "Preço abaixo do mínimo", description: MIN_PAID_TICKET_MESSAGE, variant: "destructive" });
+      return;
+    }
     try {
       await createTicket.mutateAsync({
         event_id: id,
@@ -1926,6 +1940,9 @@ const OrganizerEventIngressosPage = () => {
               <div className="space-y-1">
                 <label className="text-sm font-medium">Preço (R$)</label>
                 <Input placeholder="0,00" value={ticketPreco} onChange={(e) => setTicketPreco(e.target.value)} maxLength={10} />
+                <p className={`text-xs ${ticketPreco && brlInputToCents(ticketPreco) < MIN_PAID_TICKET_CENTS ? "text-destructive" : "text-muted-foreground"}`}>
+                  Mínimo de R$ {MIN_PAID_TICKET_BRL.toFixed(2).replace(".", ",")} para ingressos pagos.
+                </p>
               </div>
             )}
           </div>
