@@ -55,6 +55,11 @@ const OrganizerEventsPage = () => {
   // criar eventos sob qualquer uma delas. "Meus eventos" precisa cobrir todas.
   const { data: myOrgs = [] } = useMyOrganizations();
   const orgIds = myOrgs.map((o) => o.id);
+  // Org aprovada por id → controla se o evento pode ser publicado (trava 023).
+  const orgApprovedById = new Map(myOrgs.map((o) => [o.id, o.status === "approved"] as [string, boolean]));
+  // Default true: se a org não está na lista (caso raro), não bloqueia a UX.
+  const eventOrgApproved = (organizationId: string | null) =>
+    organizationId ? orgApprovedById.get(organizationId) ?? true : true;
   // Sem org resolvida, NÃO buscar: query sem filtro retornaria todos os eventos
   // públicos via RLS (vazamento). Restringe às orgs do usuário (owner_id).
   const { data: events = [], isLoading } = useEvents(
@@ -187,13 +192,18 @@ const OrganizerEventsPage = () => {
           {filteredEvents.map((event) => (
             <Card key={event.id} className="border-slate-200 shadow-sm">
               <CardContent className="p-4 space-y-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className={`text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full ${STATUS_BADGE[event.status] ?? "bg-slate-100 text-slate-600"}`}>
                     {STATUS_LABEL[event.status] ?? event.status}
                   </span>
                   <span className="text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
                     {event.format}
                   </span>
+                  {event.status === "draft" && !eventOrgApproved(event.organization_id) && (
+                    <span className="text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full bg-amber-50 text-amber-700">
+                      Aguardando aprovação da organização
+                    </span>
+                  )}
                 </div>
                 <div className="space-y-3 text-left">
                   <h3 className="text-lg font-semibold text-slate-900 leading-6">{event.name}</h3>
@@ -242,10 +252,14 @@ const OrganizerEventsPage = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 shrink-0"
-                      disabled={updateEvent.isPending}
+                      className="text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 shrink-0 disabled:opacity-40"
+                      disabled={updateEvent.isPending || !eventOrgApproved(event.organization_id)}
                       onClick={() => handleToggleStatus(event.id, event.name, true)}
-                      title="Publicar evento"
+                      title={
+                        eventOrgApproved(event.organization_id)
+                          ? "Publicar evento"
+                          : "Organização em análise — publicação liberada após aprovação"
+                      }
                       aria-label="Publicar evento"
                     >
                       <Eye className="w-4 h-4" />

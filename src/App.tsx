@@ -506,6 +506,9 @@ const OrganizerEventNewPage = () => {
       };
 
       if (!eventoId) {
+        // Org não-aprovada não publica: nasce como rascunho (espelha a trava
+        // server-side da migration 023). Org approved publica normalmente.
+        const orgApproved = (selectedOrg as any).status === "approved";
         const created = await createEvent.mutateAsync({
           organization_id: selectedOrg.id,
           created_by: selectedOrg.owner_id,
@@ -516,7 +519,7 @@ const OrganizerEventNewPage = () => {
           category: categoria || null,
           format: tipoEvento as any,
           visibility: "public",
-          status: "active",
+          status: orgApproved ? "active" : "draft",
           start_at: ptBRToISO(dataInicio, sanitizeTime(horaInicio)),
           end_at: ptBRToISO(dataFim, sanitizeTime(horaFim)),
           location: buildLocation() as any,
@@ -771,6 +774,15 @@ const OrganizerEventNewPage = () => {
                     + Adicionar organizador
                   </Button>
                 </div>
+
+                {organizadorId &&
+                  organizadores.find((o) => o.id === organizadorId)?.status !== "approved" && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                      <strong>Organização em análise.</strong> Este evento será salvo como{" "}
+                      <strong>rascunho</strong> e só poderá ser publicado após a aprovação da
+                      organização pela equipe Guardião.
+                    </div>
+                  )}
 
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
                   Notificações sobre vendas e suporte serão enviadas por WhatsApp e E-mail.
