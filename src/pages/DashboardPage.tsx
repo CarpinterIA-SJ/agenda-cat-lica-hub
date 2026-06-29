@@ -11,7 +11,7 @@ import {
   Ticket,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useMyOrganization } from "@/hooks/use-organizations";
+import { useMyOrganizations } from "@/hooks/use-organizations";
 import { useEvents } from "@/hooks/use-events";
 
 const DashboardPage = () => {
@@ -19,18 +19,21 @@ const DashboardPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { data: org } = useMyOrganization();
+  // TODAS as organizações do dono: a home agrega dados de todas, não só da
+  // mais antiga (um organizador pode ter mais de uma org).
+  const { data: myOrgs = [] } = useMyOrganizations();
+  const orgIds = myOrgs.map((o) => o.id);
   // Sem org resolvida, NÃO buscar: query sem filtro retornaria todos os eventos
-  // públicos via RLS (vazamento). Só consulta com organization_id do usuário.
+  // públicos via RLS (vazamento). Restringe às orgs do usuário (owner_id).
   const { data: events = [] } = useEvents(
-    org?.id ? { organization_id: org.id } : undefined,
-    { enabled: !!org?.id },
+    orgIds.length ? { organization_ids: orgIds } : undefined,
+    { enabled: orgIds.length > 0 },
   );
   const eventIds = events.map((e) => e.id);
 
-  // Inscrições reais somadas em todos os eventos da organização.
+  // Inscrições reais somadas em todos os eventos do organizador (todas as orgs).
   const { data: registrationCount = 0 } = useQuery({
-    queryKey: ["dashboard-registration-count", org?.id, eventIds],
+    queryKey: ["dashboard-registration-count", orgIds, eventIds],
     enabled: eventIds.length > 0,
     queryFn: async () => {
       const { count, error } = await supabase
@@ -42,15 +45,15 @@ const DashboardPage = () => {
     },
   });
 
-  // Contatos reais do CRM da organização.
+  // Contatos reais do CRM somados de todas as organizações do organizador.
   const { data: crmCount = 0 } = useQuery({
-    queryKey: ["dashboard-crm-count", org?.id],
-    enabled: !!org?.id,
+    queryKey: ["dashboard-crm-count", orgIds],
+    enabled: orgIds.length > 0,
     queryFn: async () => {
       const { count, error } = await supabase
         .from("crm_contacts")
         .select("id", { count: "exact", head: true })
-        .eq("organization_id", org!.id);
+        .in("organization_id", orgIds);
       if (error) throw error;
       return count ?? 0;
     },
