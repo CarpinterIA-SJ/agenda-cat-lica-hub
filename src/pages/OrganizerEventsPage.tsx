@@ -31,7 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useEvents, useDeleteEvent, useUpdateEvent } from "@/hooks/use-events";
-import { useMyOrganization } from "@/hooks/use-organizations";
+import { useMyOrganizations } from "@/hooks/use-organizations";
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Rascunho",
@@ -51,12 +51,15 @@ const OrganizerEventsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { data: org } = useMyOrganization();
+  // Todas as organizações do dono: um organizador pode ter mais de uma org e
+  // criar eventos sob qualquer uma delas. "Meus eventos" precisa cobrir todas.
+  const { data: myOrgs = [] } = useMyOrganizations();
+  const orgIds = myOrgs.map((o) => o.id);
   // Sem org resolvida, NÃO buscar: query sem filtro retornaria todos os eventos
-  // públicos via RLS (vazamento). "Meus eventos" só mostra os da org do usuário.
+  // públicos via RLS (vazamento). Restringe às orgs do usuário (owner_id).
   const { data: events = [], isLoading } = useEvents(
-    org?.id ? { organization_id: org.id } : undefined,
-    { enabled: !!org?.id },
+    orgIds.length ? { organization_ids: orgIds } : undefined,
+    { enabled: orgIds.length > 0 },
   );
   const deleteEvent = useDeleteEvent();
   const updateEvent = useUpdateEvent();

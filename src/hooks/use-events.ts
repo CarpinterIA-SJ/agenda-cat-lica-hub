@@ -15,7 +15,7 @@ const slugify = (str: string) =>
     .replace(/\s+/g, "-");
 
 export const useEvents = (
-  filters?: { status?: string; visibility?: string; organization_id?: string },
+  filters?: { status?: string; visibility?: string; organization_id?: string; organization_ids?: string[] },
   options?: { enabled?: boolean },
 ) => {
   return useQuery({
@@ -25,7 +25,11 @@ export const useEvents = (
       let query = supabase.from("events").select("*");
       if (filters?.status) query = query.eq("status", filters.status);
       if (filters?.visibility) query = query.eq("visibility", filters.visibility);
+      // Org única (retrocompat) ou várias orgs (ex: "Meus eventos" do dono com
+      // mais de uma organização). Ambos restringem a orgs do usuário — sem
+      // vazamento de eventos públicos de terceiros.
       if (filters?.organization_id) query = query.eq("organization_id", filters.organization_id);
+      if (filters?.organization_ids) query = query.in("organization_id", filters.organization_ids);
       const { data, error } = await query;
       if (error) throw error;
       return data as Event[];
