@@ -72,6 +72,9 @@ Deno.serve(async (req) => {
       // (prazo do organizador atingido em pix/boleto) ou cancelado.
       const reason = evt.type === "payment_intent.canceled" ? "cancelled" : "failed";
       await handleUnpaid(evt.data.object as Stripe.PaymentIntent, reason);
+    } else if (evt.type === "charge.refunded") {
+      // Estorno: reverte a inscrição confirmada e libera as vagas.
+      await handleRefunded(evt.data.object as Stripe.Charge);
     }
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
@@ -259,4 +262,106 @@ async function handleUnpaid(pi: Stripe.PaymentIntent, reason: "failed" | "cancel
     gateway: "stripe",
     gateway_transaction_id: pi.id,
   });
+}
+
+async function handleRefunded(charge: Stripe.Charge) {
+  const piId = typeof charge.payment_intent === "string"
+    ? charge.payment_intent
+    : charge.payment_intent?.id;
+  if (!piId) return;
+
+  // Só tratamos refund TOTAL (caso comum). Parcial: registra e IGNORA a
+  // reversão — cancelar a inscrição e liberar a vaga por um estorno parcial
+  // seria incorreto. Limitação documentada.
+  if (charge.refunded !== true || (charge.amount_refunded ?? 0) < (charge.amount ?? 0)) {
+    console.warn("[stripe-webhook] refund parcial ignorado (sem reversão):", piId);
+    return;
+  }
+
+  // Pagamento correspondente.
+  const { data: pay } = await supabaseAdmin
+    .from("payments")
+    .select("id, status, event_id")
+    .eq("gateway_transaction_id", piId)
+    .maybeSingle();
+  if (!pay) {
+    console.warn("[stripe-webhook] refund sem payment correspondente:", piId);
+    return;
+  }
+
+  // IDEMPOTÊNCIA (guard atômico): só reverte quem transita paid → refunded.
+  // Um reenvio do evento encontra status já 'refunded' → 0 linhas → return,
+  // sem decrementar sold/option_counts de novo.
+  const { data: flipped } = await supabaseAdmin
+    .from("payments")
+    .update({ status: "refunded", refunded_at: new Date().toISOString() })
+    .eq("id", pay.id)
+    .eq("status", "paid")
+    .select("id")
+    .maybeSingle();
+  if (!flipped) return;
+
+  // Metadados do PI (quantity/ticket) — mesma fonte do succeeded.
+  const pi = await stripe.paymentIntents.retrieve(piId);
+  const m = pi.metadata ?? {};
+  const eventId = (pay as any).event_id || m.event_id;
+  const quantity = Math.max(1, Number(m.quantity ?? "1"));
+
+  // Inscrição vinculada — captura o status ANTES de cancelar (só libera vaga
+  // se estava 'confirmed', pois só aí sold/option_counts foram contados).
+  const { data: reg } = await supabaseAdmin
+    .from("event_registrations")
+    .select("id, status, ticket_id, custom_fields")
+    .eq("payment_intent_id", piId)
+    .maybeSingle();
+  const wasConfirmed = reg?.status === "confirmed";
+  const ticketId = (reg as any)?.ticket_id || m.ticket_id || null;
+
+  if (reg && reg.status !== "cancelled") {
+    await supabaseAdmin
+      .from("event_registrations")
+      .update({ status: "cancelled" })
+      .eq("id", reg.id);
+  }
+
+  if (wasConfirmed) {
+    if (ticketId) {
+      const { error: decErr } = await supabaseAdmin.rpc("decrement_ticket_sold", {
+        p_ticket_id: ticketId,
+        p_quantity: quantity,
+      });
+      if (decErr) console.error("[stripe-webhook] decrement_ticket_sold falhou", decErr);
+    }
+    if (eventId) {
+      const { data: ev } = await supabaseAdmin
+        .from("events")
+        .select("custom_fields")
+        .eq("id", eventId)
+        .maybeSingle();
+      const selections = buildLimitedSelections((ev as any)?.custom_fields, (reg as any)?.custom_fields);
+      if (selections.length) {
+        const { error: relErr } = await supabaseAdmin.rpc("release_option_counts", {
+          p_event_id: eventId,
+          p_selections: selections,
+        });
+        if (relErr) console.error("[stripe-webhook] release_option_counts falhou", relErr);
+      }
+    }
+  }
+
+  // Auditoria (service_role bypassa RLS). Best-effort — não derruba o refund.
+  const { error: auditErr } = await supabaseAdmin.from("audit_logs").insert({
+    actor_email: "system@stripe-webhook",
+    action: "ESTORNAR_PAGAMENTO",
+    entity_type: "payment",
+    entity_id: pay.id,
+    details: {
+      payment_intent_id: piId,
+      registration_id: reg?.id ?? null,
+      event_id: eventId ?? null,
+      amount_refunded: charge.amount_refunded ?? null,
+      was_confirmed: wasConfirmed,
+    },
+  });
+  if (auditErr) console.error("[stripe-webhook] audit_logs refund falhou", auditErr);
 }
