@@ -22,14 +22,39 @@ Rotacionar a anon key não reduz risco algum — a nova chave estaria igualmente
 no bundle no minuto seguinte.
 
 **O risco real embutido no achado** é o que a RLS *permite* à anon key ler.
-Esse sim foi corrigido, na migration `026_pentest_hardening.sql`:
+Sobre isso, na migration `026_pentest_hardening.sql`:
 
-- **`profiles`**: a policy era `using (true)` — qualquer visitante enumerava o
-  nome de todos os cadastrados. Agora: próprio perfil, colegas de organização
-  ou platform admin.
 - **`audit_logs`**: `actor_id`/`actor_email` eram enviados pelo cliente e
   aceitos como verdade. Uma trigger passa a sobrescrevê-los com a identidade
-  real da sessão — trilha de auditoria deixa de ser forjável.
+  real da sessão — trilha de auditoria deixa de ser forjável. Correção efetiva.
+
+- **`profiles`**: **não havia vulnerabilidade aqui.** Uma versão anterior deste
+  documento afirmava que a policy era `using (true)` e que "qualquer visitante
+  enumerava o nome de todos os cadastrados". Isso é falso. Conferido em
+  produção via `pg_policies` em 04/08/2026, a policy de leitura existente é:
+
+  ```text
+  "profiles: leitura própria"  SELECT  using (auth.uid() = id)
+  ```
+
+  Ou seja, a leitura já era restrita ao próprio usuário; a anon key nunca
+  enumerou perfil algum. A migration `026` tenta remover uma policy chamada
+  `"profiles: leitura pública (nome/avatar)"`, que **nunca existiu** — como o
+  `drop` usa `if exists`, o comando virou no-op silencioso e o engano passou
+  despercebido.
+
+  O efeito real de `026` sobre `profiles` foi o **oposto** do descrito: ela
+  adicionou uma segunda policy permissiva de `SELECT`
+  (`"profiles: self, colegas de org ou platform admin"`), e policies
+  permissivas se somam com `OR`. O acesso, portanto, foi **ampliado** — colegas
+  de organização e platform admins passaram a ler perfis que antes não liam.
+  Isso é defensável para o produto (painel admin e telas de equipe precisam
+  desses nomes), mas deve constar como ampliação deliberada de escopo, não
+  como correção de vulnerabilidade.
+
+  Pendência: `"profiles: leitura própria"` virou subconjunto redundante da
+  policy nova e pode ser removida numa migration própria, com o nome conferido
+  por `SELECT` antes do `drop` (ver §8).
 
 A leitura pública que **permanece** é intencional e é o produto: eventos com
 `status = 'active'` e seus ingressos (migration `003`), e a linha
@@ -55,11 +80,19 @@ Fechar o signup desliga o produto, não uma vulnerabilidade.
 O risco concreto apontado (criação massiva de contas por bots) foi tratado em
 `supabase/config.toml`:
 
-- `enable_confirmations = true` — conta só vale após confirmar o e-mail.
+- `enable_confirmations = true` (em `[auth.email]`) — conta só vale após
+  confirmar o e-mail.
 - `[auth.captcha]` — integração com Cloudflare Turnstile pronta (ver §6).
 - `[auth.rate_limit]` — tetos por IP para signup/login, envio de e-mail,
   refresh de token e verificação de OTP.
 - Senha mínima de 8 caracteres com mistura de classes; rotação de refresh token.
+
+> **Correção de 04/08/2026.** O `config.toml` escrito junto com a `026` usava
+> duas chaves inexistentes no schema do Supabase CLI: `enable_confirmations`
+> estava sob `[auth]` (pertence a `[auth.email]`) e o rate limit de OTP estava
+> como `verify` (chama-se `token_verifications`). Com elas, o CLI recusava o
+> arquivo inteiro — ou seja, o `supabase config push` do §6 nunca teria
+> aplicado nada. Ambas corrigidas; os valores foram preservados.
 
 O segundo risco citado — *"escalação de privilégios caso haja falhas no
 isolamento dos organizadores"* — já era barrado antes do pentest: a policy de
@@ -172,10 +205,50 @@ curl -sI https://guardiaoeventos.com | grep -iE 'content-security|strict-transpo
 curl -si -X OPTIONS "https://<projeto>.supabase.co/functions/v1/stripe-checkout" \
   -H "Origin: https://atacante.example" | grep -i 'access-control-allow-origin'
 
-# profiles não é mais enumerável pela anon key (espera-se lista vazia)
+# profiles não é enumerável pela anon key (espera-se lista vazia).
+# Observação: este teste já passava antes da migration 026 — ver §1.
 curl -s "https://<projeto>.supabase.co/rest/v1/profiles?select=id,name" \
   -H "apikey: <anon key>"
 ```
+
+---
+
+## 8. Regra para migrations que mexem em policies
+
+O engano da `026` sobre `profiles` (§1) teve uma causa mecânica: o
+`drop policy if exists` com o nome errado falha em silêncio. A migration roda
+verde, o `db push` reporta sucesso e a policy que se pretendia trocar continua
+lá. **Toda migration futura — incluindo a do Asaas — segue estas regras:**
+
+1. **Confira o nome real antes de dropar.** O nome vem do banco, nunca da
+   memória nem do arquivo de migration antigo:
+
+   ```sql
+   select tablename, policyname, cmd, qual, with_check
+   from   pg_policies
+   where  schemaname = 'public' and tablename = '<tabela>'
+   order  by policyname;
+   ```
+
+   Sem Docker local, dá para rodar direto contra a produção com
+   `npx supabase db query --linked "<sql>"` (usa a Management API).
+
+2. **`drop policy` sem `if exists` quando a policy deve existir.** O erro
+   `policy "..." for table "..." does not exist` é exatamente o sinal que se
+   quer: aborta a migration em vez de deixar o banco num estado que ninguém
+   pediu. Reserve `if exists` para policies que legitimamente podem não estar
+   lá (migration idempotente por design) — e, mesmo nesses casos, deixe claro
+   no comentário por que a ausência é aceitável.
+
+3. **Lembre que policies permissivas se somam com `OR`.** Criar uma policy nova
+   sem remover a antiga *amplia* o acesso, não o restringe. Se a intenção é
+   restringir, o `drop` da antiga é parte obrigatória da correção — e é
+   justamente aí que o `if exists` silencioso causa o dano.
+
+4. **Valide o resultado depois do push**, repetindo o `SELECT` do item 1 e
+   conferindo que a lista final é a esperada.
+
+---
 
 ## Reportar uma vulnerabilidade
 
