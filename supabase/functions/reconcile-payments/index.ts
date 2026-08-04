@@ -12,7 +12,7 @@
 // ============================================================
 import Stripe from "npm:stripe@^17.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeadersFor, preflightResponse } from "../_shared/cors.ts";
 import { buildLimitedSelections } from "../_shared/option-counts.ts";
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
@@ -37,8 +37,10 @@ const methodMap: Record<string, string> = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return preflightResponse(req);
   }
+
+  const cors = corsHeadersFor(req);
 
   const missingEnv: string[] = [];
   if (!STRIPE_SECRET_KEY) missingEnv.push("STRIPE_SECRET_KEY");
@@ -46,7 +48,7 @@ Deno.serve(async (req) => {
   if (!SUPABASE_SERVICE_ROLE_KEY) missingEnv.push("SUPABASE_SERVICE_ROLE_KEY");
   if (missingEnv.length) {
     console.error("[reconcile-payments] env ausente:", missingEnv.join(", "));
-    return json({ error: `Configuração incompleta: ${missingEnv.join(", ")}` }, 500);
+    return json({ error: `Configuração incompleta: ${missingEnv.join(", ")}` }, 500, cors);
   }
 
   const stats = {
@@ -100,10 +102,10 @@ Deno.serve(async (req) => {
     }
 
     console.log("[reconcile-payments] resultado:", JSON.stringify({ cutoff, ...stats }));
-    return json({ ok: true, ...stats }, 200);
+    return json({ ok: true, ...stats }, 200, cors);
   } catch (err) {
     console.error("[reconcile-payments] erro não tratado:", (err as Error).message, err);
-    return json({ error: (err as Error).message, ...stats }, 500);
+    return json({ error: (err as Error).message, ...stats }, 500, cors);
   }
 });
 
@@ -222,9 +224,13 @@ async function resolveMethod(pi: Stripe.PaymentIntent): Promise<string> {
   return "credit_card";
 }
 
-function json(payload: unknown, status = 200): Response {
+function json(
+  payload: unknown,
+  status = 200,
+  cors: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...cors, "Content-Type": "application/json" },
   });
 }

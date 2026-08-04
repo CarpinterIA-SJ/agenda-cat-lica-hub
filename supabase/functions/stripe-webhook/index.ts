@@ -6,7 +6,7 @@
 // ============================================================
 import Stripe from "npm:stripe@^17.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeadersFor, preflightResponse } from "../_shared/cors.ts";
 import { buildLimitedSelections } from "../_shared/option-counts.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
@@ -30,7 +30,7 @@ const methodMap: Record<string, string> = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return preflightResponse(req);
   }
 
   // Verificação obrigatória da assinatura Stripe antes de processar qualquer evento.
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
     }
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeadersFor(req), "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("[stripe-webhook] erro ao processar", err);

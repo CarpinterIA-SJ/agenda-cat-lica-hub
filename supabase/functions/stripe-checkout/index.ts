@@ -6,7 +6,7 @@
 import Stripe from "npm:stripe@^17.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "npm:zod@^3.23.8";
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeadersFor, preflightResponse } from "../_shared/cors.ts";
 import { buildLimitedSelections } from "../_shared/option-counts.ts";
 
 // Valida o payload antes de qualquer processamento.
@@ -37,10 +37,23 @@ const stripe = new Stripe(STRIPE_SECRET_KEY, {
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// Rate limit por usuário: no máximo 10 tentativas de checkout a cada 10 min.
+// Sem isso, um bot autenticado gera PaymentIntents e inscrições pendentes em
+// massa (custo no Stripe + poluição do banco). Pentest 2026-07-24, item 5.
+const CHECKOUT_RATE_MAX = 10;
+const CHECKOUT_RATE_WINDOW_SECONDS = 600;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return preflightResponse(req);
   }
+
+  const cors = corsHeadersFor(req);
+  const json = (payload: unknown, status = 200): Response =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
 
   try {
     // 1) Variáveis de ambiente obrigatórias.
@@ -56,7 +69,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3) Loga o body recebido para diagnóstico.
+    // 2) Autenticação obrigatória. Antes desta trava, qualquer um podia POSTar
+    // um user_id arbitrário e criar PaymentIntents + inscrições pendentes em
+    // nome de terceiros. O client já envia o JWT da sessão automaticamente
+    // (supabase.functions.invoke), então nada muda para o fluxo legítimo.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const accessToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!accessToken) {
+      return json({ error: "Autenticação obrigatória para iniciar um pagamento." }, 401);
+    }
+    const { data: caller, error: callerErr } = await supabaseAdmin.auth.getUser(accessToken);
+    if (callerErr || !caller?.user) {
+      return json({ error: "Sessão inválida ou expirada. Faça login novamente." }, 401);
+    }
+    const callerId = caller.user.id;
+
+    // 3) Loga o body recebido para diagnóstico (sem o token).
     const raw = await req.json().catch(() => null);
     console.log("[stripe-checkout] body recebido:", JSON.stringify(raw));
 
@@ -67,6 +95,28 @@ Deno.serve(async (req) => {
       return json({ error: `Dados inválidos: ${field} — ${issue.message}` }, 400);
     }
     const { event_id, ticket_id, quantity, user_id, coupon_code, custom_fields } = parsed.data;
+
+    // O comprador é sempre o dono do token — nunca o que veio no corpo.
+    if (user_id !== callerId) {
+      console.warn("[stripe-checkout] user_id divergente do token", { callerId, user_id });
+      return json({ error: "Não é possível comprar ingressos em nome de outro usuário." }, 403);
+    }
+
+    // Rate limit server-side, contabilizado no banco (vale entre isolates).
+    const { data: allowed, error: rateErr } = await supabaseAdmin.rpc("consume_rate_limit", {
+      p_key: `stripe-checkout:${callerId}`,
+      p_max: CHECKOUT_RATE_MAX,
+      p_window_seconds: CHECKOUT_RATE_WINDOW_SECONDS,
+    });
+    if (rateErr) {
+      // Migration 026 ainda não aplicada: registra e segue (não bloqueia venda).
+      console.warn("[stripe-checkout] consume_rate_limit indisponível:", rateErr.message);
+    } else if (allowed === false) {
+      return json({
+        error: "rate_limited",
+        message: "Muitas tentativas de pagamento em pouco tempo. Aguarde alguns minutos e tente novamente.",
+      }, 429);
+    }
 
     // 4) Ingresso (apenas colunas garantidas no schema base).
     const { data: ticket, error: ticketErr } = await supabaseAdmin
@@ -254,10 +304,3 @@ Deno.serve(async (req) => {
     return json({ error: `Erro ao iniciar o pagamento: ${message}` }, 500);
   }
 });
-
-function json(payload: unknown, status = 200): Response {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}

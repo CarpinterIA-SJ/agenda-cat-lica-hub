@@ -1,1 +1,67 @@
 project_id = "ehxhgakvirzxroryebvl"
+
+# ============================================================
+#  Hardening de autenticação — Pentest 24/07/2026, item 2.
+#
+#  O relatório recomendou `disable_signup = true`. NÃO adotamos:
+#  o Guardião é uma plataforma pública de eventos — participantes
+#  precisam se cadastrar para comprar ingresso e fazer check-in.
+#  Fechar o signup desligaria o produto, não uma vulnerabilidade.
+#
+#  O risco real apontado (criação massiva de contas por bots) é
+#  tratado aqui: captcha, confirmação de e-mail e rate limits por
+#  IP. O outro risco citado — "escalação de privilégios caso haja
+#  falhas no isolamento dos organizadores" — já é barrado pelas
+#  policies de user_roles (migration 004: sem auto-promoção) e
+#  pela aprovação manual de organizações (migration 023: org
+#  não-aprovada não publica evento).
+#
+#  Aplicar com: supabase config push
+#  (o Dashboard > Authentication reflete os mesmos campos).
+# ============================================================
+
+[auth]
+enabled = true
+# Mantido aberto de propósito — ver justificativa acima.
+enable_signup = true
+
+# Conta só existe de fato após confirmar o e-mail: e-mails descartáveis
+# em massa param de virar usuários utilizáveis.
+enable_confirmations = true
+
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+
+minimum_password_length = 8
+# Exige mistura de classes de caracteres na senha.
+password_requirements = "lower_upper_letters_digits"
+
+[auth.email]
+# OTP/magic link de vida curta (o padrão do Supabase, 24h, é longo demais).
+otp_expiry = 3600
+max_frequency = "1m0s"
+
+[auth.captcha]
+# Barreira anti-bot no signup/signin/recuperação. Vire para `true` somente
+# depois de provisionar site key + secret no provedor E de preencher
+# VITE_TURNSTILE_SITE_KEY no build do frontend — caso contrário o Auth
+# passa a rejeitar todo login.
+enabled = false
+provider = "turnstile"   # ou "hcaptcha"
+secret = "env(CAPTCHA_SECRET)"
+
+[auth.rate_limit]
+# Tetos por IP. Freiam enumeração de contas e criação massiva de usuários
+# mesmo se o captcha for contornado.
+email_sent = 10          # e-mails por hora
+sign_in_sign_ups = 30    # login+signup por IP a cada 5 min
+token_refresh = 150      # refreshes por IP a cada 5 min
+verify = 30              # verificações de OTP por IP a cada 5 min
+anonymous_users = 30     # criação de usuários anônimos por IP/hora
+
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
+# Sem skip_nonce_check: mantém a validação de nonce do OIDC.
