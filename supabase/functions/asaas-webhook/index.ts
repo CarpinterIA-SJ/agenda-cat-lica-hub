@@ -105,11 +105,11 @@ Deno.serve(async (req) => {
       // primeiro produz efeito.
       case "PAYMENT_CONFIRMED":
       case "PAYMENT_RECEIVED":
-        await handlePaid(payment);
+        await handlePaid(payment, eventType);
         break;
 
       case "PAYMENT_REFUNDED":
-        await handleRefunded(payment);
+        await handleRefunded(payment, eventType);
         break;
 
       case "PAYMENT_PARTIALLY_REFUNDED":
@@ -151,9 +151,75 @@ const ok = (): Response =>
     headers: { "Content-Type": "application/json" },
   });
 
+// ─── Cobrança sem linha em payments ─────────────────────────
+
+/**
+ * Chamada por TODO handler que não encontrou a linha de payments da cobrança.
+ * Classifica o caso e registra — NUNCA lança, em nenhum dos dois ramos.
+ *
+ * Por que nunca lançar: a fila do Asaas é SEQUENCIAL e para inteira após 15
+ * falhas consecutivas. Um evento que não temos como processar bloquearia
+ * todos os seguintes indefinidamente. Falta de linha em payments não é
+ * recuperável por retentativa — reenviar o mesmo evento mil vezes não faz a
+ * linha aparecer. Então responder 500 aqui só troca um problema por um pior.
+ *
+ * Os dois casos são MUITO diferentes e não podem compartilhar severidade:
+ *
+ *  - SEM externalReference → cobrança avulsa, criada direto no painel do
+ *    Asaas. A conta é usada para outras coisas além da plataforma, então
+ *    isto é rotina, não incidente. warn e segue.
+ *
+ *  - COM externalReference → foi o NOSSO checkout que criou a cobrança (ele
+ *    grava o id da inscrição ali) e a linha de payments não existe: o
+ *    asaas-checkout falhou depois de criar a cobrança no Asaas e antes de
+ *    gravar em payments. Isso é dinheiro cobrado do participante sem venda
+ *    materializada — precisa de alarme, não de log perdido. Vai para
+ *    audit_logs para ficar visível fora do log da função.
+ */
+async function reportMissingPayment(
+  payment: AsaasWebhookPayment,
+  eventType: string,
+): Promise<void> {
+  const ref = payment.externalReference ?? null;
+
+  if (!ref) {
+    console.warn(
+      "[asaas-webhook] cobrança alheia à plataforma (sem externalReference) — ignorada:",
+      eventType, payment.id,
+    );
+    return;
+  }
+
+  console.error(
+    "[asaas-webhook] ALERTA: cobrança DA PLATAFORMA sem linha em payments —",
+    "checkout provavelmente falhou ao gravar:",
+    eventType, payment.id, "externalReference:", ref,
+  );
+
+  // Best-effort: se a auditoria falhar, ainda assim respondemos 200. Travar a
+  // fila por causa de um insert de log seria exatamente o bug que estamos
+  // corrigindo.
+  const { error: auditErr } = await supabaseAdmin.from("audit_logs").insert({
+    actor_email: "system@asaas-webhook",
+    action: "COBRANCA_SEM_PAGAMENTO_REGISTRADO",
+    entity_type: "payment",
+    entity_id: null,
+    details: {
+      gateway: "asaas",
+      asaas_event: eventType,
+      charge_id: payment.id,
+      external_reference: ref,
+      asaas_status: payment.status ?? null,
+    },
+  });
+  if (auditErr) {
+    console.error("[asaas-webhook] audit_logs cobrança órfã falhou", auditErr);
+  }
+}
+
 // ─── Pagamento confirmado ───────────────────────────────────
 
-async function handlePaid(payment: AsaasWebhookPayment) {
+async function handlePaid(payment: AsaasWebhookPayment, eventType: string) {
   // A linha de payments é criada como 'pending' pelo asaas-checkout, com
   // quantity/fee em gateway_payload — o Asaas não carrega metadata própria.
   const { data: pay } = await supabaseAdmin
@@ -163,14 +229,10 @@ async function handlePaid(payment: AsaasWebhookPayment) {
     .maybeSingle();
 
   if (!pay) {
-    // Cobrança que não nasceu no checkout da plataforma — avulsa, criada
-    // direto no painel do Asaas. A mesma conta Asaas é usada para outras
-    // coisas, então isto é ESPERADO, não erro: loga e ignora (200).
-    //
-    // Não lançar aqui é requisito operacional, não higiene de log: a fila do
-    // Asaas é SEQUENCIAL e para inteira após 15 falhas consecutivas — um
-    // evento impossível de processar bloquearia todos os seguintes.
-    console.warn("[asaas-webhook] pagamento sem linha em payments — ignorado:", payment.id);
+    // Sem a linha de payments não há quantity nem fee, então a venda não tem
+    // como ser materializada com números corretos — este handler não tem o
+    // que fazer. Classifica (avulsa vs falha nossa), registra e devolve 200.
+    await reportMissingPayment(payment, eventType);
     return;
   }
 
@@ -298,6 +360,11 @@ async function handleUnpaid(payment: AsaasWebhookPayment, eventType: string) {
     .eq("gateway_transaction_id", payment.id)
     .maybeSingle();
 
+  // Sem linha em payments não há nada a cancelar do lado financeiro — mas a
+  // inscrição, se existir, ainda precisa ser liberada abaixo. Por isso aqui
+  // apenas registra e SEGUE, em vez de retornar como nos outros handlers.
+  if (!pay) await reportMissingPayment(payment, eventType);
+
   // Mesma proteção do lado do pagamento: se já está pago/estornado, este
   // evento chegou fora de ordem e não manda em nada.
   if (pay && (pay.status === "paid" || pay.status === "refunded")) {
@@ -338,10 +405,9 @@ async function handleUnpaid(payment: AsaasWebhookPayment, eventType: string) {
     registrationChanged = !!flippedReg;
   }
 
-  if (!pay && !reg) {
-    console.warn("[asaas-webhook] %s sem pagamento nem inscrição correspondente:", eventType, payment.id);
-    return;
-  }
+  // Nada nosso para tocar. A ausência da linha de payments já foi classificada
+  // e registrada logo após a busca, então aqui basta sair.
+  if (!pay && !reg) return;
 
   // Só audita quando algo de fato mudou — assim o reenvio do mesmo evento
   // não gera linhas duplicadas na trilha.
@@ -370,14 +436,16 @@ async function handleUnpaid(payment: AsaasWebhookPayment, eventType: string) {
 
 // ─── Estorno total ──────────────────────────────────────────
 
-async function handleRefunded(payment: AsaasWebhookPayment) {
+async function handleRefunded(payment: AsaasWebhookPayment, eventType: string) {
   const { data: pay } = await supabaseAdmin
     .from("payments")
     .select("id, status, event_id, gateway_payload")
     .eq("gateway_transaction_id", payment.id)
     .maybeSingle();
   if (!pay) {
-    console.warn("[asaas-webhook] estorno sem payment correspondente:", payment.id);
+    // Estorno de cobrança que não temos registrada: não há venda nossa para
+    // reverter. Mesma classificação dos demais handlers, mesmo 200.
+    await reportMissingPayment(payment, eventType);
     return;
   }
 
