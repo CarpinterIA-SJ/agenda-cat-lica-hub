@@ -21,6 +21,14 @@ dist-ssr
 .claude/
 supabase/.temp/
 
+# Skills de agente instaladas localmente (ferramental, nao faz parte do
+# produto). .agents/ sao 4474 arquivos vindos de um repo publico de
+# terceiro, reproduziveis a partir do lock — mesma categoria de
+# node_modules. skills-lock.json e o lock desse ferramental pessoal, nao
+# uma dependencia do build nem do CI.
+.agents/
+skills-lock.json
+
 # Environment variables with secrets
 .env
 .env.local
