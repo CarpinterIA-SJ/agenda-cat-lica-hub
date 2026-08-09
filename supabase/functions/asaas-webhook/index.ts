@@ -163,11 +163,15 @@ async function handlePaid(payment: AsaasWebhookPayment) {
     .maybeSingle();
 
   if (!pay) {
-    // Checkout não conseguiu gravar (ver log de falha lá). Sem quantity nem
-    // fee não dá para materializar a venda corretamente — melhor falhar alto
-    // e reprocessar depois do que confirmar uma inscrição com números errados.
-    console.error("[asaas-webhook] pagamento sem linha em payments:", payment.id);
-    throw new Error(`payments ausente para a cobrança ${payment.id}`);
+    // Cobrança que não nasceu no checkout da plataforma — avulsa, criada
+    // direto no painel do Asaas. A mesma conta Asaas é usada para outras
+    // coisas, então isto é ESPERADO, não erro: loga e ignora (200).
+    //
+    // Não lançar aqui é requisito operacional, não higiene de log: a fila do
+    // Asaas é SEQUENCIAL e para inteira após 15 falhas consecutivas — um
+    // evento impossível de processar bloquearia todos os seguintes.
+    console.warn("[asaas-webhook] pagamento sem linha em payments — ignorado:", payment.id);
+    return;
   }
 
   // IDEMPOTÊNCIA (guard atômico): só quem transita pending → paid segue.
