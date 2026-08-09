@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { AlertTriangle, FlaskConical, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AsaasCheckoutModal } from "@/components/AsaasCheckoutModal";
@@ -32,6 +33,8 @@ export const AsaasSandboxTestPage = () => {
   const [quantity, setQuantity] = useState<number>(1);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [manualEventId, setManualEventId] = useState("");
+  const [manualTicketId, setManualTicketId] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -58,6 +61,13 @@ export const AsaasSandboxTestPage = () => {
   }, [eventId]);
 
   const selectedTicket = tickets.find((t) => t.id === ticketId);
+
+  // Os selects dependem da RLS de `events`, que só lista rascunho para quem é
+  // owner/admin em organization_members. Quem tem a org só pela coluna de dono
+  // (sem a linha em organization_members) não vê o próprio draft — por isso o
+  // modo manual, que não depende de listagem: o checkout roda em service_role.
+  const effectiveEventId = manualEventId.trim() || eventId;
+  const effectiveTicketId = manualTicketId.trim() || ticketId;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-8">
@@ -137,9 +147,34 @@ export const AsaasSandboxTestPage = () => {
                 </p>
               )}
 
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold text-slate-600">
+                  Modo manual — use quando o evento não aparecer na lista acima
+                  (rascunho invisível pela RLS). Tem precedência sobre os selects.
+                </p>
+                <div className="space-y-1">
+                  <Label className="text-xs">Event ID</Label>
+                  <Input
+                    value={manualEventId}
+                    onChange={(e) => setManualEventId(e.target.value)}
+                    placeholder="uuid do evento"
+                    className="font-mono text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Ticket ID</Label>
+                  <Input
+                    value={manualTicketId}
+                    onChange={(e) => setManualTicketId(e.target.value)}
+                    placeholder="uuid do ingresso"
+                    className="font-mono text-xs"
+                  />
+                </div>
+              </div>
+
               <Button
                 className="w-full bg-[#004d00] hover:bg-[#003a00]"
-                disabled={!eventId || !ticketId}
+                disabled={!effectiveEventId || !effectiveTicketId}
                 onClick={() => setOpen(true)}
               >
                 Abrir checkout Asaas
@@ -149,10 +184,10 @@ export const AsaasSandboxTestPage = () => {
         </CardContent>
       </Card>
 
-      {open && eventId && ticketId && (
+      {open && effectiveEventId && effectiveTicketId && (
         <AsaasCheckoutModal
-          eventId={eventId}
-          ticketId={ticketId}
+          eventId={effectiveEventId}
+          ticketId={effectiveTicketId}
           quantity={quantity}
           ticketName={selectedTicket?.name}
           onClose={() => setOpen(false)}
