@@ -96,6 +96,10 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
         type: t.type,
         quantity: t.quantity ?? 0,
         sold: t.sold ?? 0,
+        // Vagas com cobrança criada e ainda não paga (migration 031). O select
+        // acima é "*", então enquanto a coluna não existir isto vira 0 e o
+        // comportamento fica idêntico ao de hoje.
+        reserved: t.reserved ?? 0,
       }));
       return vm;
     },
@@ -114,7 +118,16 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
   const soldOut = useMemo(() => {
     const ts = eventData?.tickets ?? [];
     if (!ts.length) return false;
-    return ts.every((t: any) => Number(t.quantity) > 0 && Number(t.sold) >= Number(t.quantity));
+    // Vaga reservada (cobrança criada, ainda não paga) conta como ocupada:
+    // com PIX/boleto a cobrança fica pagável por horas ou dias, e sem somar
+    // `reserved` aqui o evento continuaria oferecendo uma vaga que já tem
+    // dono provável. O `?? 0` mantém o comportamento atual enquanto a coluna
+    // da migration 031 não existir.
+    return ts.every(
+      (t: any) =>
+        Number(t.quantity) > 0 &&
+        Number(t.sold) + Number(t.reserved ?? 0) >= Number(t.quantity),
+    );
   }, [eventData]);
   const waitlistActive = soldOut && !alreadyRegistered;
   const { data: myWaitEntry } = useMyWaitlistEntry(eventData?.id, {
