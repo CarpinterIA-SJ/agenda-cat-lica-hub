@@ -36,7 +36,6 @@ import AdminOrganizersPage from "./pages/admin/AdminOrganizersPage";
 import AdminWithdrawalsPage from "./pages/admin/AdminWithdrawalsPage";
 import AdminModerationPage from "./pages/admin/AdminModerationPage";
 import AdminAuditLogsPage from "./pages/admin/AdminAuditLogsPage";
-import AsaasSandboxTestPage from "./pages/AsaasSandboxTestPage";
 import { AuthProvider, useAuth } from "./hooks/use-auth";
 import { ThemeProvider } from "./hooks/use-theme";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -4224,9 +4223,6 @@ const App = () => (
             <Route path="/role-select" element={<ProtectedRoute><RoleSelectPage /></ProtectedRoute>} />
             <Route path="/evento/:slug" element={<PublicEventPage />} />
             <Route path="/planos" element={<PlansPage />} />
-            {/* Fase 2 da migração Asaas: banco de testes isolado do fluxo real
-                de inscrição (que continua no Stripe). Remover na Fase 5. */}
-            <Route path="/teste/asaas" element={<ProtectedRoute><AsaasSandboxTestPage /></ProtectedRoute>} />
 
             <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
               {/* Organizer Routes */}

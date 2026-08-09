@@ -3,8 +3,12 @@
 //
 //  ISOLADO DE PROPÓSITO (Fase 2): não é usado pelo fluxo de inscrição,
 //  que continua no CheckoutModal.tsx do Stripe. A integração real
-//  acontece na Fase 5. Para exercitar este componente, use a rota de
-//  teste /teste/asaas.
+//  acontece na Fase 5 — até lá este componente fica sem consumidor.
+//
+//  A rota /teste/asaas que o exercitava foi REMOVIDA antes do merge na
+//  main: publicada pela Vercel ela ficaria acessível a qualquer usuário
+//  logado e, com ASAAS_ENV=production, criaria cobrança de dinheiro
+//  real. Para testar de novo, recrie a rota em branch, nunca na main.
 //
 //  Cartão: NÃO coletamos dados de cartão. O usuário é redirecionado
 //  para a fatura hospedada pelo Asaas — é isso que mantém o Guardião
