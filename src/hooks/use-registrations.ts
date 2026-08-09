@@ -96,6 +96,19 @@ export const useCreateRegistration = () => {
   });
 };
 
+/**
+ * LACUNA CONHECIDA (migration 033): cancelar uma inscrição por aqui NÃO
+ * devolve o uso do cupom. Este hook roda no cliente e `release_coupon_use` é
+ * service_role — de propósito, porque expô-la permitiria devolver/queimar
+ * usos em laço, sem inscrição nenhuma.
+ *
+ * Fazer direito exige uma RPC própria (security definer) que verifique
+ * autorização antes de devolver: só admin da organização dona do evento,
+ * mesmo predicado de is_event_org_admin. Escopo separado, ainda não feito.
+ *
+ * Os caminhos automáticos JÁ devolvem: estorno e cobrança não paga, nos dois
+ * webhooks e no reconcile-payments.
+ */
 export const useUpdateRegistrationStatus = () => {
   const queryClient = useQueryClient();
   return useMutation({

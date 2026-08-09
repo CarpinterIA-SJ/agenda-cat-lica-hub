@@ -566,7 +566,7 @@ async function asaasMarkUnpaid(
 ): Promise<AsaasOutcome> {
   const { data: pay } = await supabaseAdmin
     .from("payments")
-    .select("id, status, event_id")
+    .select("id, status, event_id, coupon_id")
     .eq("gateway_transaction_id", chargeId)
     .maybeSingle();
 
@@ -609,6 +609,17 @@ async function asaasMarkUnpaid(
 
   // Mesma action do webhook para a trilha ficar homogênea; `source`
   // distingue quem escreveu.
+  // Cobrança morreu sem pagamento: o benefício do cupom nunca foi entregue,
+  // então o uso volta. Protegido pelo guard acima (só chega aqui quem de fato
+  // transicionou algo), então rodar concorrente com o webhook não devolve
+  // duas vezes.
+  if ((pay as any)?.coupon_id) {
+    const { error: cupErr } = await supabaseAdmin.rpc("release_coupon_use", {
+      p_coupon_id: (pay as any).coupon_id,
+    });
+    if (cupErr) console.error("[reconcile-payments/asaas] release_coupon_use falhou", cupErr);
+  }
+
   const { error: auditErr } = await supabaseAdmin.from("audit_logs").insert({
     actor_email: "system@reconcile-payments",
     action: "CANCELAR_COBRANCA_NAO_PAGA",
@@ -830,6 +841,7 @@ interface PaidPayment {
   gateway_transaction_id: string;
   paid_at: string | null;
   gateway_payload: unknown;
+  coupon_id: string | null;
 }
 
 /** Inscrição vinculada ao pagamento estornado. */
@@ -872,7 +884,7 @@ async function runRefundScan(asaasReady: boolean): Promise<RefundScanStats> {
   // ilimitado que a janela existe para evitar.
   const { data, error } = await supabaseAdmin
     .from("payments")
-    .select("id, event_id, registration_id, gateway, gateway_transaction_id, paid_at, gateway_payload")
+    .select("id, event_id, registration_id, gateway, gateway_transaction_id, paid_at, gateway_payload, coupon_id")
     .eq("status", "paid")
     .not("gateway_transaction_id", "is", null)
     .gte("paid_at", cutoff)
@@ -1161,6 +1173,18 @@ async function revertRefundedSale(params: {
         if (relErr) console.error("[reconcile-payments/refunds] release_option_counts falhou", relErr);
       }
     }
+  }
+
+  // Devolve o uso do cupom. FORA do `if (wasConfirmed)` de propósito: sold e
+  // option_counts só sobem na CONFIRMAÇÃO, mas o cupom é consumido lá atrás,
+  // no checkout. Protegido pelo guard atômico (1) acima — o flip
+  // paid → refunded —, então rodar concorrente com o webhook não devolve
+  // duas vezes. Estorno PARCIAL não chega aqui, igual à vaga.
+  if (pay.coupon_id) {
+    const { error: cupErr } = await supabaseAdmin.rpc("release_coupon_use", {
+      p_coupon_id: pay.coupon_id,
+    });
+    if (cupErr) console.error("[reconcile-payments/refunds] release_coupon_use falhou", cupErr);
   }
 
   // (4) Auditoria. Mesma action dos webhooks para a trilha ficar

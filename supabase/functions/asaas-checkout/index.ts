@@ -101,6 +101,9 @@ Deno.serve(async (req) => {
   // ao buscar o QR Code, por exemplo) deixaria um pagamento válido sem
   // inscrição correspondente.
   let chargeCreated = false;
+  // Cupom consumido antes da cobrança: se a cobrança não nascer, o uso é
+  // devolvido no catch. Declarado aqui, fora do try, para o catch enxergar.
+  let consumedCouponId: string | null = null;
 
   try {
     // 1) Configuração obrigatória.
@@ -219,14 +222,35 @@ Deno.serve(async (req) => {
     let subtotal = ticket.price_cents * quantity;
 
     if (coupon_code) {
+      // consume_coupon (migration 033) é check-and-increment ATÔMICO: o
+      // limite vive no WHERE do UPDATE, então duas compras simultâneas do
+      // último uso serializam no lock da linha e a segunda falha.
+      //
+      // O `select` que estava aqui apenas LIA used_count — e nada, em lugar
+      // nenhum do projeto, chegava a incrementá-lo. max_uses era decorativo.
+      const { data: consumedId, error: couponErr } = await supabaseAdmin
+        .rpc("consume_coupon", { p_event_id: event_id, p_code: coupon_code });
+
+      if (couponErr) {
+        // Estourou entre a tela e o checkout. NÃO cobra o valor cheio em
+        // silêncio: o participante viu um preço com desconto, e cobrar outro
+        // é pior que recusar. O front reapresenta o valor sem cupom e pede
+        // confirmação explícita.
+        console.warn("[asaas-checkout] cupom indisponível:", coupon_code, couponErr.message);
+        return json({
+          error: "cupom_esgotado",
+          message: "Este cupom acabou de esgotar. Confira o novo valor antes de continuar.",
+        }, 409);
+      }
+
+      consumedCouponId = consumedId as string;
+
       const { data: coupon } = await supabaseAdmin
         .from("coupons")
-        .select("discount_kind, discount_value, active, max_uses, used_count")
-        .eq("event_id", event_id)
-        .eq("code", coupon_code.toUpperCase())
-        .eq("active", true)
+        .select("discount_kind, discount_value")
+        .eq("id", consumedCouponId)
         .maybeSingle();
-      if (coupon && (coupon.max_uses == null || coupon.used_count < coupon.max_uses)) {
+      if (coupon) {
         if (coupon.discount_kind === "percent") {
           subtotal = Math.max(0, Math.round(subtotal - subtotal * (Number(coupon.discount_value) / 100)));
         } else {
@@ -377,6 +401,9 @@ Deno.serve(async (req) => {
       status: "pending",
       gateway: "asaas",
       gateway_transaction_id: charge.id,
+      // Coluna existe desde a 003:424 e nunca foi preenchida. Sem ela, a
+      // devolução do uso no estorno não sabe qual cupom devolver.
+      coupon_id: consumedCouponId,
       gateway_payload: {
         quantity,
         ticket_id,
@@ -467,6 +494,16 @@ Deno.serve(async (req) => {
       if (cancelErr) {
         console.error("[asaas-checkout] falha ao cancelar inscrição órfã", cancelErr);
       }
+    }
+
+    // Mesma condição do cancelamento acima: o uso do cupom só volta se a
+    // cobrança NÃO nasceu. Com cobrança emitida a compra segue viva e o
+    // cupom continua legitimamente consumido — quem devolve, nesse caso, é
+    // o estorno ou o vencimento, nos webhooks.
+    if (consumedCouponId && !chargeCreated) {
+      const { error: relErr } = await supabaseAdmin
+        .rpc("release_coupon_use", { p_coupon_id: consumedCouponId });
+      if (relErr) console.error("[asaas-checkout] release_coupon_use falhou", relErr);
     }
 
     if (err instanceof AsaasError) {
