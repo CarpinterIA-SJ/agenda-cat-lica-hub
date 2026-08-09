@@ -23,8 +23,8 @@ interface AuthContextType {
   isPlatformAdmin:  boolean;
   rolesLoading:     boolean;
   refreshRoles:     () => Promise<void>;
-  signIn:           (email: string, password: string) => Promise<SignInResult>;
-  signUp:           (email: string, password: string, fullName?: string) => Promise<SignInResult>;
+  signIn:           (email: string, password: string, captchaToken?: string) => Promise<SignInResult>;
+  signUp:           (email: string, password: string, fullName?: string, captchaToken?: string) => Promise<SignInResult>;
   signOut:          () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
 }
@@ -98,8 +98,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // ─── Funções de autenticação ───────────────────────────────
 
-  const signIn = async (email: string, password: string): Promise<SignInResult> => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const signIn = async (
+    email: string,
+    password: string,
+    captchaToken?: string,
+  ): Promise<SignInResult> => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: { captchaToken },
+    });
     return { error };
   };
 
@@ -107,12 +115,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     email: string,
     password: string,
     fullName?: string,
+    captchaToken?: string,
   ): Promise<SignInResult> => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: fullName ?? "" },
+        // Confirmação de e-mail é obrigatória (supabase/config.toml):
+        // o link precisa voltar para a própria origem, nunca para um
+        // host arbitrário informado por quem dispara o cadastro.
+        emailRedirectTo: `${window.location.origin}/login`,
+        captchaToken,
       },
     });
     return { error };

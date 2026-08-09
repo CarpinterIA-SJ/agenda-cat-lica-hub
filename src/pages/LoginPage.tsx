@@ -9,6 +9,7 @@ import { SaoJoseIcon } from "@/components/icons/SaoJoseIcon";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { CaptchaWidget, useCaptcha } from "@/components/CaptchaWidget";
 import authBg from "@/assets/auth-bg.jpg";
 
 const LoginPage = () => {
@@ -24,6 +25,8 @@ const LoginPage = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  // Captcha anti-bot. Sem VITE_TURNSTILE_SITE_KEY vira no-op (token undefined).
+  const captcha = useCaptcha();
 
   useEffect(() => {
     if (!session) return;
@@ -50,10 +53,12 @@ const LoginPage = () => {
     setLoading(true);
     clearMessages();
 
-    const { error } = await signIn(email, password);
+    const { error } = await signIn(email, password, captcha.token);
 
     if (error) {
       setError(translateError(error.message));
+      // Token do captcha é de uso único: sem reset, a 2ª tentativa falha.
+      captcha.reset();
       setLoading(false);
     }
     // On success the session useEffect handles the redirect
@@ -64,13 +69,14 @@ const LoginPage = () => {
     setLoading(true);
     clearMessages();
 
-    const { error } = await signUp(email, password, name);
+    const { error } = await signUp(email, password, name, captcha.token);
 
     if (error) {
       setError(translateError(error.message));
     } else {
       setSuccess("Conta criada! Verifique seu e-mail para confirmar o cadastro.");
     }
+    captcha.reset();
     setLoading(false);
   };
 
@@ -89,12 +95,14 @@ const LoginPage = () => {
     }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/login`,
+      captchaToken: captcha.token,
     });
     if (error) {
       setError(translateError(error.message));
     } else {
       setSuccess("Enviamos um link de redefinição de senha para o seu e-mail.");
     }
+    captcha.reset();
   };
 
   return (
@@ -221,10 +229,12 @@ const LoginPage = () => {
                     />
                   </div>
 
+                  <CaptchaWidget state={captcha} className="flex justify-center" />
+
                   <Button
                     type="submit"
                     className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg"
-                    disabled={loading || googleLoading}
+                    disabled={loading || googleLoading || captcha.pending}
                   >
                     {loading ? (
                       <>
@@ -290,10 +300,12 @@ const LoginPage = () => {
                     />
                   </div>
 
+                  <CaptchaWidget state={captcha} className="flex justify-center" />
+
                   <Button
                     type="submit"
                     className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg"
-                    disabled={loading || googleLoading}
+                    disabled={loading || googleLoading || captcha.pending}
                   >
                     {loading ? (
                       <>
