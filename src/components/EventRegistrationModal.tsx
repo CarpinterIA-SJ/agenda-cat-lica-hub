@@ -92,6 +92,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
   const [couponDiscount, setCouponDiscount] = useState<{ modo: "percentual" | "fixo"; valor: string; codigo: string } | null>(null);
   const [couponError, setCouponError] = useState("");
   const [checkout, setCheckout] = useState<{ ticketId: string; name: string; quantity: number; coupon: string | null; customFields: Record<string, any> } | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Quando o organizador ainda não cadastrou ingressos, oferece uma entrada
   // gratuita sintética para o participante conseguir enviar o formulário.
@@ -108,6 +109,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
     setCouponCode("");
     setCouponDiscount(null);
     setCouponError("");
+    setTermsAccepted(false);
     const initialValues: Record<string, any> = {
       fixed_nome: user?.user_metadata?.full_name || "",
       fixed_cpf: "",
@@ -208,7 +210,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
   };
 
   const isFormValid = useMemo(() => {
-    if (!selectedTicketId || isDuplicate) return false;
+    if (!selectedTicketId || isDuplicate || !termsAccepted) return false;
     return unifiedFields.every((f) => {
       // Bloqueia envio se uma opção esgotada estiver selecionada (defesa
       // client-side; a trava real é server-side via RPC).
@@ -223,7 +225,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
       return typeof raw === "string" ? raw.trim().length > 0 : !!raw;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTicketId, formValues, unifiedFields, isDuplicate, optionCounts]);
+  }, [selectedTicketId, formValues, unifiedFields, isDuplicate, optionCounts, termsAccepted]);
 
   const handleRegister = async () => {
     if (!event) return;
@@ -581,6 +583,25 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
               />
             </div>
           )}
+
+          <div className="px-6 pb-4 flex items-start gap-2.5">
+            <Checkbox
+              id="terms-accepted"
+              checked={termsAccepted}
+              onCheckedChange={(v) => setTermsAccepted(v === true)}
+              className="mt-0.5"
+            />
+            <Label htmlFor="terms-accepted" className="text-sm font-normal leading-snug cursor-pointer">
+              Li e aceito os{" "}
+              <a href="/termos" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">
+                Termos de Uso
+              </a>{" "}
+              e a{" "}
+              <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">
+                Política de Privacidade
+              </a>
+            </Label>
+          </div>
 
           <DialogFooter className="sticky bottom-0 bg-card border-t p-4">
             <Button variant="outline" onClick={onClose}>Cancelar</Button>

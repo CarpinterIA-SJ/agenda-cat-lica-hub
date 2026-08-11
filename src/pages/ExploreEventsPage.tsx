@@ -8,6 +8,7 @@ import {
   Search, Calendar, MapPin, Users, Ticket, Video, ArrowRight, Lock,
   Headset, MessageCircle, Tag, Building2, Eye, X,
 } from "lucide-react";
+import { Footer } from "@/components/Footer";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -462,6 +463,8 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
           </div>
         </div>
       </footer>
+
+      <Footer />
 
       <a
         href="https://wa.me/"
