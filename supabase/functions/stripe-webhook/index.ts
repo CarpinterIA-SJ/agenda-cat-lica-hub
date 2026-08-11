@@ -190,6 +190,10 @@ async function handleSucceeded(pi: Stripe.PaymentIntent) {
     status: "paid",
     gateway: "stripe",
     gateway_transaction_id: pi.id,
+    // A linha de payments do Stripe nasce AQUI, não no checkout — por isso o
+    // id do cupom viaja no metadata do PaymentIntent. Sem esta coluna, o
+    // estorno não saberia qual cupom devolver.
+    coupon_id: (pi.metadata?.coupon_id || null) as string | null,
     paid_at: new Date().toISOString(),
   });
   if (payErr) throw payErr;
@@ -261,7 +265,18 @@ async function handleUnpaid(pi: Stripe.PaymentIntent, reason: "failed" | "cancel
     status: reason === "cancelled" ? "cancelled" : "failed",
     gateway: "stripe",
     gateway_transaction_id: pi.id,
+    coupon_id: (pi.metadata?.coupon_id || null) as string | null,
   });
+
+  // Cobrança falhou ou foi cancelada: o benefício do cupom nunca foi
+  // entregue, então o uso volta. Protegido pelo guard `if (existing) return`
+  // no topo desta função, que garante uma passagem só por PaymentIntent.
+  if (pi.metadata?.coupon_id) {
+    const { error: cupErr } = await supabaseAdmin.rpc("release_coupon_use", {
+      p_coupon_id: pi.metadata.coupon_id,
+    });
+    if (cupErr) console.error("[stripe-webhook] release_coupon_use falhou", cupErr);
+  }
 }
 
 async function handleRefunded(charge: Stripe.Charge) {
@@ -281,7 +296,7 @@ async function handleRefunded(charge: Stripe.Charge) {
   // Pagamento correspondente.
   const { data: pay } = await supabaseAdmin
     .from("payments")
-    .select("id, status, event_id")
+    .select("id, status, event_id, coupon_id")
     .eq("gateway_transaction_id", piId)
     .maybeSingle();
   if (!pay) {
@@ -347,6 +362,19 @@ async function handleRefunded(charge: Stripe.Charge) {
         if (relErr) console.error("[stripe-webhook] release_option_counts falhou", relErr);
       }
     }
+  }
+
+  // Devolve o uso do cupom. FORA do `if (wasConfirmed)` de propósito: sold e
+  // option_counts só sobem na CONFIRMAÇÃO, mas o cupom é consumido lá atrás,
+  // no checkout. Amarrar a devolução a wasConfirmed vazaria o uso sempre que
+  // um pagamento fosse pago e estornado sem a inscrição ter sido confirmada.
+  // Protegido pelo mesmo guard atômico do estorno (flip paid → refunded), e
+  // estorno PARCIAL sai antes desta função, igual à vaga.
+  if ((pay as any).coupon_id) {
+    const { error: cupErr } = await supabaseAdmin.rpc("release_coupon_use", {
+      p_coupon_id: (pay as any).coupon_id,
+    });
+    if (cupErr) console.error("[stripe-webhook] release_coupon_use falhou", cupErr);
   }
 
   // Auditoria (service_role bypassa RLS). Best-effort — não derruba o refund.

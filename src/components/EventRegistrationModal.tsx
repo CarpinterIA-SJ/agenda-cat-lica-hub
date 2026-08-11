@@ -17,7 +17,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useCreateRegistration, useEventOptionCounts } from "@/hooks/use-registrations";
+import { useEventOptionCounts } from "@/hooks/use-registrations";
 import { usePlatformSettings } from "@/hooks/use-platform-settings";
 import { CheckoutModal } from "@/components/CheckoutModal";
 import { ChargeSummary, computeCharge } from "@/components/ChargeSummary";
@@ -81,7 +81,6 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const createRegistration = useCreateRegistration();
   // Contagem de vagas por opção (Fase C) — marca opções esgotadas no form.
   const { data: optionCounts } = useEventOptionCounts(event?.id, open);
   const { data: platformSettings } = usePlatformSettings();
@@ -132,28 +131,40 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
   const validateCoupon = async () => {
     if (!couponCode.trim() || !event) return;
     try {
-      const { data: found, error } = await supabase
-        .from("coupons")
-        .select("*")
-        .eq("event_id", event.id)
-        .eq("code", couponCode.trim().toUpperCase())
-        .eq("active", true)
-        .maybeSingle();
+      // RPC security-definer, como a 003:495-496 sempre mandou. O `select`
+      // direto que estava aqui voltava VAZIO para o participante: a policy
+      // "coupons: membros leem" exige organization_id in user_org_ids(), que
+      // vem de organization_members — tabela onde participante comum não tem
+      // linha. Resultado: TODO cupom aparecia como inválido.
+      //
+      // De brinde, a RPC valida starts_at/expires_at, que o select ignorava.
+      const { data, error } = await supabase.rpc("validate_coupon", {
+        p_event_id: event.id,
+        p_code: couponCode.trim(),
+      });
       if (error) throw error;
-      if (!found) {
-        setCouponError("Cupom inválido ou inativo.");
+
+      const res: any = Array.isArray(data) ? data[0] : data;
+      if (!res?.valid) {
         setCouponDiscount(null);
+        setCouponError(
+          ({
+            not_found: "Cupom não encontrado para este evento.",
+            inactive: "Este cupom foi desativado.",
+            not_started: "Este cupom ainda não está valendo.",
+            expired: "Este cupom expirou.",
+            exhausted: "Este cupom atingiu o limite de usos.",
+          } as Record<string, string>)[res?.reason] ?? "Cupom inválido.",
+        );
         return;
       }
-      if (found.max_uses != null && found.used_count >= found.max_uses) {
-        setCouponError("Cupom esgotado.");
-        setCouponDiscount(null);
-        return;
-      }
+
       setCouponDiscount({
-        modo: found.discount_kind === "percent" ? "percentual" : "fixo",
-        valor: String(found.discount_value),
-        codigo: found.code,
+        modo: res.discount_kind === "percent" ? "percentual" : "fixo",
+        valor: String(res.discount_value),
+        // A RPC não devolve o código (proteção contra enumeração): usa o que
+        // o participante digitou, normalizado.
+        codigo: couponCode.trim().toUpperCase(),
       });
       setCouponError("");
     } catch {
@@ -173,7 +184,12 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
     setFormValues((prev) => ({ ...prev, [fieldId]: value }));
   };
 
-  // A verificação de duplicidade por CPF é responsabilidade do backend (RLS/constraints).
+  // DÍVIDA CONHECIDA: duplicidade por CPF NÃO é verificada em lugar nenhum.
+  // Esta flag está fixada em false, e a constraint que o comentário original
+  // prometia ("responsabilidade do backend") nunca existiu: o índice
+  // registrations_email_idx (003:182) é comum, não unique, e não há unique em
+  // (event_id, cpf). O aviso "Já identificamos uma inscrição com este CPF"
+  // logo abaixo é, portanto, código morto. Decisão pendente.
   const isDuplicate = false;
 
   const unifiedFields = useMemo(() => buildUnifiedFields(event), [event]);
@@ -256,35 +272,65 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
       return;
     }
 
+    // Login obrigatório também no caminho gratuito: a RPC recusa auth.uid()
+    // null (AUTH_REQUIRED). Inscrição anônima já não funcionava — a policy de
+    // insert exige user_id = auth.uid(), e NULL = NULL é NULL, não true — e
+    // vaga limitada não tem como ser controlada sem identidade.
+    if (!user) {
+      toast.info("Entre na sua conta para concluir a inscrição.");
+      navigate("/login");
+      return;
+    }
+
     try {
-      // Reserva atômica das vagas por opção (Fase C). Se uma opção esgotou
-      // entre carregar o form e enviar, a RPC falha e a inscrição NÃO é criada.
-      if (limitedSelections.length) {
-        const { error: reserveErr } = await supabase.rpc("reserve_option_counts", {
-          p_event_id: event.id,
-          p_selections: limitedSelections as any,
-        });
-        if (reserveErr) {
+      // UMA transação: opções, cupom e inscrição vivem ou morrem juntos.
+      // Antes eram duas idas separadas do cliente (reserve_option_counts e
+      // depois o insert), e falha no insert deixava a vaga da opção presa
+      // para sempre. O consumo do cupom entra aqui pelo mesmo motivo — e
+      // porque consume_coupon NÃO é exposta ao cliente: fosse exposta, um
+      // laço de chamadas esgotaria a campanha inteira do organizador sem
+      // ninguém se inscrever.
+      const { error } = await supabase.rpc("create_free_registration", {
+        p_event_id: event.id,
+        p_ticket_id: selectedTicketId && selectedTicketId !== "default-free" ? selectedTicketId : null,
+        p_full_name: formValues["fixed_nome"] || "",
+        p_email: formValues["fixed_email"] || "",
+        p_cpf: formValues["fixed_cpf"] || null,
+        p_phone: formValues["fixed_tel"] || null,
+        p_birth_date: formValues["fixed_nascimento"] || null,
+        p_custom_fields: customValues as any,
+        p_selections: limitedSelections as any,
+        p_coupon_code: couponDiscount?.codigo ?? null,
+      });
+
+      if (error) {
+        const m = error.message || "";
+        if (m.includes("COUPON_UNAVAILABLE")) {
+          setCouponDiscount(null);
+          toast.error("Cupom esgotado", {
+            description: "Este cupom acabou de atingir o limite de usos. Confira o novo valor antes de continuar.",
+          });
+        } else if (m.includes("OPTION_FULL")) {
           await queryClient.invalidateQueries({ queryKey: ["option-counts", event.id] });
           toast.error("Vaga esgotada", {
             description: "Uma das opções escolhidas acabou de esgotar. Escolha outra e tente novamente.",
           });
-          return;
+        } else if (m.includes("EVENT_NOT_OPEN")) {
+          toast.error("Inscrições encerradas", {
+            description: "Este evento não está aberto para inscrições.",
+          });
+        } else if (m.includes("PAYMENT_REQUIRED")) {
+          toast.error("Este ingresso é pago", {
+            description: "Recarregue a página e tente novamente.",
+          });
+        } else {
+          throw error;
         }
+        return;
       }
-      await createRegistration.mutateAsync({
-        event_id: event.id,
-        ticket_id: selectedTicketId && selectedTicketId !== "default-free" ? selectedTicketId : null,
-        user_id: user?.id ?? null,
-        full_name: formValues["fixed_nome"] || "",
-        email: formValues["fixed_email"] || "",
-        cpf: formValues["fixed_cpf"] || null,
-        phone: formValues["fixed_tel"] || null,
-        birth_date: formValues["fixed_nascimento"] || null,
-        custom_fields: customValues as any,
-        status: "confirmed",
-      });
+
       await queryClient.invalidateQueries({ queryKey: ["option-counts", event.id] });
+      await queryClient.invalidateQueries({ queryKey: ["registrations"] });
       toast.success("Inscrição confirmada!", {
         description: `Sua participação no evento "${event?.name}" foi registrada.`,
       });

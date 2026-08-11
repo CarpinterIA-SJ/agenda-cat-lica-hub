@@ -356,7 +356,7 @@ async function handleUnpaid(payment: AsaasWebhookPayment, eventType: string) {
 
   const { data: pay } = await supabaseAdmin
     .from("payments")
-    .select("id, status, event_id")
+    .select("id, status, event_id, coupon_id")
     .eq("gateway_transaction_id", payment.id)
     .maybeSingle();
 
@@ -416,6 +416,16 @@ async function handleUnpaid(payment: AsaasWebhookPayment, eventType: string) {
     return;
   }
 
+  // Cobrança morreu sem pagamento: o benefício do cupom nunca foi entregue,
+  // então o uso volta. Protegido pelo guard acima (só chega aqui quem de fato
+  // mudou algo), então reenvio do mesmo evento não devolve duas vezes.
+  if ((pay as any)?.coupon_id) {
+    const { error: cupErr } = await supabaseAdmin.rpc("release_coupon_use", {
+      p_coupon_id: (pay as any).coupon_id,
+    });
+    if (cupErr) console.error("[asaas-webhook] release_coupon_use falhou", cupErr);
+  }
+
   const { error: auditErr } = await supabaseAdmin.from("audit_logs").insert({
     actor_email: "system@asaas-webhook",
     action: "CANCELAR_COBRANCA_NAO_PAGA",
@@ -439,7 +449,7 @@ async function handleUnpaid(payment: AsaasWebhookPayment, eventType: string) {
 async function handleRefunded(payment: AsaasWebhookPayment, eventType: string) {
   const { data: pay } = await supabaseAdmin
     .from("payments")
-    .select("id, status, event_id, gateway_payload")
+    .select("id, status, event_id, gateway_payload, coupon_id")
     .eq("gateway_transaction_id", payment.id)
     .maybeSingle();
   if (!pay) {
@@ -507,6 +517,20 @@ async function handleRefunded(payment: AsaasWebhookPayment, eventType: string) {
         if (relErr) console.error("[asaas-webhook] release_option_counts falhou", relErr);
       }
     }
+  }
+
+  // Devolve o uso do cupom. FORA do `if (wasConfirmed)` de propósito: sold e
+  // option_counts só sobem na CONFIRMAÇÃO, mas o cupom é consumido lá atrás,
+  // no checkout. Amarrar a devolução a wasConfirmed vazaria o uso sempre que
+  // um pagamento fosse pago e estornado sem a inscrição ter sido confirmada.
+  // Protegido pelo mesmo guard atômico do estorno (o flip paid → refunded
+  // acima), então reenvio do evento não devolve duas vezes. Estorno PARCIAL
+  // nem chega aqui — sai antes, igual à vaga.
+  if ((pay as any).coupon_id) {
+    const { error: cupErr } = await supabaseAdmin.rpc("release_coupon_use", {
+      p_coupon_id: (pay as any).coupon_id,
+    });
+    if (cupErr) console.error("[asaas-webhook] release_coupon_use falhou", cupErr);
   }
 
   // Auditoria (service_role bypassa RLS). Best-effort.

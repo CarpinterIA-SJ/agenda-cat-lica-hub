@@ -169,15 +169,37 @@ Deno.serve(async (req) => {
     // Subtotal (com cupom opcional)
     let subtotal = ticket.price_cents * quantity;
 
+    let consumedCouponId: string | null = null;
+
     if (coupon_code) {
+      // consume_coupon (migration 033) é check-and-increment ATÔMICO: o
+      // limite vive no WHERE do UPDATE, então duas compras simultâneas do
+      // último uso serializam no lock da linha e a segunda falha.
+      //
+      // O `select` que estava aqui apenas LIA used_count — e nada, em lugar
+      // nenhum do projeto, chegava a incrementá-lo. max_uses era decorativo.
+      const { data: consumedId, error: couponErr } = await supabaseAdmin
+        .rpc("consume_coupon", { p_event_id: event_id, p_code: coupon_code });
+
+      if (couponErr) {
+        // Estourou entre a tela e o checkout. NÃO cobra o valor cheio em
+        // silêncio: o participante viu um preço com desconto, e cobrar outro
+        // é pior que recusar.
+        console.warn("[stripe-checkout] cupom indisponível:", coupon_code, couponErr.message);
+        return json({
+          error: "cupom_esgotado",
+          message: "Este cupom acabou de esgotar. Confira o novo valor antes de continuar.",
+        }, 409);
+      }
+
+      consumedCouponId = consumedId as string;
+
       const { data: coupon } = await supabaseAdmin
         .from("coupons")
-        .select("discount_kind, discount_value, active, max_uses, used_count")
-        .eq("event_id", event_id)
-        .eq("code", coupon_code.toUpperCase())
-        .eq("active", true)
+        .select("discount_kind, discount_value")
+        .eq("id", consumedCouponId)
         .maybeSingle();
-      if (coupon && (coupon.max_uses == null || coupon.used_count < coupon.max_uses)) {
+      if (coupon) {
         if (coupon.discount_kind === "percent") {
           subtotal = Math.max(0, Math.round(subtotal - subtotal * (Number(coupon.discount_value) / 100)));
         } else {
@@ -236,24 +258,41 @@ Deno.serve(async (req) => {
       paymentMethodOptions.boleto = { expires_after_days: boletoDays };
     }
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: total,
-      currency: "brl",
-      payment_method_types: ["card", "boleto"],
-      ...(Object.keys(paymentMethodOptions).length
-        ? { payment_method_options: paymentMethodOptions as any }
-        : {}),
-      metadata: {
-        event_id,
-        ticket_id,
-        quantity: String(quantity),
-        user_id: user_id ?? "",
-        coupon_code: coupon_code ?? "",
-        subtotal_cents: String(subtotal),
-        fee_cents: String(taxa),
-        payment_deadline_minutes: deadlineMin ? String(deadlineMin) : "",
-      },
-    });
+    // try aninhado: o cupom já foi consumido acima. Se o PaymentIntent não
+    // nascer, o uso precisa voltar ANTES de o erro subir — diferente do
+    // asaas-checkout, aqui não há catch externo com estado de cobrança.
+    let paymentIntent;
+    try {
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: total,
+        currency: "brl",
+        payment_method_types: ["card", "boleto"],
+        ...(Object.keys(paymentMethodOptions).length
+          ? { payment_method_options: paymentMethodOptions as any }
+          : {}),
+        metadata: {
+          event_id,
+          ticket_id,
+          quantity: String(quantity),
+          user_id: user_id ?? "",
+          coupon_code: coupon_code ?? "",
+          // A linha de payments do Stripe nasce no WEBHOOK, não aqui — então
+          // o id do cupom viaja pelo metadata para o stripe-webhook gravar em
+          // payments.coupon_id. Stripe exige strings no metadata.
+          coupon_id: consumedCouponId ?? "",
+          subtotal_cents: String(subtotal),
+          fee_cents: String(taxa),
+          payment_deadline_minutes: deadlineMin ? String(deadlineMin) : "",
+        },
+      });
+    } catch (e) {
+      if (consumedCouponId) {
+        const { error: relErr } = await supabaseAdmin
+          .rpc("release_coupon_use", { p_coupon_id: consumedCouponId });
+        if (relErr) console.error("[stripe-checkout] release_coupon_use falhou", relErr);
+      }
+      throw e;
+    }
 
     // Dados do comprador para a inscrição pendente.
     let fullName = "Participante";
