@@ -315,6 +315,17 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
           toast.error("Vaga esgotada", {
             description: "Uma das opções escolhidas acabou de esgotar. Escolha outra e tente novamente.",
           });
+        } else if (m.includes("TICKET_FULL")) {
+          // Vem de reserve_ticket_sold, chamada por create_free_registration
+          // desde a migration 034. Distinto de OPTION_FULL: ali esgotou uma
+          // opção do formulário, aqui esgotou o ingresso inteiro. A inscrição
+          // NÃO foi criada e o cupom NÃO foi consumido — a RPC é uma
+          // transação só, e o RAISE desfez tudo.
+          await queryClient.invalidateQueries({ queryKey: ["tickets", event.id] });
+          await queryClient.invalidateQueries({ queryKey: ["events"] });
+          toast.error("Este ingresso esgotou", {
+            description: "A última vaga foi preenchida enquanto você preenchia o formulário.",
+          });
         } else if (m.includes("EVENT_NOT_OPEN")) {
           toast.error("Inscrições encerradas", {
             description: "Este evento não está aberto para inscrições.",
