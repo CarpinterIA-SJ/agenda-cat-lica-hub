@@ -316,6 +316,12 @@ grant execute on function public.create_free_registration(
 -- neste arquivo. Escolhi COMMENT ON POLICY em vez de editar a 003 porque
 -- aquela migration já rodou em produção: editá-la mudaria o arquivo sem
 -- mudar o banco, criando divergência entre o histórico e a realidade.
-comment on policy "registrations: auto-inscrição em evento público OR admin"
+-- NOME CONFERIDO EM pg_policies DA PRODUÇÃO. NÃO é o nome que está em
+-- 003:194 ("registrations: auto-inscrição em evento público OR admin"):
+-- o banco real tem a mesma policy de INSERT, com o mesmo with_check, sob
+-- outro nome. Foi essa divergência que abortou a primeira tentativa desta
+-- migration (SQLSTATE 42704, policy does not exist). O nome abaixo veio do
+-- catálogo do banco, não do arquivo 003.
+comment on policy "registrations: inscricao ou admin"
   on public.event_registrations is
   'ESPELHADA em public.create_free_registration (migration 033): aquela funcao e security definer e IGNORA esta policy, por isso reimplementa estes mesmos predicados no corpo, chamando event_is_public_active e is_event_org_admin. Mudou aqui? Mude la tambem, ou as duas divergem em silencio.';
