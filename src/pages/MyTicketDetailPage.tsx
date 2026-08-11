@@ -1,10 +1,23 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import QRCodeGenerator from "@/components/QRCodeGenerator";
+import { useUpdateRegistrationStatus } from "@/hooks/use-registrations";
 import {
   ArrowLeft,
   MapPin,
@@ -16,6 +29,7 @@ import {
   Phone,
   DollarSign,
   Clock,
+  XCircle,
 } from "lucide-react";
 
 const locationLabel = (loc: any): string | null => {
@@ -90,6 +104,9 @@ const InfoRow = ({
 const MyTicketDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const updateStatus = useUpdateRegistrationStatus();
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const { data: registration, isLoading } = useQuery({
     queryKey: ["registrations", id],
@@ -154,6 +171,41 @@ const MyTicketDetailPage = () => {
   const organizerInitials = "GE";
 
   const paymentLabel: string | null = null;
+
+  // Só inscrição confirmada pode ser cancelada: é a única transição que o
+  // gatilho event_registrations_release_ticket (migration 034) trata —
+  // ele devolve `sold` quando o status sai de 'confirmed'.
+  const canCancel = registration.status === "confirmed";
+
+  // Evento pago não cancela pelo app: o estorno passa pela política de
+  // reembolso do organizador. Sem ticket vinculado (ticket_id null) a
+  // inscrição é gratuita.
+  const isPaid = (ticketDef?.price_cents ?? 0) > 0;
+
+  // Lacuna conhecida da migration 033: `release_coupon_use` é service_role e
+  // este caminho roda no cliente, então cancelar aqui NÃO devolve o uso do
+  // cupom. Enquanto a RPC autorizada não existe, o aviso é explícito.
+  const hasCoupon = !!registration.coupon_id;
+
+  const handleCancel = () => {
+    updateStatus.mutate(
+      { id: registration.id, status: "cancelled" },
+      {
+        onSuccess: () => {
+          // O gatilho do banco já devolveu a vaga; invalidar ingressos e
+          // eventos para a disponibilidade recarregar na UI.
+          queryClient.invalidateQueries({ queryKey: ["registrations"] });
+          queryClient.invalidateQueries({ queryKey: ["tickets"] });
+          queryClient.invalidateQueries({ queryKey: ["events"] });
+          setCancelOpen(false);
+          toast.success("Inscrição cancelada. A vaga foi liberada para outro participante.");
+        },
+        onError: (err: any) => {
+          toast.error(err?.message ?? "Não foi possível cancelar a inscrição.");
+        },
+      },
+    );
+  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-12">
@@ -343,6 +395,96 @@ const MyTicketDetailPage = () => {
           eventName={eventName}
         />
       </div>
+
+      {/* Cancelamento — só para inscrição confirmada */}
+      {canCancel && (
+        <div className="space-y-3">
+          <h3 className="font-bold text-slate-900 text-base border-b-2 border-primary pb-1 w-fit">
+            Cancelamento
+          </h3>
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
+            <p className="text-sm text-slate-500">
+              {isPaid
+                ? "Este é um evento pago. O cancelamento e o eventual reembolso são tratados pelo organizador."
+                : "Não vai mais participar? Cancele sua inscrição para liberar a vaga para outra pessoa."}
+            </p>
+            <Button
+              variant="outline"
+              className="w-full gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 hover:text-red-700 font-semibold"
+              onClick={() => setCancelOpen(true)}
+            >
+              <XCircle className="w-4 h-4" />
+              Cancelar inscrição
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <AlertDialogContent>
+          {isPaid ? (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancelamento de evento pago</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2 text-left">
+                    <p>
+                      Inscrições pagas não são canceladas diretamente por aqui. Entre em contato com o
+                      organizador de <b>{eventName}</b> para solicitar o cancelamento e o reembolso.
+                    </p>
+                    <p>
+                      Pelo Código de Defesa do Consumidor (Art. 49), o reembolso é garantido em até 7 dias
+                      após a compra. Fora desse prazo, vale a política de reembolso definida pelo organizador.
+                    </p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Entendi</AlertDialogCancel>
+              </AlertDialogFooter>
+            </>
+          ) : (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancelar esta inscrição?</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2 text-left">
+                    <p>
+                      Sua inscrição em <b>{eventName}</b> será cancelada e a vaga será liberada
+                      imediatamente para outro participante.
+                    </p>
+                    <p className="font-semibold text-red-600">
+                      Esta ação não pode ser desfeita. Para participar de novo você precisará se inscrever
+                      outra vez, sujeito à disponibilidade de vagas.
+                    </p>
+                    {hasCoupon && (
+                      <p className="font-semibold text-red-600">
+                        O cupom de desconto utilizado nesta inscrição <b>não será devolvido</b> e não poderá
+                        ser reutilizado em uma nova inscrição.
+                      </p>
+                    )}
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={updateStatus.isPending}>Voltar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    // Impede o fechamento automático do diálogo: ele só fecha
+                    // no onSuccess, para o erro continuar visível em contexto.
+                    e.preventDefault();
+                    handleCancel();
+                  }}
+                  disabled={updateStatus.isPending}
+                  className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                >
+                  {updateStatus.isPending ? "Cancelando..." : "Sim, cancelar inscrição"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
