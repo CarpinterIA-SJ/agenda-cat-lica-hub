@@ -12,6 +12,9 @@ import MyTicketsPage from "./pages/MyTicketsPage";
 import MyTicketDetailPage from "./pages/MyTicketDetailPage";
 import ExploreEventsPage, { PublicEventPage } from "./pages/ExploreEventsPage";
 import SupportPage from "./pages/SupportPage";
+import TermosPage from "./pages/TermosPage";
+import PrivacidadePage from "./pages/PrivacidadePage";
+import ReembolsoPage from "./pages/ReembolsoPage";
 import OrganizerEventsPage from "./pages/OrganizerEventsPage";
 import OrganizerEventMensagensPage, { MessageSection, MESSAGE_TEMPLATES, defaultMessageContents } from "./pages/OrganizerEventMensagensPage";
 import CRMPage from "./pages/CRMPage";
@@ -4223,6 +4226,9 @@ const App = () => (
             <Route path="/role-select" element={<ProtectedRoute><RoleSelectPage /></ProtectedRoute>} />
             <Route path="/evento/:slug" element={<PublicEventPage />} />
             <Route path="/planos" element={<PlansPage />} />
+            <Route path="/termos" element={<TermosPage />} />
+            <Route path="/privacidade" element={<PrivacidadePage />} />
+            <Route path="/reembolso" element={<ReembolsoPage />} />
 
             <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
               {/* Organizer Routes */}

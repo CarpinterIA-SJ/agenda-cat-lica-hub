@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { Check, Zap, Users, Star, ArrowLeft, Calendar, QrCode, FileText, MessageCircle, BarChart3, Tag } from "lucide-react";
+import { Footer } from "@/components/Footer";
 
 const FEATURES_FREE = [
   "Eventos ilimitados",
@@ -202,11 +203,7 @@ const PlansPage = () => {
         </section>
       </main>
 
-      <footer className="border-t border-[#dfe8df] py-8 mt-8">
-        <div className="max-w-6xl mx-auto px-4 text-center text-sm text-[#4b6355]">
-          Guardião Eventos — Plataforma para a comunidade católica
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
