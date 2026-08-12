@@ -173,7 +173,8 @@ const PaymentForm = ({ data, taxaPercent, onClose }: PaymentFormProps) => {
         return_url: `${window.location.origin}/participante/meus-ingressos`,
       },
     });
-    // Só chega aqui em caso de erro imediato (cartão). Boleto redireciona.
+    // stripe-checkout só oferece "card" (payment_method_types) — sempre
+    // síncrono. Só chega aqui em caso de erro imediato de cartão.
     if (error) {
       toast({ title: "Pagamento não concluído", description: error.message, variant: "destructive" });
       setSubmitting(false);
