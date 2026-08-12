@@ -281,7 +281,7 @@ Deno.serve(async (req) => {
     const taxa = Math.round(subtotal * (taxaPercent / 100));
     const total = subtotal + taxa;
 
-    if (total < 1) return json({ error: "Valor total inválido para cobrança." }, 400);
+    if (total < 1) return await rejectAndReleaseCoupon({ error: "Valor total inválido para cobrança." }, 400);
 
     const minCents = MIN_CHARGE_CENTS[billing_type];
     if (total < minCents) {
