@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
     // 4) Ingresso (apenas colunas garantidas no schema base).
     const { data: ticket, error: ticketErr } = await supabaseAdmin
       .from("event_tickets")
-      .select("id, name, price_cents, event_id")
+      .select("id, name, price_cents, event_id, quantity, sold, reserved")
       .eq("id", ticket_id)
       .maybeSingle();
     if (ticketErr) {
@@ -171,6 +171,26 @@ Deno.serve(async (req) => {
 
     let consumedCouponId: string | null = null;
 
+    // Único ponto que devolve o uso do cupom — mesma chamada que já vivia
+    // só no catch da criação do PaymentIntent, agora reaproveitada por todo
+    // gate de rejeição que fica DEPOIS do consumo (coupon_code abaixo) e
+    // ANTES de qualquer efeito que dependa da compra ter ido adiante.
+    // Só age se ESTA requisição consumiu (consumedCouponId setado) — nunca
+    // decrementa used_count de quem não consumiu.
+    const releaseCouponIfConsumed = async () => {
+      if (!consumedCouponId) return;
+      const { error: relErr } = await supabaseAdmin
+        .rpc("release_coupon_use", { p_coupon_id: consumedCouponId });
+      if (relErr) console.error("[stripe-checkout] release_coupon_use falhou", relErr);
+    };
+
+    // Conveniência para os gates de rejeição: libera o cupom (se consumido)
+    // e devolve o erro num ponto só.
+    const rejectAndReleaseCoupon = async (payload: unknown, status: number) => {
+      await releaseCouponIfConsumed();
+      return json(payload, status);
+    };
+
     if (coupon_code) {
       // consume_coupon (migration 033) é check-and-increment ATÔMICO: o
       // limite vive no WHERE do UPDATE, então duas compras simultâneas do
@@ -217,7 +237,7 @@ Deno.serve(async (req) => {
     // Mínimo da processadora (boleto R$ 5,00). Defesa estruturada: erro claro
     // ANTES de criar o PaymentIntent, em vez do "amount_too_small" cru do Stripe.
     if (total < MIN_PAID_TICKET_CENTS) {
-      return json({
+      return await rejectAndReleaseCoupon({
         error: "valor_minimo",
         message: `O valor total ficou em R$ ${(total / 100).toFixed(2).replace(".", ",")}, abaixo do mínimo de R$ ${(MIN_PAID_TICKET_CENTS / 100).toFixed(2).replace(".", ",")} aceito pela processadora de pagamento. Adicione mais ingressos ou peça ao organizador para ajustar o preço.`,
       }, 400);
@@ -244,18 +264,32 @@ Deno.serve(async (req) => {
         for (const s of selections) {
           const cur = used.get(`${s.field_id}::${s.option_label}`) ?? 0;
           if (cur >= s.limit) {
-            return json({ error: `A opção "${s.option_label}" esgotou. Volte ao formulário e escolha outra.` }, 409);
+            return await rejectAndReleaseCoupon({ error: `A opção "${s.option_label}" esgotou. Volte ao formulário e escolha outra.` }, 409);
           }
         }
       }
     }
 
-    // Prazo de pagamento configurado pelo organizador → expiração no gateway
-    // para o método assíncrono (boleto). Limites do Stripe respeitados.
-    const paymentMethodOptions: Record<string, unknown> = {};
-    if (deadlineMin && deadlineMin > 0) {
-      const boletoDays = Math.min(Math.max(Math.ceil(deadlineMin / 1440), 1), 60); // 1..60 dias
-      paymentMethodOptions.boleto = { expires_after_days: boletoDays };
+    // Soft-gate de capacidade do INGRESSO — mesmo padrão do soft-gate de
+    // opção logo acima: rejeita ANTES de criar o PaymentIntent quando já
+    // não há vaga.
+    //
+    // NÃO É ATÔMICO: é uma leitura isolada, sem lock. Dois compradores
+    // simultâneos na última vaga podem os dois passar por aqui e os dois
+    // criarem PaymentIntent — isto fecha só o caso comum (ingresso já
+    // esgotado quando o comprador chega ao checkout), não a corrida.
+    // Controle definitivo (check-and-increment atômico via
+    // reserve_ticket_sold, migration 031) fica para a Fase 5, junto com a
+    // reestruturação de ordem que ele exige (inscrição antes da cobrança)
+    // e a migration 032 (expiração + cron).
+    //
+    // quantity = 0 é a convenção de "ilimitado" (schema desde 003): nesse
+    // caso nunca barra.
+    if (ticket.quantity > 0 && ticket.sold + ticket.reserved >= ticket.quantity) {
+      return await rejectAndReleaseCoupon({
+        error: "ticket_esgotado",
+        message: "Este ingresso esgotou. A última vaga foi preenchida enquanto a cobrança era preparada.",
+      }, 409);
     }
 
     // try aninhado: o cupom já foi consumido acima. Se o PaymentIntent não
@@ -266,10 +300,10 @@ Deno.serve(async (req) => {
       paymentIntent = await stripe.paymentIntents.create({
         amount: total,
         currency: "brl",
-        payment_method_types: ["card", "boleto"],
-        ...(Object.keys(paymentMethodOptions).length
-          ? { payment_method_options: paymentMethodOptions as any }
-          : {}),
+        // Só cartão: sem boleto, a confirmação é instantânea e a janela de
+        // horas/dias que motivou a reserva de vaga (migration 031) some.
+        // Boleto volta na Fase 5, junto com reserve_ticket_sold.
+        payment_method_types: ["card"],
         metadata: {
           event_id,
           ticket_id,
@@ -286,11 +320,7 @@ Deno.serve(async (req) => {
         },
       });
     } catch (e) {
-      if (consumedCouponId) {
-        const { error: relErr } = await supabaseAdmin
-          .rpc("release_coupon_use", { p_coupon_id: consumedCouponId });
-        if (relErr) console.error("[stripe-checkout] release_coupon_use falhou", relErr);
-      }
+      await releaseCouponIfConsumed();
       throw e;
     }
 

@@ -105,6 +105,25 @@ Deno.serve(async (req) => {
   // devolvido no catch. Declarado aqui, fora do try, para o catch enxergar.
   let consumedCouponId: string | null = null;
 
+  // Único ponto que devolve o uso do cupom. Mesma condição do catch (linha
+  // ~503 abaixo): só libera se ESTA requisição consumiu e a cobrança ainda
+  // não nasceu — nascida a cobrança ela é pagável, e quem devolve o cupom
+  // nesse caso é o estorno/vencimento, no webhook. Reaproveitado tanto pelos
+  // gates de rejeição ANTES da cobrança quanto pelo catch.
+  const releaseCouponIfConsumed = async () => {
+    if (!consumedCouponId || chargeCreated) return;
+    const { error: relErr } = await supabaseAdmin
+      .rpc("release_coupon_use", { p_coupon_id: consumedCouponId });
+    if (relErr) console.error("[asaas-checkout] release_coupon_use falhou", relErr);
+  };
+
+  // Conveniência para os gates de rejeição: libera o cupom (se consumido) e
+  // devolve o erro num ponto só.
+  const rejectAndReleaseCoupon = async (payload: unknown, status: number) => {
+    await releaseCouponIfConsumed();
+    return json(payload, status);
+  };
+
   try {
     // 1) Configuração obrigatória.
     const missingEnv: string[] = [];
@@ -266,7 +285,7 @@ Deno.serve(async (req) => {
 
     const minCents = MIN_CHARGE_CENTS[billing_type];
     if (total < minCents) {
-      return json({
+      return await rejectAndReleaseCoupon({
         error: "valor_minimo",
         message: `O valor total ficou em R$ ${(total / 100).toFixed(2).replace(".", ",")}, abaixo do mínimo de R$ ${(minCents / 100).toFixed(2).replace(".", ",")} aceito para ${billing_type === "PIX" ? "PIX" : billing_type === "BOLETO" ? "boleto" : "cartão"}. Adicione mais ingressos ou peça ao organizador para ajustar o preço.`,
       }, 400);
@@ -292,7 +311,7 @@ Deno.serve(async (req) => {
         for (const s of selections) {
           const cur = used.get(`${s.field_id}::${s.option_label}`) ?? 0;
           if (cur >= s.limit) {
-            return json({ error: `A opção "${s.option_label}" esgotou. Volte ao formulário e escolha outra.` }, 409);
+            return await rejectAndReleaseCoupon({ error: `A opção "${s.option_label}" esgotou. Volte ao formulário e escolha outra.` }, 409);
           }
         }
       }
@@ -500,11 +519,7 @@ Deno.serve(async (req) => {
     // cobrança NÃO nasceu. Com cobrança emitida a compra segue viva e o
     // cupom continua legitimamente consumido — quem devolve, nesse caso, é
     // o estorno ou o vencimento, nos webhooks.
-    if (consumedCouponId && !chargeCreated) {
-      const { error: relErr } = await supabaseAdmin
-        .rpc("release_coupon_use", { p_coupon_id: consumedCouponId });
-      if (relErr) console.error("[asaas-checkout] release_coupon_use falhou", relErr);
-    }
+    await releaseCouponIfConsumed();
 
     if (err instanceof AsaasError) {
       console.error("[asaas-checkout] erro do Asaas:", err.status, err.code, err.message);
