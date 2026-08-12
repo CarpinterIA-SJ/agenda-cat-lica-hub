@@ -1393,30 +1393,15 @@ const OrganizerEventNewPage = () => {
                   )}
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-700">Boleto</span>
-                    <Switch
-                      checked={pgBoletoEnabled}
-                      onCheckedChange={setPgBoletoEnabled}
-                      className="data-[state=checked]:bg-emerald-700"
-                    />
-                  </div>
-                  {pgBoletoEnabled && (
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-slate-500">Prazo para pagamento</label>
-                      <div className="relative max-w-xs">
-                        <Input
-                          type="number"
-                          value={pgBoletoPrazo}
-                          onChange={(e) => setPgBoletoPrazo(e.target.value)}
-                          className="pr-12"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">dias</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                {/*
+                  Toggle "Boleto" + prazo escondidos de propósito: payment_config
+                  não é lido por nenhum checkout (Stripe só aceita cartão desde a
+                  remoção do boleto; Asaas ainda não está ligado no fluxo
+                  principal). Ligar o toggle aqui prometia ao organizador algo que
+                  o sistema não entregava. Estado (pgBoletoEnabled/pgBoletoPrazo)
+                  e a gravação em payment_config seguem intactos — só a UI some.
+                  Volta na Fase 5, quando o Asaas ligar boleto e PIX de verdade.
+                */}
 
                 <div className="flex items-start gap-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-4 text-sm text-emerald-900">
                   <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
@@ -3936,30 +3921,15 @@ const OrganizerEventPagamentoConfiguracoesPage = () => {
             )}
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-700">Boleto</span>
-              <Switch
-                checked={boletoEnabled}
-                onCheckedChange={setBoletoEnabled}
-                className="data-[state=checked]:bg-[#004d00]"
-              />
-            </div>
-            {boletoEnabled && (
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-500">Prazo para pagamento</label>
-                <div className="relative max-w-xs">
-                  <Input
-                    type="number"
-                    value={boletoPrazo}
-                    onChange={(event) => setBoletoPrazo(event.target.value)}
-                    className="pr-12"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">dias</span>
-                </div>
-              </div>
-            )}
-          </div>
+          {/*
+            Toggle "Boleto" + prazo escondidos de propósito: payment_config não
+            é lido por nenhum checkout (Stripe só aceita cartão desde a remoção
+            do boleto; Asaas ainda não está ligado no fluxo principal). Ligar o
+            toggle aqui prometia ao organizador algo que o sistema não
+            entregava. Estado (boletoEnabled/boletoPrazo) e a gravação em
+            payment_config seguem intactos — só a UI some. Volta na Fase 5,
+            quando o Asaas ligar boleto e PIX de verdade.
+          */}
 
           <div className="flex items-start gap-3 rounded-lg border border-emerald-100 bg-emerald-50/70 p-4 text-sm text-emerald-900">
             <InfoIcon className="mt-0.5 h-4 w-4 text-[#004d00]" />
