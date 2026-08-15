@@ -1,10 +1,10 @@
-*Última atualização: 10 de agosto de 2026*
+*Última atualização: 14 de agosto de 2026*
 
 Esta Política explica como o Guardião Eventos coleta, usa, compartilha e protege dados pessoais, em conformidade com a Lei nº 13.709/2018 (Lei Geral de Proteção de Dados — LGPD).
 
 ## 1. Controlador e Encarregado
 
-Controlador: Fabrício Christian da Silva Cavalcante, CPF 908.053.643-15, Rua Tancredo Neves, 586, Bairro São Paulo, Barreiras/BA.
+Controlador: Fabrício Christian da Silva Cavalcante, CPF 908.053.643-15, Rua Tancredo Neves, 586, Bairro São Paulo, Barreiras/BA, CEP 47.807-060.
 
 Encarregado pelo Tratamento de Dados Pessoais (DPO): Fabrício Christian da Silva Cavalcante — carpinteria.ia.sj@gmail.com.
 
