@@ -1,10 +1,10 @@
-*Última atualização: 10 de agosto de 2026*
+*Última atualização: 14 de agosto de 2026*
 
 ## 1. Quem somos
 
 O Guardião Eventos ("Plataforma") é um serviço de divulgação de eventos, gestão de inscrições e intermediação de pagamento de ingressos, acessível em guardiaoeventos.com.
 
-A Plataforma é operada por Fabrício Christian da Silva Cavalcante, inscrito(a) no CPF 908.053.643-15, com endereço em Rua Tancredo Neves, 586, Bairro São Paulo, Barreiras/BA, doravante "Operador".
+A Plataforma é operada por Fabrício Christian da Silva Cavalcante, inscrito(a) no CPF 908.053.643-15, com endereço em Rua Tancredo Neves, 586, Bairro São Paulo, Barreiras/BA, CEP 47.807-060, doravante "Operador".
 
 Contato oficial: carpinteria.ia.sj@gmail.com.
 
@@ -74,6 +74,8 @@ O valor exibido ao Participante no momento da inscrição é o valor total devid
 O repasse ao Organizador é realizado pelo Operador de forma manual, conforme prazos e condições informados ao Organizador no momento do cadastro do evento, após a confirmação do pagamento e descontadas as taxas aplicáveis.
 
 Eventos gratuitos não geram cobrança e não passam por processamento de pagamento.
+
+**Taxa da plataforma.** Sobre o valor dos ingressos de eventos pagos incide uma taxa de serviço da Plataforma, destinada à manutenção e operação do sistema. O percentual vigente é definido pelo Operador e pode ser alterado a qualquer tempo, sendo sempre informado ao Participante de forma destacada na tela de pagamento, antes da confirmação da compra. O valor total exibido nesse momento é o valor total devido, já incluída a taxa. Alterações do percentual não retroagem: aplicam-se apenas às inscrições realizadas após a alteração, e nenhuma inscrição já concluída é afetada.
 
 ## 9. Cancelamento e reembolso
 
