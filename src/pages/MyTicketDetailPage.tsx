@@ -123,6 +123,21 @@ const MyTicketDetailPage = () => {
     enabled: !!id,
   });
 
+  // Só dispara pra evento pago: é o único caso em que o diálogo de
+  // cancelamento precisa mostrar contato do organizador (033/034: gratuito
+  // cancela direto pelo app, sem precisar contatar ninguém).
+  const { data: organizerContact, isLoading: organizerContactLoading } = useQuery({
+    queryKey: ["organizer-contact", registration?.event_id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_event_organizer_contact", {
+        p_event_id: registration!.event_id,
+      });
+      if (error) throw error;
+      return (data?.[0] ?? null) as { organization_name: string | null; contact_email: string | null } | null;
+    },
+    enabled: !!registration?.event_id && (registration?.ticket?.price_cents ?? 0) > 0,
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -186,6 +201,16 @@ const MyTicketDetailPage = () => {
   // este caminho roda no cliente, então cancelar aqui NÃO devolve o uso do
   // cupom. Enquanto a RPC autorizada não existe, o aviso é explícito.
   const hasCoupon = !!registration.coupon_id;
+
+  // organizations não tem telefone/whatsapp cadastrado em lugar nenhum
+  // (036) — só contact_email. Sem ele, cai no e-mail de suporte da
+  // plataforma, pra nunca deixar o participante sem nenhuma saída.
+  const organizerEmail = organizerContact?.contact_email || PLATFORM_SUPPORT_EMAIL;
+  const mailtoHref = `mailto:${organizerEmail}?subject=${encodeURIComponent(
+    `Cancelamento — ${eventName}`,
+  )}&body=${encodeURIComponent(
+    `Olá,\n\nGostaria de solicitar o cancelamento da minha inscrição no evento "${eventName}".\n\nNº da inscrição: ${ticketCode}\nParticipante: ${participantName}\n\nAguardo retorno.`,
+  )}`;
 
   const handleCancel = () => {
     updateStatus.mutate(
@@ -436,6 +461,29 @@ const MyTicketDetailPage = () => {
                       Pelo Código de Defesa do Consumidor (Art. 49), o reembolso é garantido em até 7 dias
                       após a compra. Fora desse prazo, vale a política de reembolso definida pelo organizador.
                     </p>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1">
+                      <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wide">
+                        Contato para cancelamento
+                      </p>
+                      {organizerContactLoading ? (
+                        <p className="text-sm text-slate-500">Carregando contato do organizador...</p>
+                      ) : (
+                        <>
+                          <a
+                            href={mailtoHref}
+                            className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline break-all"
+                          >
+                            <Mail className="w-3.5 h-3.5 shrink-0" />
+                            {organizerEmail}
+                          </a>
+                          {!organizerContact?.contact_email && (
+                            <p className="text-xs text-slate-400">
+                              Organizador sem contato cadastrado — este é o e-mail de suporte da plataforma.
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </AlertDialogDescription>
               </AlertDialogHeader>
