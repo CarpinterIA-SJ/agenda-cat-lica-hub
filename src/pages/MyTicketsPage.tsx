@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Ticket, Search, Calendar, MapPin, ArrowRight, ExternalLink, MessageCircle, Clock, BellRing, LogOut } from "lucide-react";
+import { Ticket, Search, Calendar, MapPin, ArrowRight, ExternalLink, MessageCircle, Clock, BellRing, LogOut, CreditCard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,8 @@ const MyTicketsPage = () => {
     eventLocation: locationLabel(reg.event?.location),
     ticketName: "Ingresso",
     status: statusLabel[reg.status] || reg.status,
+    isPending: reg.status === "pending",
+    invoiceUrl: reg.gateway_invoice_url,
   }));
 
   const filtered = tickets.filter((t) =>
@@ -153,6 +155,16 @@ const MyTicketsPage = () => {
                     ID: <span className="font-mono bg-slate-50 px-1.5 py-0.5 rounded uppercase tracking-tighter">{ticket.id.toString().slice(-8)}</span>
                   </div>
                   <div className="flex items-center gap-1">
+                    {ticket.isPending && ticket.invoiceUrl && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-emerald-700 font-bold hover:bg-emerald-50 gap-1.5 h-9 rounded-lg"
+                        onClick={() => window.open(ticket.invoiceUrl!, "_blank", "noopener,noreferrer")}
+                      >
+                        <CreditCard className="w-3.5 h-3.5" /> Pagar agora
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"

@@ -122,6 +122,7 @@ export interface EventRegistration {
   status:         RegistrationStatus
   registered_at:  string
   updated_at:     string
+  gateway_invoice_url: string | null
 }
 
 export interface CheckinType {

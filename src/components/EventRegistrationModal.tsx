@@ -19,7 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEventOptionCounts } from "@/hooks/use-registrations";
 import { usePlatformSettings } from "@/hooks/use-platform-settings";
-import { CheckoutModal } from "@/components/CheckoutModal";
+import { AsaasCheckoutModal } from "@/components/AsaasCheckoutModal";
 import { ChargeSummary, computeCharge } from "@/components/ChargeSummary";
 
 type StandardFieldKey = "nome" | "email" | "cpf" | "nascimento" | "whatsapp";
@@ -75,7 +75,7 @@ interface EventRegistrationModalProps {
  * Modal de inscrição completo, compartilhado entre o Explorar e a página
  * pública do evento. Lista/seleciona ingressos, valida cupom (tabela coupons),
  * renderiza o formulário configurado pelo organizador, mostra o resumo de
- * cobrança com taxa e direciona gratuito → registro confirmado / pago → Stripe.
+ * cobrança com taxa e direciona gratuito → registro confirmado / pago → Asaas.
  */
 export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventRegistrationModalProps) => {
   const { user } = useAuth();
@@ -249,7 +249,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
       });
     });
 
-    // Ingresso pago → checkout obrigatório (Stripe). A inscrição é criada
+    // Ingresso pago → checkout obrigatório (Asaas: PIX/boleto/cartão). A inscrição é criada
     // (pending) pelo backend e confirmada via webhook após o pagamento.
     // As respostas seguem no body do checkout → gravadas no pending (Fase B).
     if (selectedPriceCents > 0) {
@@ -613,7 +613,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
       </Dialog>
 
       {checkout && event?.id && (
-        <CheckoutModal
+        <AsaasCheckoutModal
           eventId={event.id}
           ticketId={checkout.ticketId}
           ticketName={checkout.name}
