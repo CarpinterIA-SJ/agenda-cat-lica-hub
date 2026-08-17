@@ -50,12 +50,21 @@ export const useEventOptionCounts = (eventId: string | undefined, enabled = true
   });
 };
 
+// Colunas explícitas, SEM cpf: esta lista alimenta a tela do organizador
+// (tabela de inscritos + export CSV), que nunca exibiu CPF — select("*")
+// entregava o dado em claro no payload de rede mesmo sem nenhuma UI usá-lo.
+// Reduz exposição na origem em vez de mascarar na exibição.
+const REGISTRATION_LIST_COLUMNS = "id, event_id, ticket_id, full_name, email, phone, status, registered_at";
+
 export const useRegistrations = (eventId: string | undefined) => {
   return useQuery({
     queryKey: ["registrations", eventId],
     queryFn: async () => {
       if (!eventId) return [];
-      const { data, error } = await supabase.from("event_registrations").select("*").eq("event_id", eventId);
+      const { data, error } = await supabase
+        .from("event_registrations")
+        .select(REGISTRATION_LIST_COLUMNS)
+        .eq("event_id", eventId);
       if (error) throw error;
       return data as Registration[];
     },

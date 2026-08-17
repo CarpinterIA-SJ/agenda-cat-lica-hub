@@ -1,4 +1,4 @@
-*Última atualização: 14 de agosto de 2026*
+*Última atualização: 16 de agosto de 2026*
 
 Esta Política explica como o Guardião Eventos coleta, usa, compartilha e protege dados pessoais, em conformidade com a Lei nº 13.709/2018 (Lei Geral de Proteção de Dados — LGPD).
 
@@ -48,7 +48,7 @@ Não coletamos nem armazenamos números de cartão de crédito. O pagamento com 
 
 Compartilhamos dados apenas na medida do necessário, com:
 
-- **Organizador do evento em que você se inscreveu:** recebe nome, e-mail, telefone e respostas aos campos do formulário, para operacionalizar o evento. O CPF é exibido ao Organizador de forma mascarada (ex.: 123.\*\*\*.\*\*\*-00).
+- **Organizador do evento em que você se inscreveu:** recebe nome, e-mail, telefone e respostas aos campos do formulário, para operacionalizar o evento. O CPF é usado exclusivamente para o processamento do pagamento junto à instituição de pagamento e NÃO é disponibilizado ao Organizador.
 - **Instituições de pagamento** (processadoras de cartão, PIX e boleto): dados necessários à cobrança e ao estorno.
 - **Provedores de infraestrutura** (hospedagem de banco de dados e de aplicação): armazenamento e execução do serviço.
 - **Autoridades públicas**, mediante requisição legal ou ordem judicial.
@@ -91,7 +91,7 @@ Nos termos do art. 18 da LGPD, você pode solicitar:
 
 ## 8. Segurança
 
-Adotamos medidas técnicas e administrativas para proteger os dados, entre elas: criptografia em trânsito (HTTPS), controle de acesso por perfil com isolamento de dados entre organizações, registro de auditoria das operações sensíveis, mascaramento de dados sensíveis na interface do Organizador e segregação dos dados de pagamento, que não trafegam por nossos servidores.
+Adotamos medidas técnicas e administrativas para proteger os dados, entre elas: criptografia em trânsito (HTTPS), controle de acesso por perfil com isolamento de dados entre organizações, registro de auditoria das operações sensíveis, não disponibilização de dados sensíveis como o CPF ao Organizador — usados apenas no processamento do pagamento — e segregação dos dados de pagamento, que não trafegam por nossos servidores.
 
 Em caso de incidente de segurança com risco relevante aos titulares, comunicaremos a Autoridade Nacional de Proteção de Dados e os titulares afetados, nos termos do art. 48 da LGPD.
 

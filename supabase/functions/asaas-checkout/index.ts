@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
     // 5) Ingresso.
     const { data: ticket, error: ticketErr } = await supabaseAdmin
       .from("event_tickets")
-      .select("id, name, price_cents, event_id")
+      .select("id, name, price_cents, event_id, quantity, sold, reserved")
       .eq("id", ticket_id)
       .maybeSingle();
     if (ticketErr) {
@@ -317,6 +317,27 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Soft-gate de capacidade do INGRESSO — mesmo padrão do soft-gate de
+    // opção logo acima: rejeita ANTES de criar a cobrança quando já não há
+    // vaga.
+    //
+    // NÃO É ATÔMICO: é uma leitura isolada, sem lock. Dois compradores
+    // simultâneos na última vaga podem os dois passar por aqui e os dois
+    // criarem cobrança — isto fecha só o caso comum (ingresso já esgotado
+    // quando o comprador chega ao checkout), não a corrida. Controle
+    // definitivo (check-and-increment atômico via reserve_ticket_sold,
+    // migration 031) fica para depois, junto com a reestruturação de ordem
+    // que ele exige e a migration 032 (expiração + cron).
+    //
+    // quantity = 0 é a convenção de "ilimitado" (schema desde 003): nesse
+    // caso nunca barra.
+    if (ticket.quantity > 0 && ticket.sold + ticket.reserved >= ticket.quantity) {
+      return await rejectAndReleaseCoupon({
+        error: "ticket_esgotado",
+        message: "Este ingresso esgotou. A última vaga foi preenchida enquanto a cobrança era preparada.",
+      }, 409);
+    }
+
     // 8) Organização dona do evento (obrigatória em payments).
     const { data: event, error: eventErr } = await supabaseAdmin
       .from("events")
@@ -392,10 +413,12 @@ Deno.serve(async (req) => {
     });
     chargeCreated = true;
 
-    // 13) Amarra a cobrança à inscrição (coluna neutra da migration 027).
+    // 13) Amarra a cobrança à inscrição (coluna neutra da migration 027) e
+    // grava a fatura hospedada (migration 037) — é o que permite o
+    // participante retomar um pagamento pendente em Meus Ingressos.
     const { error: linkErr } = await supabaseAdmin
       .from("event_registrations")
-      .update({ gateway_charge_id: charge.id })
+      .update({ gateway_charge_id: charge.id, gateway_invoice_url: charge.invoiceUrl ?? null })
       .eq("id", registration.id);
     if (linkErr) {
       // Sem esse vínculo o webhook não acha a inscrição — falha dura.

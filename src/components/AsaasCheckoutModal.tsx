@@ -1,9 +1,8 @@
 // ============================================================
 //  AsaasCheckoutModal — checkout via Asaas (PIX / Boleto / Cartão).
 //
-//  ISOLADO DE PROPÓSITO (Fase 2): não é usado pelo fluxo de inscrição,
-//  que continua no CheckoutModal.tsx do Stripe. A integração real
-//  acontece na Fase 5 — até lá este componente fica sem consumidor.
+//  Usado pelo fluxo de inscrição em EventRegistrationModal.tsx para
+//  ingressos pagos — substituiu o CheckoutModal.tsx do Stripe.
 //
 //  A rota /teste/asaas que o exercitava foi REMOVIDA antes do merge na
 //  main: publicada pela Vercel ela ficaria acessível a qualquer usuário

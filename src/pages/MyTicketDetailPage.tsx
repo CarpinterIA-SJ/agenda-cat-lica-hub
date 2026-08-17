@@ -30,6 +30,7 @@ import {
   DollarSign,
   Clock,
   XCircle,
+  CreditCard,
 } from "lucide-react";
 
 const locationLabel = (loc: any): string | null => {
@@ -307,6 +308,22 @@ const MyTicketDetailPage = () => {
           )}
         </div>
       </div>
+
+      {/* Pagamento pendente — retoma a cobrança Asaas sem reconsultar a API */}
+      {registration.status === "pending" && registration.gateway_invoice_url && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <p className="font-bold text-amber-900">Pagamento pendente</p>
+            <p className="text-sm text-amber-700">Sua inscrição só é confirmada depois que o pagamento cair.</p>
+          </div>
+          <Button
+            className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold shrink-0"
+            onClick={() => window.open(registration.gateway_invoice_url, "_blank", "noopener,noreferrer")}
+          >
+            <CreditCard className="w-4 h-4" /> Pagar agora
+          </Button>
+        </div>
+      )}
 
       {/* Organizer Card */}
       {organizerName && (
