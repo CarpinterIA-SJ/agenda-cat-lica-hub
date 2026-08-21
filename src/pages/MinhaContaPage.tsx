@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
 import { useMyOrganization } from "@/hooks/use-organizations";
 import { usePayoutAccounts, useCreatePayoutAccount, useDeletePayoutAccount } from "@/hooks/use-payout-accounts";
+import { useDeleteAccount } from "@/hooks/use-delete-account";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -38,12 +39,13 @@ const BANK_ACCOUNT_TYPE_LABEL: Record<string, string> = {
 const MinhaContaPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { profile, updateProfile, isUpdating } = useProfile();
   const { data: org } = useMyOrganization();
   const { data: payoutAccounts = [] } = usePayoutAccounts(org?.id);
   const createAccount = useCreatePayoutAccount();
   const deleteAccount = useDeletePayoutAccount();
+  const deleteMyAccount = useDeleteAccount();
   const [activeTab, setActiveTab] = useState("perfil");
   const [nameOpen, setNameOpen] = useState(false);
   const [nameValue, setNameValue] = useState("");
@@ -63,6 +65,14 @@ const MinhaContaPage = () => {
   const [accBankAccountType, setAccBankAccountType] = useState("");
   const [accIsDefault, setAccIsDefault] = useState(false);
   const [deleteAccId, setDeleteAccId] = useState<string | null>(null);
+
+  // Exclusão da própria conta.
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [blockedOrgs, setBlockedOrgs] = useState<string[] | null>(null);
+  const hasPasswordLogin = (user as any)?.identities?.some((i: any) => i.provider === "email") ?? true;
 
   useEffect(() => {
     if (profile?.name) setNameValue(profile.name);
@@ -150,6 +160,34 @@ const MinhaContaPage = () => {
       toast({ title: "Conta removida" });
     } catch (e: any) {
       toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const resetDeleteAccountForm = () => {
+    setDeleteConfirmText("");
+    setDeletePassword("");
+    setDeleteError(null);
+    setBlockedOrgs(null);
+  };
+
+  const handleDeleteMyAccount = async () => {
+    setDeleteError(null);
+    setBlockedOrgs(null);
+    try {
+      const result = await deleteMyAccount.mutateAsync({
+        confirmation: deleteConfirmText,
+        password: hasPasswordLogin ? deletePassword : undefined,
+      });
+      if ("error" in result && result.error === "org_owner_blocked") {
+        setBlockedOrgs(result.organizations);
+        return;
+      }
+      toast({ title: "Conta excluída", description: "Sua conta foi excluída. Até logo." });
+      setDeleteAccountOpen(false);
+      await signOut();
+      navigate("/");
+    } catch (e: any) {
+      setDeleteError(e.message || "Erro ao excluir a conta.");
     }
   };
 
@@ -312,6 +350,29 @@ const MinhaContaPage = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Zona de risco */}
+                <div className="space-y-3 pt-4 border-t">
+                  <h2 className="text-lg font-semibold text-destructive">Zona de risco</h2>
+                  <Card className="border-destructive/30">
+                    <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                      <div className="flex-1 space-y-1">
+                        <p className="text-sm font-semibold text-foreground">Excluir minha conta</p>
+                        <p className="text-sm text-muted-foreground">
+                          Anonimiza seus dados de perfil e desativa o login permanentemente. Não pode ser desfeito.
+                        </p>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        className="shrink-0"
+                        onClick={() => { resetDeleteAccountForm(); setDeleteAccountOpen(true); }}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Excluir conta
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
               </TabsContent>
 
               <TabsContent value="taxas" className="mt-6 space-y-6">
@@ -468,6 +529,76 @@ const MinhaContaPage = () => {
             <Button variant="destructive" onClick={handleDeleteAccount} disabled={deleteAccount.isPending}>
               {deleteAccount.isPending ? "Removendo..." : "Remover"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Excluir minha conta */}
+      <Dialog open={deleteAccountOpen} onOpenChange={(o) => { setDeleteAccountOpen(o); if (!o) resetDeleteAccountForm(); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Excluir minha conta</DialogTitle>
+          </DialogHeader>
+
+          {blockedOrgs ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Você é dono de organização(ões) com eventos ou vendas registradas — exclusão automática não é
+                permitida nesse caso: {blockedOrgs.join(", ")}.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Envie sua solicitação para{" "}
+                <a className="text-blue-700 underline" href="mailto:carpinteria.ia.sj@gmail.com">
+                  carpinteria.ia.sj@gmail.com
+                </a>{" "}
+                para tratarmos manualmente.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Isso anonimiza seu nome/avatar e bloqueia o login permanentemente. Não pode ser desfeito.
+              </p>
+              {hasPasswordLogin && (
+                <div className="space-y-2">
+                  <Label>Senha atual</Label>
+                  <Input
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    placeholder="Sua senha"
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>Digite EXCLUIR para confirmar</Label>
+                <Input
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="EXCLUIR"
+                />
+              </div>
+              {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteAccountOpen(false)}>
+              {blockedOrgs ? "Fechar" : "Cancelar"}
+            </Button>
+            {!blockedOrgs && (
+              <Button
+                variant="destructive"
+                onClick={handleDeleteMyAccount}
+                disabled={
+                  deleteMyAccount.isPending ||
+                  deleteConfirmText.trim().toUpperCase() !== "EXCLUIR" ||
+                  (hasPasswordLogin && !deletePassword)
+                }
+              >
+                {deleteMyAccount.isPending ? "Excluindo..." : "Excluir permanentemente"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

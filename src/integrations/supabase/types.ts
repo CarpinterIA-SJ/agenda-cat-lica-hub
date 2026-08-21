@@ -1,3 +1,28 @@
+// ============================================================
+// AVISO — ESTE ARQUIVO É GERADO (`supabase gen types`), MAS TEM AJUSTE
+// MANUAL no bloco `events`/`event_tickets` dentro de `Database.public.Tables`
+// (Insert de `events` e `event_tickets` — procure por "events: {" e
+// "event_tickets: {" se o número da linha abaixo já tiver mudado).
+// RODAR `supabase gen types` DE NOVO APAGA ESSE AJUSTE E O BUILD QUEBRA
+// (o gate `tsc --noEmit` do script "build" no package.json volta a
+// reprovar com 3x TS2345 em App.tsx:521/566/1770).
+//
+// MOTIVO: o padrão `Omit<Row, K> & { campo?: T }` que o gerador usa NÃO
+// torna `campo` opcional se `campo` continuar presente (required) no
+// `Omit<Row, K>` — interseção de required+optional na mesma chave vence
+// pro lado required, TypeScript exige o campo mesmo assim. Os 11 campos
+// abaixo têm `default`/são nullable no schema real (migrations 003,
+// 011, 013) e por isso SÃO opcionais de fato — o ajuste manual só move
+// esses 11 nomes para dentro do Omit também, o que faz o override
+// `campo?: T` funcionar de verdade.
+//
+// SE REGENERAR: reaplique manualmente, adicionando ao Omit de
+// `events.Insert`      → 'format' | 'visibility' | 'status' | 'custom_fields' | 'show_fields' | 'payment_config' | 'rejection_reason'
+// `event_tickets.Insert` → 'type' | 'visibility' | 'price_cents' | 'quantity' | 'status' | 'pass_fees' | 'sort_order'
+// (mantendo os mesmos campos como propriedades opcionais no objeto de
+// override, do jeito que o gerador já escreve — só falta o Omit).
+// ============================================================
+
 export type Json =
   | string
   | number
@@ -419,7 +444,13 @@ export type Database = {
       }
       events: {
         Row:    Event
-        Insert: Omit<Event, 'id' | 'created_at' | 'updated_at'> & {
+        // Campos abaixo têm `default`/são nullable no schema (003:88-89,
+        // 011:22, 013:11) — precisam ficar no Omit também, não só no objeto
+        // de override: `Omit<Row,K> & { campo?: T }` NÃO torna `campo`
+        // opcional se ele já é required em `Omit<Row,K>` (interseção de
+        // required+optional na mesma chave vence pro lado required). Era o
+        // bug por trás dos TS2345 em App.tsx:521/566/1770.
+        Insert: Omit<Event, 'id' | 'created_at' | 'updated_at' | 'format' | 'visibility' | 'status' | 'custom_fields' | 'show_fields' | 'payment_config' | 'rejection_reason'> & {
           id?: string
           created_at?: string
           updated_at?: string
@@ -429,12 +460,16 @@ export type Database = {
           custom_fields?: Json
           show_fields?:   Json
           payment_config?: Json
+          rejection_reason?: string | null
         }
         Update: Partial<Omit<Event, 'id' | 'organization_id' | 'created_at'>>
       }
       event_tickets: {
         Row:    EventTicket
-        Insert: Omit<EventTicket, 'id' | 'created_at' | 'updated_at' | 'sold'> & {
+        // Mesma correção do Insert de events acima — todos os campos abaixo
+        // têm `not null default ...` no schema (003:126-133), então precisam
+        // estar no Omit para o override `campo?: T` funcionar de verdade.
+        Insert: Omit<EventTicket, 'id' | 'created_at' | 'updated_at' | 'sold' | 'type' | 'visibility' | 'price_cents' | 'quantity' | 'status' | 'pass_fees' | 'sort_order'> & {
           id?: string
           created_at?: string
           updated_at?: string

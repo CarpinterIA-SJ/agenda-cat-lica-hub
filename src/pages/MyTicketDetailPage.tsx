@@ -206,7 +206,14 @@ const MyTicketDetailPage = () => {
   // organizations não tem telefone/whatsapp cadastrado em lugar nenhum
   // (036) — só contact_email. Sem ele, cai no e-mail de suporte da
   // plataforma, pra nunca deixar o participante sem nenhuma saída.
-  const organizerEmail = organizerContact?.contact_email || PLATFORM_SUPPORT_EMAIL;
+  // `PLATFORM_SUPPORT_EMAIL` nunca existiu como global (nem define no
+  // vite.config.ts, nem import.meta.env, nem import) — ReferenceError em
+  // produção sempre que contact_email vem null. Fallback literal aqui:
+  // ausência de e-mail de suporte degrada, não derruba a tela.
+  const organizerEmail =
+    organizerContact?.contact_email ||
+    import.meta.env.VITE_PLATFORM_SUPPORT_EMAIL ||
+    "contato@guardiaoeventos.com";
   const mailtoHref = `mailto:${organizerEmail}?subject=${encodeURIComponent(
     `Cancelamento — ${eventName}`,
   )}&body=${encodeURIComponent(
