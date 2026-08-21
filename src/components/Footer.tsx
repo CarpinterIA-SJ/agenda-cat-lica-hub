@@ -56,7 +56,7 @@ export const Footer = () => {
           <div className="space-y-4">
             <h4 className="font-bold text-white text-sm">Contato</h4>
             <ul className="space-y-3 text-sm">
-              <li className="flex items-center gap-2"><Mail className="w-4 h-4 text-[#004d00] shrink-0" /> contato@guardiaeventos.com</li>
+              <li className="flex items-center gap-2"><Mail className="w-4 h-4 text-[#004d00] shrink-0" /> contato@guardiaoeventos.com</li>
               <li className="flex items-center gap-2"><Phone className="w-4 h-4 text-[#004d00] shrink-0" /> (00) 0000-0000</li>
             </ul>
           </div>
