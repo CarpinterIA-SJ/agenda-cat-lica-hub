@@ -52,7 +52,7 @@ import Stripe from "npm:stripe@^17.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeadersFor, preflightResponse } from "../_shared/cors.ts";
 import { buildLimitedSelections } from "../_shared/option-counts.ts";
-import { AsaasError, asaasRequest, isAsaasConfigured } from "../_shared/asaas.ts";
+import { ASAAS_PAID_STATUSES, AsaasError, asaasRequest, deletePayment, getPayment, isAsaasConfigured } from "../_shared/asaas.ts";
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -161,14 +161,9 @@ const methodMap: Record<string, string> = {
 
 // ─── Status do Asaas ────────────────────────────────────────
 // Nomenclatura idêntica à dos eventos de webhook, sem o prefixo PAYMENT_.
-
-/** Cobrança liquidada — equivale a PAYMENT_CONFIRMED/PAYMENT_RECEIVED. */
-const ASAAS_PAID_STATUSES = new Set([
-  "RECEIVED",
-  "CONFIRMED",
-  "RECEIVED_IN_CASH",
-  "DUNNING_RECEIVED",
-]);
+// ASAAS_PAID_STATUSES (equivale a PAYMENT_CONFIRMED/PAYMENT_RECEIVED) vem
+// de _shared/asaas.ts — compartilhada com o asaas-checkout (DUPLICATE_HOLD)
+// de propósito, ver comentário lá.
 
 /**
  * Cobrança que morreu sem virar inscrição válida — equivale a
@@ -350,8 +345,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Fase 5: dobra a mesma execução (scan=pending, cron horário 024) como
+    // expirador de reserva — sem cron novo. Amarrado a runPending, não a
+    // runRefunds: a cadência horária é a que casa com o prazo de dueDate,
+    // o scan diário de estornos não tem relação com isto.
+    const holdSweep = runPending ? await sweepExpiredHolds() : null;
     const refundScan = runRefunds ? await runRefundScan(asaasReady) : null;
-    const extra = refundScan ? { refund_scan: refundScan } : {};
+    const extra = {
+      ...(holdSweep ? { hold_sweep: holdSweep } : {}),
+      ...(refundScan ? { refund_scan: refundScan } : {}),
+    };
 
     console.log(
       "[reconcile-payments] resultado:",
@@ -520,17 +523,46 @@ async function asaasMarkPaid(
   if (updErr) throw updErr;
   if (updated?.custom_fields != null) regAnswers = updated.custom_fields;
 
-  // Incremento atômico de sold (RPC da migration 018).
+  // Fase 5 (migration 039): reserved -> sold passa pela mesma RPC de
+  // confirmação do handlePaid do asaas-webhook. Precisa espelhar: esta
+  // função existe exatamente para cobrir o caso da fila de webhooks do
+  // Asaas ficar pausada — se só ela rodasse o increment_ticket_sold cru, a
+  // reserva ficaria 'held' presa e `reserved` nunca desceria, mesmo com a
+  // venda já contabilizada em `sold` — dupla contagem permanente na mesma
+  // vaga, sem nenhum caminho de correção automática depois.
   const ticketId = (gp.ticket_id as string) ?? reg.ticket_id ?? null;
-  if (ticketId) {
-    const { error: soldErr } = await supabaseAdmin.rpc("increment_ticket_sold", {
-      p_ticket_id: ticketId,
-      p_quantity: quantity,
+  const { data: confirmResult, error: confirmErr } = await supabaseAdmin
+    .rpc("confirm_ticket_reservation", { p_registration_id: reg.id });
+  if (confirmErr) throw confirmErr;
+
+  if (confirmResult === "RELEASED") {
+    console.error(
+      "[reconcile-payments/asaas] ALARME: pagamento confirmado para reserva já RELEASED:",
+      chargeId, reg.id,
+    );
+    const { error: auditErr } = await supabaseAdmin.from("audit_logs").insert({
+      actor_email: "system@reconcile-payments",
+      action: "PAGAMENTO_APOS_RESERVA_LIBERADA",
+      entity_type: "payment",
+      entity_id: pay.id,
+      details: { gateway: "asaas", charge_id: chargeId, registration_id: reg.id, event_id: eventId },
     });
-    if (soldErr) throw soldErr;
-  } else {
-    console.error("[reconcile-payments/asaas] sem ticket_id para incrementar sold:", chargeId);
+    if (auditErr) console.error("[reconcile-payments/asaas] audit_logs RELEASED falhou", auditErr);
+  } else if (confirmResult === "NOT_FOUND") {
+    // Caminho legado (pré-039): sem linha em ticket_reservations,
+    // increment_ticket_sold direto, como sempre foi.
+    if (ticketId) {
+      const { error: soldErr } = await supabaseAdmin.rpc("increment_ticket_sold", {
+        p_ticket_id: ticketId,
+        p_quantity: quantity,
+      });
+      if (soldErr) throw soldErr;
+    } else {
+      console.error("[reconcile-payments/asaas] sem ticket_id para incrementar sold:", chargeId);
+    }
   }
+  // 'CONFIRMED' e 'ALREADY_CONFIRMED': a RPC já moveu reserved -> sold (ou
+  // já tinha movido antes) — nada a fazer aqui.
 
   // Vagas por opção (venda final, incondicional). Best-effort, igual ao
   // webhook: o pagamento já está registrado, não derruba a reconciliação.
@@ -640,6 +672,189 @@ async function asaasMarkUnpaid(
 
   console.log("[reconcile-payments/asaas] cancelado:", chargeId, status, "→", reg.id);
   return "cancelled";
+}
+
+// ─── Expiração de reservas 'held' (Fase 5, sem cron novo) ────
+
+interface HeldReservation {
+  id: string;
+  registration_id: string;
+  ticket_id: string | null;
+}
+
+const HOLD_SWEEP_PAGE_SIZE = 50;
+
+/**
+ * Teto de reservas processadas por execução. Cada uma custa ao menos 1
+ * chamada de API ao Asaas (GET de status) e, no caso comum de reserva
+ * vencida não paga, mais uma (DELETE). Preferência deliberada por
+ * varredura curta e frequente a uma longa que arrisca morrer no meio
+ * (timeout mata a rodada inteira, inclusive as que já passariam) — 60
+ * fica bem abaixo do teto estimado de timeout, sobrando para a próxima
+ * rodada o que não couber aqui.
+ */
+const HOLD_SWEEP_LIMIT = Number(Deno.env.get("HOLD_SWEEP_LIMIT") ?? "60");
+
+interface HoldSweepStats {
+  scanned: number;
+  released: number;
+  /** Achou a cobrança PAGA no Asaas: NÃO libera, grava alarme em audit_logs. */
+  left_paid: number;
+  /** GET/DELETE/release falhou (exceto 404 do DELETE): NÃO libera, tenta de novo na próxima rodada. */
+  left_error: number;
+  hit_limit: boolean;
+}
+
+/**
+ * Varre ticket_reservations 'held' vencidas e libera a vaga — dobra como o
+ * expirador de reserva da Fase 5. SEM cron novo: roda dentro do mesmo
+ * disparo horário que já existia (scan=pending / migration 024), então a
+ * cadência é a de sempre.
+ *
+ * Ordem por linha, sempre a mesma de 031/039: reconsulta o status no Asaas
+ * IMEDIATAMENTE antes de decidir — nunca confia em status lido antes. Se
+ * paga, NÃO mexe (alarme, fica para o scan de pendentes/webhook
+ * resolverem). Se não, deletePayment ANTES de release_ticket_reservation —
+ * o QR do PIX segue pagável por até 12 meses, soltar a vaga com a cobrança
+ * viva reabre o overselling que a Fase 5 existe para fechar. Falha do
+ * delete que não seja 404: não libera, log e segue para a próxima.
+ */
+async function sweepExpiredHolds(): Promise<HoldSweepStats> {
+  const stats: HoldSweepStats = { scanned: 0, released: 0, left_paid: 0, left_error: 0, hit_limit: false };
+
+  if (!isAsaasConfigured()) {
+    console.warn("[reconcile-payments/holds] ASAAS_API_KEY ausente — sweep pulado");
+    return stats;
+  }
+
+  const nowIso = new Date().toISOString();
+
+  while (stats.scanned < HOLD_SWEEP_LIMIT) {
+    const pageLimit = Math.min(HOLD_SWEEP_PAGE_SIZE, HOLD_SWEEP_LIMIT - stats.scanned);
+    const { data, error } = await supabaseAdmin
+      .from("ticket_reservations")
+      .select("id, registration_id, ticket_id")
+      .eq("status", "held")
+      .lt("expires_at", nowIso)
+      .order("expires_at", { ascending: true })
+      .limit(pageLimit);
+    if (error) throw error;
+
+    const page = (data ?? []) as HeldReservation[];
+    if (page.length === 0) break;
+
+    for (const hold of page) {
+      stats.scanned++;
+      try {
+        const outcome = await resolveExpiredHold(hold);
+        if (outcome === "released") stats.released++;
+        else if (outcome === "paid") stats.left_paid++;
+        else stats.left_error++;
+      } catch (e) {
+        stats.left_error++;
+        console.error("[reconcile-payments/holds] erro ao resolver reserva", hold.id, (e as Error).message);
+      }
+    }
+
+    if (page.length < pageLimit) break; // última página
+  }
+
+  if (stats.scanned >= HOLD_SWEEP_LIMIT) {
+    stats.hit_limit = true;
+    console.warn(
+      "[reconcile-payments/holds] teto de %d atingido — reservas mais antigas ficam para a próxima rodada",
+      HOLD_SWEEP_LIMIT,
+    );
+  }
+
+  return stats;
+}
+
+type HoldOutcome = "released" | "paid" | "error";
+
+async function resolveExpiredHold(hold: HeldReservation): Promise<HoldOutcome> {
+  const { data: reg } = await supabaseAdmin
+    .from("event_registrations")
+    .select("id, gateway_charge_id, event_id")
+    .eq("id", hold.registration_id)
+    .maybeSingle();
+
+  if (!reg?.gateway_charge_id) {
+    // Sem cobrança vinculada: nada a checar no Asaas — libera direto.
+    const { error: relErr } = await supabaseAdmin.rpc("release_ticket_reservation", {
+      p_registration_id: hold.registration_id,
+    });
+    if (relErr) {
+      console.error("[reconcile-payments/holds] release sem cobrança falhou", relErr);
+      return "error";
+    }
+    return "released";
+  }
+
+  let charge: { id: string; status: string };
+  try {
+    charge = await getPayment(reg.gateway_charge_id);
+  } catch (e) {
+    if (e instanceof AsaasError && e.status === 404) {
+      // Cobrança já não existe — mesmo efeito de "não paga". Libera sem
+      // chamar deletePayment (nada a apagar).
+      const { error: relErr } = await supabaseAdmin.rpc("release_ticket_reservation", {
+        p_registration_id: hold.registration_id,
+      });
+      if (relErr) {
+        console.error("[reconcile-payments/holds] release pós-404 falhou", relErr);
+        return "error";
+      }
+      return "released";
+    }
+    console.error("[reconcile-payments/holds] GET de status falhou", reg.gateway_charge_id, (e as Error).message);
+    return "error";
+  }
+
+  const status = (charge.status ?? "").toUpperCase();
+
+  if (ASAAS_PAID_STATUSES.has(status)) {
+    // PAGA: não apaga, não libera. O confirm normal (webhook, ou o scan de
+    // pendentes desta mesma função) deve resolver — se não resolver, isto
+    // reaparece aqui na próxima rodada, sempre alarmando, nunca em silêncio.
+    console.warn(
+      "[reconcile-payments/holds] reserva vencida mas cobrança PAGA no Asaas — não libera:",
+      hold.registration_id, reg.gateway_charge_id, status,
+    );
+    const { error: auditErr } = await supabaseAdmin.from("audit_logs").insert({
+      actor_email: "system@reconcile-payments",
+      action: "RESERVA_VENCIDA_COBRANCA_PAGA",
+      entity_type: "ticket_reservation",
+      entity_id: hold.id,
+      details: {
+        registration_id: hold.registration_id,
+        charge_id: reg.gateway_charge_id,
+        asaas_status: status,
+        event_id: reg.event_id,
+      },
+    });
+    if (auditErr) console.error("[reconcile-payments/holds] audit_logs (paga) falhou", auditErr);
+    return "paid";
+  }
+
+  try {
+    await deletePayment(reg.gateway_charge_id);
+  } catch (e) {
+    if (!(e instanceof AsaasError && e.status === 404)) {
+      console.error("[reconcile-payments/holds] deletePayment falhou:", reg.gateway_charge_id, (e as Error).message);
+      return "error";
+    }
+    // 404 = sucesso (cobrança já não existe).
+  }
+
+  const { error: relErr } = await supabaseAdmin.rpc("release_ticket_reservation", {
+    p_registration_id: hold.registration_id,
+  });
+  if (relErr) {
+    console.error("[reconcile-payments/holds] release_ticket_reservation falhou pós-delete:", relErr);
+    return "error";
+  }
+  return "released";
 }
 
 // ─── Stripe (inalterado) ────────────────────────────────────
@@ -1151,12 +1366,32 @@ async function revertRefundedSale(params: {
 
   // (3) Libera vaga e opções — só se a venda chegou a ser contabilizada.
   if (wasConfirmed) {
-    if (ticketId) {
+    // Fase 5: mesma fonte autoritativa do handleRefunded do asaas-webhook —
+    // quando existe linha 'confirmed' em ticket_reservations, ela vale mais
+    // que o ticketId derivado de gateway_payload/fallback.
+    let decrementTicketId = ticketId;
+    let decrementQuantity = quantity;
+    if (reg?.id) {
+      const { data: reservation } = await supabaseAdmin
+        .from("ticket_reservations")
+        .select("ticket_id, quantity")
+        .eq("registration_id", reg.id)
+        .eq("status", "confirmed")
+        .maybeSingle();
+      if (reservation) {
+        decrementTicketId = reservation.ticket_id ?? decrementTicketId;
+        decrementQuantity = reservation.quantity ?? decrementQuantity;
+      }
+    }
+
+    if (decrementTicketId) {
+      // Mesma correção de assimetria do asaas-webhook: throw, não só log —
+      // senão uma falha de decremento deixa `sold` inflado em silêncio.
       const { error: decErr } = await supabaseAdmin.rpc("decrement_ticket_sold", {
-        p_ticket_id: ticketId,
-        p_quantity: quantity,
+        p_ticket_id: decrementTicketId,
+        p_quantity: decrementQuantity,
       });
-      if (decErr) console.error("[reconcile-payments/refunds] decrement_ticket_sold falhou", decErr);
+      if (decErr) throw decErr;
     }
     if (eventId) {
       const { data: ev } = await supabaseAdmin

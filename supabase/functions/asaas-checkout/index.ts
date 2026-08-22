@@ -19,11 +19,14 @@ import { z } from "npm:zod@^3.23.8";
 import { corsHeadersFor, preflightResponse } from "../_shared/cors.ts";
 import { buildLimitedSelections } from "../_shared/option-counts.ts";
 import {
+  ASAAS_PAID_STATUSES,
   AsaasError,
   asaasDueDate,
   createPayment,
+  deletePayment,
   findOrCreateCustomer,
   getBoletoIdentification,
+  getPayment,
   getPixQrCode,
   isAsaasConfigured,
   isValidCpfCnpj,
@@ -75,6 +78,24 @@ const METHOD_BY_BILLING_TYPE: Record<AsaasBillingType, string> = {
   CREDIT_CARD: "credit_card",
 };
 
+/**
+ * Margem além do fim do dia do vencimento antes de a reserva expirar.
+ * O Asaas granula vencimento por DIA, não por hora/minuto — marcar OVERDUE
+ * já pode acontecer logo após a virada do dia do dueDate. A margem dá
+ * folga para um PIX compensado de madrugada ainda confirmar antes que a
+ * reserva seja liberada por outra pessoa. SEM medição de produção para
+ * calibrar este número — 24h é ponto de partida deliberadamente
+ * conservador, revisitar com dados reais depois do primeiro lote de PIX.
+ */
+const RESERVATION_EXPIRY_MARGIN_HOURS = 24;
+
+/** Fim do dia (23:59:59, horário de Brasília) do dueDate + margem, em ISO UTC. */
+function reservationExpiresAt(dueDateStr: string): string {
+  const endOfDay = new Date(`${dueDateStr}T23:59:59-03:00`);
+  endOfDay.setUTCHours(endOfDay.getUTCHours() + RESERVATION_EXPIRY_MARGIN_HOURS);
+  return endOfDay.toISOString();
+}
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
@@ -104,6 +125,12 @@ Deno.serve(async (req) => {
   // Cupom consumido antes da cobrança: se a cobrança não nascer, o uso é
   // devolvido no catch. Declarado aqui, fora do try, para o catch enxergar.
   let consumedCouponId: string | null = null;
+  // Fase 5: reserva atômica feita (reserve_ticket_sold). Se a cobrança
+  // falhar depois disso, o catch libera a vaga (release_ticket_reservation)
+  // — senão ela fica presa até expirar. Mesma condição !chargeCreated do
+  // cancelamento da inscrição: cobrança emitida = reserva legitimamente
+  // held até o pagamento ou a expiração natural.
+  let reservationHeld = false;
 
   // Único ponto que devolve o uso do cupom. Mesma condição do catch (linha
   // ~503 abaixo): só libera se ESTA requisição consumiu e a cobrança ainda
@@ -420,6 +447,196 @@ Deno.serve(async (req) => {
     }
     createdRegistrationId = registration.id;
 
+    // 10b) RESERVA atômica da vaga — ANTES do POST /payments no Asaas.
+    // Ordem é o núcleo da Fase 5 (migration 031/039): reservar primeiro,
+    // cobrar depois. O soft-gate do passo 7 acima segue existindo como
+    // filtro barato de UX (evita gastar uma chamada ao Asaas com um
+    // ingresso obviamente esgotado); quem decide de verdade agora é
+    // reserve_ticket_sold, check-and-increment atômico no WHERE do UPDATE.
+    //
+    // dueDays/dueDateStr calculados AQUI, não lá embaixo no createPayment:
+    // a expiração da reserva precisa usar a MESMA data do vencimento da
+    // cobrança. Calcular duas vezes arriscaria 1 dia de drift bem na
+    // virada da meia-noite.
+    const dueDays = deadlineMin && deadlineMin > 0
+      ? Math.min(Math.max(Math.ceil(deadlineMin / 1440), 1), 60)
+      : DEFAULT_DUE_DAYS[billing_type];
+    const dueDateStr = asaasDueDate(dueDays);
+    const reservationExpiresAtIso = reservationExpiresAt(dueDateStr);
+
+    // Fluxo DUPLICATE_HOLD (índice único parcial: no máximo uma reserva
+    // 'held' por user_id+event_id — migration 039). Reconsulta a cobrança
+    // antiga no Asaas IMEDIATAMENTE antes de decidir — nunca confia em
+    // status lido antes.
+    const resolveDuplicateHold = async (): Promise<
+      { ok: true } | { ok: false; response: Response }
+    > => {
+      // a) Localiza a reserva 'held' existente e a inscrição dela.
+      const { data: heldReservation, error: heldErr } = await supabaseAdmin
+        .from("ticket_reservations")
+        .select("id, registration_id")
+        .eq("user_id", callerId)
+        .eq("event_id", event_id)
+        .eq("status", "held")
+        .maybeSingle();
+      if (heldErr || !heldReservation) {
+        console.error("[asaas-checkout] DUPLICATE_HOLD sem reserva held localizável", heldErr);
+        return {
+          ok: false,
+          response: json({ error: "Não foi possível verificar sua reserva anterior. Tente novamente." }, 500),
+        };
+      }
+
+      const { data: oldReg, error: oldRegErr } = await supabaseAdmin
+        .from("event_registrations")
+        .select("id, gateway_charge_id")
+        .eq("id", heldReservation.registration_id)
+        .maybeSingle();
+      if (oldRegErr || !oldReg) {
+        console.error("[asaas-checkout] reserva duplicada sem inscrição localizável", oldRegErr, heldReservation);
+        return {
+          ok: false,
+          response: json({ error: "Não foi possível resolver sua reserva anterior. Tente novamente." }, 500),
+        };
+      }
+
+      // b) Status ATUAL da cobrança antiga — nunca o que foi lido antes.
+      // chargeStatus null cobre dois casos, ambos "nada a apagar":
+      //   - sem gateway_charge_id: reserva held sem cobrança nunca chegou a
+      //     existir. Caminho legítimo, não erro — create_free_registration
+      //     reserva e confirma na MESMA transação; falhando entre os dois
+      //     passos sobra held órfã. Vale também para qualquer reserva
+      //     criada antes de a cobrança ser gravada.
+      //   - GET 404: a cobrança já não existe (ex.: o sweep de reservas
+      //     vencidas apagou e morreu antes do release).
+      // Travar em qualquer um dos dois deixaria a vaga presa para sempre —
+      // o participante nunca mais conseguiria comprar (índice único
+      // bloquearia toda nova tentativa em DUPLICATE_HOLD).
+      let chargeStatus: string | null = null;
+      if (oldReg.gateway_charge_id) {
+        try {
+          const charge = await getPayment(oldReg.gateway_charge_id);
+          chargeStatus = (charge.status ?? "").toUpperCase();
+        } catch (e) {
+          if (!(e instanceof AsaasError && e.status === 404)) {
+            console.error("[asaas-checkout] falha ao consultar cobrança anterior", e);
+            return {
+              ok: false,
+              response: json({ error: "Não foi possível verificar sua cobrança anterior. Tente novamente em instantes." }, 502),
+            };
+          }
+          // 404: segue com chargeStatus null — trata como "já não existe".
+        }
+      }
+
+      // c) Paga: aborta o checkout novo. Não apaga nada, não libera nada.
+      if (chargeStatus !== null && ASAAS_PAID_STATUSES.has(chargeStatus)) {
+        return {
+          ok: false,
+          response: json({
+            error: "inscricao_ja_paga",
+            message: "Você já tem uma inscrição paga neste evento.",
+          }, 409),
+        };
+      }
+
+      // d) Não paga: apaga a cobrança ANTES de liberar a vaga — só quando
+      // ela ainda existe (chargeStatus !== null). Ordem inegociável quando
+      // existe: o QR do PIX segue pagável por até 12 meses; vaga liberada
+      // com QR ainda vivo reabre o overselling que a Fase 5 existe para
+      // fechar. Se já é 404 (chargeStatus null), não há o que apagar —
+      // pula direto para o release.
+      if (chargeStatus !== null) {
+        try {
+          await deletePayment(oldReg.gateway_charge_id);
+        } catch (e) {
+          // e) Falha que NÃO é 404: não libera, não segue, devolve erro.
+          if (!(e instanceof AsaasError && e.status === 404)) {
+            console.error("[asaas-checkout] falha ao apagar cobrança anterior", e);
+            return {
+              ok: false,
+              response: json({ error: "Não foi possível liberar sua reserva anterior. Tente novamente." }, 502),
+            };
+          }
+          // 404: cobrança já não existe — segue como sucesso.
+        }
+      }
+
+      const { error: relErr } = await supabaseAdmin.rpc("release_ticket_reservation", {
+        p_registration_id: oldReg.id,
+      });
+      if (relErr) {
+        console.error("[asaas-checkout] release_ticket_reservation falhou", relErr);
+        return {
+          ok: false,
+          response: json({ error: "Não foi possível liberar sua reserva anterior. Tente novamente." }, 500),
+        };
+      }
+
+      return { ok: true };
+    };
+
+    const attemptReserve = async (
+      allowDuplicateResolution: boolean,
+    ): Promise<{ ok: true } | { ok: false; response: Response }> => {
+      const { error: reserveErr } = await supabaseAdmin.rpc("reserve_ticket_sold", {
+        p_registration_id: registration.id,
+        p_event_id: event_id,
+        p_ticket_id: ticket.id,
+        p_quantity: quantity,
+        p_expires_at: reservationExpiresAtIso,
+      });
+      if (!reserveErr) return { ok: true };
+
+      if (reserveErr.code === "P0001") {
+        if (reserveErr.message === "TICKET_FULL") {
+          return {
+            ok: false,
+            response: await rejectAndReleaseCoupon({
+              error: "ticket_esgotado",
+              message: "Este ingresso esgotou. A última vaga foi preenchida enquanto a cobrança era preparada.",
+            }, 409),
+          };
+        }
+        if (reserveErr.message === "TICKET_NOT_FOUND") {
+          return {
+            ok: false,
+            response: json({ error: "Ingresso não encontrado para reserva. Tente novamente." }, 400),
+          };
+        }
+        if (reserveErr.message === "INVALID_QUANTITY") {
+          return {
+            ok: false,
+            response: json({ error: "Quantidade inválida para reserva." }, 400),
+          };
+        }
+        if (reserveErr.message === "DUPLICATE_HOLD") {
+          if (!allowDuplicateResolution) {
+            // Já resolvemos uma vez nesta requisição e bateu de novo — não
+            // insiste (evita loop). Corrida rara entre duas requisições
+            // concorrentes do mesmo participante (ex.: duplo clique).
+            return {
+              ok: false,
+              response: json({
+                error: "reserva_duplicada",
+                message: "Você já tem uma reserva em andamento para este evento. Tente novamente em instantes.",
+              }, 409),
+            };
+          }
+          const resolved = await resolveDuplicateHold();
+          if (!resolved.ok) return resolved;
+          return await attemptReserve(false);
+        }
+      }
+
+      // Erro inesperado da RPC — nenhum dos 4 códigos conhecidos.
+      throw new Error(reserveErr.message ?? "Falha ao reservar a vaga.");
+    };
+
+    const reserveOutcome = await attemptReserve(true);
+    if (!reserveOutcome.ok) return reserveOutcome.response;
+    reservationHeld = true;
+
     // 11) Cliente no Asaas (reaproveitado por CPF/CNPJ).
     const customer = await findOrCreateCustomer({
       name: fullName,
@@ -429,16 +646,13 @@ Deno.serve(async (req) => {
       externalReference: user_id,
     });
 
-    // 12) Cobrança.
-    const dueDays = deadlineMin && deadlineMin > 0
-      ? Math.min(Math.max(Math.ceil(deadlineMin / 1440), 1), 60)
-      : DEFAULT_DUE_DAYS[billing_type];
-
+    // 12) Cobrança. dueDays/dueDateStr já calculados no passo 10b — mesma
+    // data usada para a expiração da reserva, sem recálculo.
     const charge = await createPayment({
       customer: customer.id,
       billingType: billing_type,
       valueCents: total,
-      dueDate: asaasDueDate(dueDays),
+      dueDate: dueDateStr,
       description: `${ticket.name} — ${event.name}`.slice(0, 500),
       externalReference: registration.id,
     });
@@ -554,6 +768,20 @@ Deno.serve(async (req) => {
       credit_card: { invoice_url: charge.invoiceUrl ?? null },
     });
   } catch (err) {
+    // Fase 5 (item 4): se a reserva foi feita mas a cobrança não nasceu,
+    // libera a vaga ANTES de qualquer outra coisa — senão fica presa até
+    // expirar. Mesma condição !chargeCreated do cancelamento da inscrição
+    // logo abaixo: cobrança emitida = reserva legitimamente held até o
+    // pagamento ou a expiração natural.
+    if (createdRegistrationId && reservationHeld && !chargeCreated) {
+      const { error: releaseErr } = await supabaseAdmin.rpc("release_ticket_reservation", {
+        p_registration_id: createdRegistrationId,
+      });
+      if (releaseErr) {
+        console.error("[asaas-checkout] falha ao liberar reserva após erro na cobrança", releaseErr);
+      }
+    }
+
     // Cobrança não nasceu: a inscrição pendente órfã é cancelada para não
     // ficar ocupando a listagem do organizador. Se a cobrança JÁ existe no
     // Asaas, a inscrição fica pendente de propósito — o webhook a confirma

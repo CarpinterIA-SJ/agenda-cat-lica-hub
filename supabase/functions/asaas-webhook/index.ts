@@ -271,6 +271,13 @@ async function handlePaid(payment: AsaasWebhookPayment, eventType: string) {
 
   let regAnswers: unknown = reg?.custom_fields ?? null;
 
+  // Fase 5 (migration 039): reserved -> sold passa por confirm_ticket_reservation
+  // quando existe reserva. NÃO chamar increment_ticket_sold no mesmo caso —
+  // duplicaria a contagem (a RPC já move reserved -> sold internamente).
+  // Só cai no fallback de increment_ticket_sold quando não há como chamar a
+  // RPC (sem registrationId) ou ela devolve NOT_FOUND (cauda legada).
+  let useReservationPath = false;
+
   if (registrationId) {
     const { data: updated, error: updErr } = await supabaseAdmin
       .from("event_registrations")
@@ -281,20 +288,63 @@ async function handlePaid(payment: AsaasWebhookPayment, eventType: string) {
       .maybeSingle();
     if (updErr) throw updErr;
     if (updated?.custom_fields != null) regAnswers = updated.custom_fields;
+
+    const { data: confirmResult, error: confirmErr } = await supabaseAdmin
+      .rpc("confirm_ticket_reservation", { p_registration_id: registrationId });
+    if (confirmErr) throw confirmErr;
+
+    if (confirmResult === "CONFIRMED") {
+      useReservationPath = true;
+    } else if (confirmResult === "ALREADY_CONFIRMED") {
+      // Idempotente: outra chamada (reenvio, ou reconcile-payments) já
+      // confirmou e já moveu reserved -> sold. Nada a fazer aqui.
+      console.log("[asaas-webhook] reserva já confirmada, ignorando:", payment.id);
+      useReservationPath = true;
+    } else if (confirmResult === "RELEASED") {
+      // ALARME: o dinheiro chegou depois de a reserva já ter sido liberada
+      // (expirou, ou foi liberada por DUPLICATE_HOLD/troca de método). O
+      // ingresso pode já estar esgotado para outra pessoa — incrementar
+      // sold cego aqui poderia vender uma vaga que não existe. Fica para
+      // reconciliação manual, nunca estouro silencioso.
+      console.error(
+        "[asaas-webhook] ALARME: pagamento confirmado para reserva já RELEASED:",
+        payment.id, registrationId,
+      );
+      const { error: auditErr } = await supabaseAdmin.from("audit_logs").insert({
+        actor_email: "system@asaas-webhook",
+        action: "PAGAMENTO_APOS_RESERVA_LIBERADA",
+        entity_type: "payment",
+        entity_id: pay.id,
+        details: {
+          gateway: "asaas",
+          asaas_event: eventType,
+          charge_id: payment.id,
+          registration_id: registrationId,
+          event_id: eventId,
+        },
+      });
+      if (auditErr) console.error("[asaas-webhook] audit_logs RELEASED falhou", auditErr);
+      useReservationPath = true; // NÃO cai no fallback de increment_ticket_sold.
+    }
+    // 'NOT_FOUND' cai para o fallback abaixo (useReservationPath continua false).
   } else {
     console.error("[asaas-webhook] pagamento pago sem inscrição vinculada:", payment.id);
   }
 
-  // Incremento atômico de sold (RPC da migration 018).
-  const effectiveTicketId = ticketId ?? reg?.ticket_id ?? null;
-  if (effectiveTicketId) {
-    const { error: soldErr } = await supabaseAdmin.rpc("increment_ticket_sold", {
-      p_ticket_id: effectiveTicketId,
-      p_quantity: quantity,
-    });
-    if (soldErr) throw soldErr;
-  } else {
-    console.error("[asaas-webhook] sem ticket_id para incrementar sold:", payment.id);
+  if (!useReservationPath) {
+    // Caminho legado (pré-039): inscrição sem linha em ticket_reservations
+    // (ex.: pay_jcizgtevltkyagsr), ou sem registrationId identificável.
+    // increment_ticket_sold direto, como sempre foi.
+    const effectiveTicketId = ticketId ?? reg?.ticket_id ?? null;
+    if (effectiveTicketId) {
+      const { error: soldErr } = await supabaseAdmin.rpc("increment_ticket_sold", {
+        p_ticket_id: effectiveTicketId,
+        p_quantity: quantity,
+      });
+      if (soldErr) throw soldErr;
+    } else {
+      console.error("[asaas-webhook] sem ticket_id para incrementar sold:", payment.id);
+    }
   }
 
   // Fase C: contabiliza vagas por opção (venda final, incondicional).
@@ -495,12 +545,35 @@ async function handleRefunded(payment: AsaasWebhookPayment, eventType: string) {
   }
 
   if (wasConfirmed) {
-    if (ticketId) {
+    // Fase 5: fonte de ticket_id/quantity para o decremento. Quando existe
+    // linha 'confirmed' em ticket_reservations (039) ela é o livro-razão
+    // autoritativo — mais confiável que gateway_payload, que é só o que o
+    // checkout gravou no momento da cobrança.
+    let decrementTicketId = ticketId;
+    let decrementQuantity = quantity;
+    if (reg?.id) {
+      const { data: reservation } = await supabaseAdmin
+        .from("ticket_reservations")
+        .select("ticket_id, quantity")
+        .eq("registration_id", reg.id)
+        .eq("status", "confirmed")
+        .maybeSingle();
+      if (reservation) {
+        decrementTicketId = reservation.ticket_id ?? decrementTicketId;
+        decrementQuantity = reservation.quantity ?? decrementQuantity;
+      }
+    }
+
+    if (decrementTicketId) {
+      // Assimetria corrigida: antes só logava em erro enquanto o
+      // incremento (handlePaid) faz throw — falha silenciosa aqui deixava
+      // `sold` inflado para sempre, sem nenhum sinal. Agora throw,
+      // espelhando o incremento.
       const { error: decErr } = await supabaseAdmin.rpc("decrement_ticket_sold", {
-        p_ticket_id: ticketId,
-        p_quantity: quantity,
+        p_ticket_id: decrementTicketId,
+        p_quantity: decrementQuantity,
       });
-      if (decErr) console.error("[asaas-webhook] decrement_ticket_sold falhou", decErr);
+      if (decErr) throw decErr;
     }
     if (eventId) {
       const { data: ev } = await supabaseAdmin

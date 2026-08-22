@@ -206,6 +206,34 @@ export const getBoletoIdentification = (paymentId: string): Promise<AsaasBoletoI
     `/payments/${encodeURIComponent(paymentId)}/identificationField`,
   );
 
+export interface AsaasPaymentStatus {
+  id: string;
+  status: string;
+}
+
+/**
+ * Cobrança liquidada no Asaas — usada em TODOS os pontos que precisam
+ * responder "o dinheiro já entrou?": DUPLICATE_HOLD no asaas-checkout,
+ * scan de pendentes e sweep de reservas vencidas no reconcile-payments.
+ * Uma constante só, de propósito — os chamadores não podem divergir sobre
+ * o que conta como pago (migration 039, checklist da Fase 5).
+ */
+export const ASAAS_PAID_STATUSES = new Set([
+  "RECEIVED",
+  "CONFIRMED",
+  "RECEIVED_IN_CASH",
+  "DUNNING_RECEIVED",
+]);
+
+/**
+ * Status ATUAL de uma cobrança — GET simples, sem cache. Usada nos dois
+ * pontos da Fase 5 que precisam reconsultar antes de decidir e nunca
+ * confiar em status lido antes: resolução de DUPLICATE_HOLD no
+ * asaas-checkout e o sweep de reservas vencidas no reconcile-payments.
+ */
+export const getPayment = (paymentId: string): Promise<AsaasPaymentStatus> =>
+  asaasRequest<AsaasPaymentStatus>(`/payments/${encodeURIComponent(paymentId)}`);
+
 export interface AsaasDeleteResult {
   deleted: boolean;
   id: string;
