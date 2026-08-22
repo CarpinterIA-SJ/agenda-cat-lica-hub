@@ -206,6 +206,48 @@ export const getBoletoIdentification = (paymentId: string): Promise<AsaasBoletoI
     `/payments/${encodeURIComponent(paymentId)}/identificationField`,
   );
 
+export interface AsaasDeleteResult {
+  deleted: boolean;
+  id: string;
+}
+
+/**
+ * Remove uma cobrança no Asaas. Usada em dois pontos da Fase 5: expiração
+ * de reserva 'held' vencida (dobrada no reconcile-payments, sem cron novo)
+ * e resolução de reserva 'held' duplicada no mesmo checkout (mesma
+ * cobrança antiga, apagada antes de criar a nova).
+ *
+ * ARMADILHA (migration 031/039): o QR do PIX segue pagável por até 12
+ * meses após o vencimento. A cobrança PRECISA ser apagada aqui ANTES de
+ * qualquer `release_ticket_reservation` — nessa ordem, sempre. Uma reserva
+ * liberada com a cobrança ainda viva reabre exatamente o overselling que
+ * a Fase 5 existe para fechar.
+ *
+ * SEM PRIMITIVA ATÔMICA: a documentação do Asaas recomenda checar o status
+ * antes de excluir, mas não garante um "delete-se-não-pago" atômico do
+ * lado deles — o pagamento pode ser liquidado no intervalo entre a
+ * consulta de status do chamador e esta chamada. Essa janela (1
+ * round-trip) não é fechável por aqui. O chamador deve:
+ *   1. Reconsultar o status IMEDIATAMENTE antes de chamar isto — nunca
+ *      confiar num status lido minutos atrás.
+ *   2. Tratar falha desta chamada (exceto 404, ver abaixo) como "não
+ *      liberar a reserva" — nunca soltar vaga sem exclusão confirmada.
+ *   3. Aceitar a janela residual como risco monitorado, não eliminável: se
+ *      o pagamento cair bem nesse instante, confirm_ticket_reservation
+ *      (039) classifica o caso como 'RELEASED' — alarme e reconciliação
+ *      manual, nunca estouro silencioso de vaga.
+ *
+ * 404 (cobrança já não existe — ex.: PAYMENT_DELETED chegou antes de nós
+ * tentarmos apagar) não é falha para quem chama: o efeito desejado
+ * (cobrança morta) já está garantido. Decidir isso é do chamador, via
+ * `e.status === 404` no catch — mesmo padrão já usado em
+ * reconcile-payments para 404 de consulta.
+ */
+export const deletePayment = (paymentId: string): Promise<AsaasDeleteResult> =>
+  asaasRequest<AsaasDeleteResult>(`/payments/${encodeURIComponent(paymentId)}`, {
+    method: "DELETE",
+  });
+
 // ─── Utilidades ─────────────────────────────────────────────
 
 export const onlyDigits = (v: string): string => String(v ?? "").replace(/\D/g, "");

@@ -211,6 +211,45 @@ Deno.serve(async (req) => {
       return json({ error: "Este ingresso não pertence ao evento informado." }, 400);
     }
 
+    // 6b) Evento aberto para inscrição — mesmo predicado de
+    // event_is_public_active() OR is_event_org_admin() que a policy
+    // "registrations: auto-inscrição em evento público OR admin" (003:194-202)
+    // e create_free_registration (033) já exigem. Faltava aqui: sem isso,
+    // qualquer autenticado cria inscrição pendente + cobrança Asaas para
+    // evento draft/pausado/arquivado/privado, sem ser dono/admin da org —
+    // usando supabaseAdmin (service_role), que bypassa a RLS que bloquearia
+    // isso numa query direta do cliente.
+    const { data: event, error: eventErr } = await supabaseAdmin
+      .from("events")
+      .select("organization_id, name, visibility, status")
+      .eq("id", event_id)
+      .maybeSingle();
+    if (eventErr || !event) {
+      return json({ error: "Evento não encontrado." }, 404);
+    }
+
+    const eventIsPublicActive = event.visibility === "public" && event.status === "active";
+    let callerIsEventOrgAdmin = false;
+    if (!eventIsPublicActive) {
+      const { data: membership } = await supabaseAdmin
+        .from("organization_members")
+        .select("role")
+        .eq("organization_id", event.organization_id)
+        .eq("user_id", callerId)
+        .in("role", ["owner", "admin"])
+        .maybeSingle();
+      callerIsEventOrgAdmin = !!membership;
+    }
+    if (!eventIsPublicActive && !callerIsEventOrgAdmin) {
+      console.warn("[asaas-checkout] evento fechado para compra", {
+        event_id, status: event.status, visibility: event.visibility,
+      });
+      return json({
+        error: "evento_fechado",
+        message: "Este evento não está aberto para inscrições no momento.",
+      }, 403);
+    }
+
     // Prazo configurado pelo organizador (migration 010, coluna opcional).
     let deadlineMin: number | null = null;
     {
@@ -338,15 +377,7 @@ Deno.serve(async (req) => {
       }, 409);
     }
 
-    // 8) Organização dona do evento (obrigatória em payments).
-    const { data: event, error: eventErr } = await supabaseAdmin
-      .from("events")
-      .select("organization_id, name")
-      .eq("id", event_id)
-      .maybeSingle();
-    if (eventErr || !event) {
-      return json({ error: "Evento não encontrado." }, 404);
-    }
+    // 8) `event` (organization_id/name) já veio do gate 6b acima — sem refetch.
 
     // 9) Dados do comprador.
     let fullName = "Participante";
