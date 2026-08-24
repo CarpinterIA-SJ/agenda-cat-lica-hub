@@ -101,6 +101,10 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
         // acima é "*", então enquanto a coluna não existir isto vira 0 e o
         // comportamento fica idêntico ao de hoje.
         reserved: t.reserved ?? 0,
+        // sort_order/lot_group (migration 042): mesmo select "*" acima já
+        // traz as duas colunas — só faltava não descartá-las aqui no map.
+        sort_order: t.sort_order ?? 0,
+        lot_group: t.lot_group ?? null,
       }));
       return vm;
     },
@@ -576,11 +580,20 @@ const ExploreEventsPage = () => {
         .order("sort_order");
       latest = {
         ...event,
+        // O select acima já é "*" (traz todas as colunas) — o gap era só
+        // aqui no map, que descartava quantity/sold/reserved/sort_order/
+        // lot_group. Sem isto, todo ticket virava quantity=0 (= ilimitado
+        // pra convenção do schema) e nenhum lote esgotava, em silêncio.
         tickets: (tickets ?? []).map((t: any) => ({
           id: t.id,
           name: t.name,
           price: String((t.price_cents ?? 0) / 100),
           type: t.type,
+          quantity: t.quantity ?? 0,
+          sold: t.sold ?? 0,
+          reserved: t.reserved ?? 0,
+          sort_order: t.sort_order ?? 0,
+          lot_group: t.lot_group ?? null,
         })),
       };
     } catch {

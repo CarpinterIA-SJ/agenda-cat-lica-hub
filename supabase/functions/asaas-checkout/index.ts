@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
     // 5) Ingresso.
     const { data: ticket, error: ticketErr } = await supabaseAdmin
       .from("event_tickets")
-      .select("id, name, price_cents, event_id, quantity, sold, reserved")
+      .select("id, name, price_cents, event_id, quantity, sold, reserved, lot_group")
       .eq("id", ticket_id)
       .maybeSingle();
     if (ticketErr) {
@@ -402,6 +402,35 @@ Deno.serve(async (req) => {
         error: "ticket_esgotado",
         message: "Este ingresso esgotou. A última vaga foi preenchida enquanto a cobrança era preparada.",
       }, 409);
+    }
+
+    // 7b) Defesa em profundidade — lote sequencial (migration 042). Mesmo
+    // padrão do soft-gate acima: barra ANTES de reservar/cobrar quando o
+    // ingresso pertence a uma cadeia (lot_group) e não é o vigente (primeiro,
+    // por sort_order, com sold + reserved < quantity). NÃO É ATÔMICO — mesma
+    // ressalva do soft-gate de capacidade: fecha o caso comum (front
+    // desatualizado ou burlado), não a corrida no instante exato da virada
+    // de lote.
+    if (ticket.lot_group) {
+      const { data: siblingLots, error: siblingErr } = await supabaseAdmin
+        .from("event_tickets")
+        .select("id, quantity, sold, reserved")
+        .eq("event_id", event_id)
+        .eq("lot_group", ticket.lot_group)
+        .order("sort_order", { ascending: true });
+      if (siblingErr) {
+        console.error("[asaas-checkout] falha ao verificar lote vigente:", siblingErr);
+        return await rejectAndReleaseCoupon({ error: "Falha ao verificar disponibilidade do lote." }, 500);
+      }
+      const currentLot = (siblingLots ?? []).find(
+        (t) => !(t.quantity > 0 && t.sold + t.reserved >= t.quantity),
+      );
+      if (!currentLot || currentLot.id !== ticket.id) {
+        return await rejectAndReleaseCoupon({
+          error: "lote_indisponivel",
+          message: "Este lote não está mais disponível. Atualize a página para ver o lote vigente.",
+        }, 409);
+      }
     }
 
     // 8) `event` (organization_id/name) já veio do gate 6b acima — sem refetch.

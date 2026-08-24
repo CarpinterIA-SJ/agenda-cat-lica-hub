@@ -102,6 +102,38 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
     return [{ id: "default-free", name: "Inscrição gratuita", price: "0" }];
   }, [tickets]);
 
+  // Lote vigente por lot_group (lotes sequenciais): dentro de cada grupo,
+  // ordenado por sort_order, vigente é o primeiro com sold + reserved <
+  // quantity (quantity=0 = ilimitado, convenção do schema desde a 003 —
+  // nunca esgota). Ticket sem lot_group fica de fora do map (undefined) —
+  // comportamento anterior a esta feature, inalterado.
+  const ticketLotState = useMemo(() => {
+    const map = new Map<string, "current" | "sold_out" | "upcoming">();
+    const groups = new Map<string, any[]>();
+    for (const t of modalTickets) {
+      if (!t.lot_group) continue;
+      if (!groups.has(t.lot_group)) groups.set(t.lot_group, []);
+      groups.get(t.lot_group)!.push(t);
+    }
+    for (const list of groups.values()) {
+      list.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      let currentFound = false;
+      for (const t of list) {
+        const qty = Number(t.quantity ?? 0);
+        const filled = qty > 0 && Number(t.sold ?? 0) + Number(t.reserved ?? 0) >= qty;
+        if (!currentFound && !filled) { map.set(t.id, "current"); currentFound = true; }
+        else if (!currentFound) map.set(t.id, "sold_out");
+        else map.set(t.id, "upcoming");
+      }
+    }
+    return map;
+  }, [modalTickets]);
+
+  const isTicketBuyable = (t: any) => {
+    const state = ticketLotState.get(t.id);
+    return state === undefined || state === "current";
+  };
+
   // Inicializa o formulário e reseta seleção/cupom ao abrir (ou trocar de evento).
   useEffect(() => {
     if (!open || !event) return;
@@ -126,7 +158,8 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
 
   useEffect(() => {
     if (open && modalTickets.length > 0 && !selectedTicketId) {
-      setSelectedTicketId(modalTickets[0].id);
+      const firstBuyable = modalTickets.find((t: any) => isTicketBuyable(t)) ?? modalTickets[0];
+      setSelectedTicketId(firstBuyable.id);
     }
   }, [open, modalTickets, selectedTicketId]);
 
@@ -210,7 +243,8 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
   };
 
   const isFormValid = useMemo(() => {
-    if (!selectedTicketId || isDuplicate || !termsAccepted) return false;
+    const ticketOk = !!selectedTicketId && modalTickets.some((t: any) => t.id === selectedTicketId && isTicketBuyable(t));
+    if (!ticketOk || isDuplicate || !termsAccepted) return false;
     return unifiedFields.every((f) => {
       // Bloqueia envio se uma opção esgotada estiver selecionada (defesa
       // client-side; a trava real é server-side via RPC).
@@ -394,17 +428,26 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
                 <div className="grid gap-2">
                   {modalTickets.map((t: any) => {
                     const isSelected = t.id === selectedTicketId;
+                    const lotState = ticketLotState.get(t.id);
+                    const disabled = lotState === "sold_out" || lotState === "upcoming";
                     const priceLabel = Number(t.price) === 0 ? "Gratuito" : `R$ ${t.price}`;
                     return (
                       <button
                         key={t.id}
                         type="button"
-                        onClick={() => setSelectedTicketId(t.id)}
+                        disabled={disabled}
+                        onClick={() => !disabled && setSelectedTicketId(t.id)}
                         className={`flex items-center justify-between rounded-xl border p-4 text-left transition ${
-                          isSelected ? "border-primary bg-primary/5" : "border-slate-200 hover:border-primary/40"
+                          disabled
+                            ? "border-slate-100 bg-slate-50 opacity-60 cursor-not-allowed"
+                            : isSelected ? "border-primary bg-primary/5" : "border-slate-200 hover:border-primary/40"
                         }`}
                       >
-                        <span className="font-semibold text-sm text-foreground">{t.name}</span>
+                        <span className="font-semibold text-sm text-foreground">
+                          {t.name}
+                          {lotState === "sold_out" && <span className="ml-2 text-xs font-normal text-muted-foreground">(esgotado)</span>}
+                          {lotState === "upcoming" && <span className="ml-2 text-xs font-normal text-muted-foreground">(em breve)</span>}
+                        </span>
                         <span className={`text-sm font-bold ${isSelected ? "text-primary" : "text-foreground/70"}`}>{priceLabel}</span>
                       </button>
                     );

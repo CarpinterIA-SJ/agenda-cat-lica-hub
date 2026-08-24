@@ -1751,6 +1751,7 @@ const OrganizerEventIngressosPage = () => {
   const [ticketNome, setTicketNome] = useState("");
   const [ticketQtd, setTicketQtd] = useState("");
   const [ticketPreco, setTicketPreco] = useState("");
+  const [ticketLotGroup, setTicketLotGroup] = useState("");
   const [ticketSearch, setTicketSearch] = useState("");
 
   const { data: event } = useEvent(id);
@@ -1767,6 +1768,12 @@ const OrganizerEventIngressosPage = () => {
       return;
     }
     try {
+      // Contador simples: maior sort_order já existente + 1. Sem isto todo
+      // ingresso fica com sort_order=0 (default do schema) e "lote vigente
+      // por sort_order" não tem como funcionar — ninguém nunca escreveu essa
+      // coluna antes. tickets.length empataria se algum ingresso já tiver
+      // sido apagado (contador voltaria a repetir um sort_order existente).
+      const nextSortOrder = tickets.reduce((max, t) => Math.max(max, t.sort_order ?? 0), -1) + 1;
       await createTicket.mutateAsync({
         event_id: id,
         name: ticketNome.trim(),
@@ -1775,8 +1782,10 @@ const OrganizerEventIngressosPage = () => {
         price_brl: dialogType === "pago" ? parseFloat(ticketPreco.replace(",", ".")) : 0,
         visibility: "public",
         status: "active",
+        sort_order: nextSortOrder,
+        lot_group: ticketLotGroup.trim() || null,
       });
-      setTicketNome(""); setTicketQtd(""); setTicketPreco(""); setDialogType(null);
+      setTicketNome(""); setTicketQtd(""); setTicketPreco(""); setTicketLotGroup(""); setDialogType(null);
       toast({ title: "Ingresso adicionado!", description: `"${ticketNome.trim()}" foi criado com sucesso.` });
     } catch (e: any) {
       toast({ title: "Erro ao salvar ingresso", description: e.message, variant: "destructive" });
@@ -1852,11 +1861,11 @@ const OrganizerEventIngressosPage = () => {
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button className="bg-[#004d00] text-white hover:bg-[#003a00]" onClick={() => { setTicketNome(""); setTicketQtd(""); setTicketPreco(""); setDialogType("pago"); }}>
+            <Button className="bg-[#004d00] text-white hover:bg-[#003a00]" onClick={() => { setTicketNome(""); setTicketQtd(""); setTicketPreco(""); setTicketLotGroup(""); setDialogType("pago"); }}>
               + Ingresso pago
             </Button>
             <Button variant="outline" className="border-emerald-200 bg-emerald-50 text-[#004d00] hover:bg-emerald-100"
-              onClick={() => { setTicketNome(""); setTicketQtd(""); setTicketPreco(""); setDialogType("gratuito"); }}>
+              onClick={() => { setTicketNome(""); setTicketQtd(""); setTicketPreco(""); setTicketLotGroup(""); setDialogType("gratuito"); }}>
               + Ingresso gratuito
             </Button>
           </div>
@@ -1933,6 +1942,13 @@ const OrganizerEventIngressosPage = () => {
                 </p>
               </div>
             )}
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Grupo de lotes (opcional)</label>
+              <Input placeholder="ex: lote-pista" value={ticketLotGroup} onChange={(e) => setTicketLotGroup(e.target.value)} maxLength={50} />
+              <p className="text-xs text-muted-foreground">
+                Ingressos com o mesmo grupo são vendidos em sequência — o próximo só libera quando o anterior esgota.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogType(null)}>Cancelar</Button>
