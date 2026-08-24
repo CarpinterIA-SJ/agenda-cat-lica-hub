@@ -242,13 +242,26 @@ const OrganizerEventNewPage = () => {
   const [horaFim, setHoraFim] = useState("");
 
   // Ingressos state
-  interface Ingresso { id: string; nome: string; quantidade: number; preco: number | null; tipo: "pago" | "gratuito"; status: string; visibilidade: string; repassarTaxas: boolean; }
+  interface Ingresso {
+    id: string; nome: string; quantidade: number; preco: number | null; tipo: "pago" | "gratuito";
+    status: string; visibilidade: string; repassarTaxas: boolean;
+    descricao: string; vendasInicio: string; vendasFim: string;
+  }
   const [ingressos, setIngressos] = useState<Ingresso[]>([]);
   const [ingressoSearch, setIngressoSearch] = useState("");
   const [dialogTipoIngresso, setDialogTipoIngresso] = useState<"pago" | "gratuito" | null>(null);
   const [ingressoNome, setIngressoNome] = useState("");
   const [ingressoQtd, setIngressoQtd] = useState("");
   const [ingressoPreco, setIngressoPreco] = useState("");
+  const [ingressoDescricao, setIngressoDescricao] = useState("");
+  const [ingressoVendasInicio, setIngressoVendasInicio] = useState("");
+  const [ingressoVendasFim, setIngressoVendasFim] = useState("");
+  const [ingressoVisivel, setIngressoVisivel] = useState(true);
+
+  const resetIngressoDialogFields = () => {
+    setIngressoNome(""); setIngressoQtd(""); setIngressoPreco("");
+    setIngressoDescricao(""); setIngressoVendasInicio(""); setIngressoVendasFim(""); setIngressoVisivel(true);
+  };
 
   const handleSalvarIngresso = () => {
     if (!ingressoNome.trim() || !ingressoQtd) return;
@@ -264,14 +277,15 @@ const OrganizerEventNewPage = () => {
       preco: dialogTipoIngresso === "pago" ? parseFloat(ingressoPreco.replace(",", ".")) : null,
       tipo: dialogTipoIngresso!,
       status: "Ativo",
-      visibilidade: "Público",
+      visibilidade: ingressoVisivel ? "Público" : "Privado",
       repassarTaxas: false,
+      descricao: ingressoDescricao.trim(),
+      vendasInicio: ingressoVendasInicio,
+      vendasFim: ingressoVendasFim,
     };
     setIngressos((prev) => [...prev, novo]);
     setDialogTipoIngresso(null);
-    setIngressoNome("");
-    setIngressoQtd("");
-    setIngressoPreco("");
+    resetIngressoDialogFields();
   };
 
   // Pagamento state
@@ -572,6 +586,9 @@ const OrganizerEventNewPage = () => {
           visibility: i.visibilidade === "Público" ? "public" : "private",
           status: i.status === "Ativo" ? "active" : "inactive",
           pass_fees: i.repassarTaxas,
+          description: i.descricao || null,
+          sales_start_at: i.vendasInicio ? new Date(i.vendasInicio).toISOString() : null,
+          sales_end_at: i.vendasFim ? new Date(i.vendasFim).toISOString() : null,
         });
       }
       advanceTab();
@@ -1242,14 +1259,14 @@ const OrganizerEventNewPage = () => {
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Button
                     className="bg-emerald-700 text-white hover:bg-emerald-800"
-                    onClick={() => { setIngressoNome(""); setIngressoQtd(""); setIngressoPreco(""); setDialogTipoIngresso("pago"); }}
+                    onClick={() => { resetIngressoDialogFields(); setDialogTipoIngresso("pago"); }}
                   >
                     + Ingresso pago
                   </Button>
                   <Button
                     variant="outline"
                     className="border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                    onClick={() => { setIngressoNome(""); setIngressoQtd(""); setIngressoPreco(""); setDialogTipoIngresso("gratuito"); }}
+                    onClick={() => { resetIngressoDialogFields(); setDialogTipoIngresso("gratuito"); }}
                   >
                     + Ingresso gratuito
                   </Button>
@@ -1611,6 +1628,30 @@ const OrganizerEventNewPage = () => {
                     </p>
                   </div>
                 )}
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Descrição (opcional)</label>
+                  <textarea
+                    placeholder="Detalhes do ingresso, exibidos na tela de compra"
+                    value={ingressoDescricao}
+                    onChange={(e) => setIngressoDescricao(e.target.value)}
+                    maxLength={500}
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Início das vendas (opcional)</label>
+                    <Input type="datetime-local" value={ingressoVendasInicio} onChange={(e) => setIngressoVendasInicio(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Fim das vendas (opcional)</label>
+                    <Input type="datetime-local" value={ingressoVendasFim} onChange={(e) => setIngressoVendasFim(e.target.value)} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Visível publicamente</label>
+                  <Switch checked={ingressoVisivel} onCheckedChange={setIngressoVisivel} />
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDialogTipoIngresso(null)}>Cancelar</Button>
@@ -1752,7 +1793,16 @@ const OrganizerEventIngressosPage = () => {
   const [ticketQtd, setTicketQtd] = useState("");
   const [ticketPreco, setTicketPreco] = useState("");
   const [ticketLotGroup, setTicketLotGroup] = useState("");
+  const [ticketDescription, setTicketDescription] = useState("");
+  const [ticketSalesStart, setTicketSalesStart] = useState("");
+  const [ticketSalesEnd, setTicketSalesEnd] = useState("");
+  const [ticketVisibility, setTicketVisibility] = useState(true);
   const [ticketSearch, setTicketSearch] = useState("");
+
+  const resetTicketDialogFields = () => {
+    setTicketNome(""); setTicketQtd(""); setTicketPreco(""); setTicketLotGroup("");
+    setTicketDescription(""); setTicketSalesStart(""); setTicketSalesEnd(""); setTicketVisibility(true);
+  };
 
   const { data: event } = useEvent(id);
   const { data: tickets = [] } = useTickets(id);
@@ -1780,12 +1830,15 @@ const OrganizerEventIngressosPage = () => {
         type: dialogType!,
         quantity: parseInt(ticketQtd, 10),
         price_brl: dialogType === "pago" ? parseFloat(ticketPreco.replace(",", ".")) : 0,
-        visibility: "public",
+        visibility: ticketVisibility ? "public" : "private",
         status: "active",
         sort_order: nextSortOrder,
         lot_group: ticketLotGroup.trim() || null,
+        description: ticketDescription.trim() || null,
+        sales_start_at: ticketSalesStart ? new Date(ticketSalesStart).toISOString() : null,
+        sales_end_at: ticketSalesEnd ? new Date(ticketSalesEnd).toISOString() : null,
       });
-      setTicketNome(""); setTicketQtd(""); setTicketPreco(""); setTicketLotGroup(""); setDialogType(null);
+      resetTicketDialogFields(); setDialogType(null);
       toast({ title: "Ingresso adicionado!", description: `"${ticketNome.trim()}" foi criado com sucesso.` });
     } catch (e: any) {
       toast({ title: "Erro ao salvar ingresso", description: e.message, variant: "destructive" });
@@ -1861,11 +1914,11 @@ const OrganizerEventIngressosPage = () => {
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button className="bg-[#004d00] text-white hover:bg-[#003a00]" onClick={() => { setTicketNome(""); setTicketQtd(""); setTicketPreco(""); setTicketLotGroup(""); setDialogType("pago"); }}>
+            <Button className="bg-[#004d00] text-white hover:bg-[#003a00]" onClick={() => { resetTicketDialogFields(); setDialogType("pago"); }}>
               + Ingresso pago
             </Button>
             <Button variant="outline" className="border-emerald-200 bg-emerald-50 text-[#004d00] hover:bg-emerald-100"
-              onClick={() => { setTicketNome(""); setTicketQtd(""); setTicketPreco(""); setTicketLotGroup(""); setDialogType("gratuito"); }}>
+              onClick={() => { resetTicketDialogFields(); setDialogType("gratuito"); }}>
               + Ingresso gratuito
             </Button>
           </div>
@@ -1948,6 +2001,30 @@ const OrganizerEventIngressosPage = () => {
               <p className="text-xs text-muted-foreground">
                 Ingressos com o mesmo grupo são vendidos em sequência — o próximo só libera quando o anterior esgota.
               </p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Descrição (opcional)</label>
+              <textarea
+                placeholder="Detalhes do ingresso, exibidos na tela de compra"
+                value={ticketDescription}
+                onChange={(e) => setTicketDescription(e.target.value)}
+                maxLength={500}
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Início das vendas (opcional)</label>
+                <Input type="datetime-local" value={ticketSalesStart} onChange={(e) => setTicketSalesStart(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Fim das vendas (opcional)</label>
+                <Input type="datetime-local" value={ticketSalesEnd} onChange={(e) => setTicketSalesEnd(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">Visível publicamente</label>
+              <Switch checked={ticketVisibility} onCheckedChange={setTicketVisibility} />
             </div>
           </div>
           <DialogFooter>

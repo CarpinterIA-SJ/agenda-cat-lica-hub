@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
     // 5) Ingresso.
     const { data: ticket, error: ticketErr } = await supabaseAdmin
       .from("event_tickets")
-      .select("id, name, price_cents, event_id, quantity, sold, reserved, lot_group")
+      .select("id, name, price_cents, event_id, quantity, sold, reserved, lot_group, sales_start_at, sales_end_at")
       .eq("id", ticket_id)
       .maybeSingle();
     if (ticketErr) {
@@ -410,7 +410,9 @@ Deno.serve(async (req) => {
     // por sort_order, com sold + reserved < quantity). NÃO É ATÔMICO — mesma
     // ressalva do soft-gate de capacidade: fecha o caso comum (front
     // desatualizado ou burlado), não a corrida no instante exato da virada
-    // de lote.
+    // de lote. Bypass de organizador/admin do evento (migration 043, mesmo
+    // padrão do 7c abaixo) — callerIsEventOrgAdmin já veio do gate 6b, sem
+    // recalcular.
     if (ticket.lot_group) {
       const { data: siblingLots, error: siblingErr } = await supabaseAdmin
         .from("event_tickets")
@@ -425,10 +427,27 @@ Deno.serve(async (req) => {
       const currentLot = (siblingLots ?? []).find(
         (t) => !(t.quantity > 0 && t.sold + t.reserved >= t.quantity),
       );
-      if (!currentLot || currentLot.id !== ticket.id) {
+      if ((!currentLot || currentLot.id !== ticket.id) && !callerIsEventOrgAdmin) {
         return await rejectAndReleaseCoupon({
           error: "lote_indisponivel",
           message: "Este lote não está mais disponível. Atualize a página para ver o lote vigente.",
+        }, 409);
+      }
+    }
+
+    // 7c) Defesa em profundidade — janela de vendas (migration 043). Mesmo
+    // padrão do 7b. NÃO É ATÔMICO, mesma ressalva. Bypass de organizador/
+    // admin do evento — mesmo callerIsEventOrgAdmin do gate 6b.
+    if (ticket.sales_start_at || ticket.sales_end_at) {
+      const nowTs = new Date();
+      const notStarted = !!ticket.sales_start_at && nowTs < new Date(ticket.sales_start_at);
+      const ended = !!ticket.sales_end_at && nowTs > new Date(ticket.sales_end_at);
+      if ((notStarted || ended) && !callerIsEventOrgAdmin) {
+        return await rejectAndReleaseCoupon({
+          error: notStarted ? "vendas_nao_iniciadas" : "vendas_encerradas",
+          message: notStarted
+            ? "As vendas deste ingresso ainda não começaram."
+            : "As vendas deste ingresso já encerraram.",
         }, 409);
       }
     }

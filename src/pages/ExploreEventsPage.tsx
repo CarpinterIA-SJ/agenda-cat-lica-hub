@@ -105,6 +105,11 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
         // traz as duas colunas — só faltava não descartá-las aqui no map.
         sort_order: t.sort_order ?? 0,
         lot_group: t.lot_group ?? null,
+        // description/sales_start_at/sales_end_at (migration 043): mesmo
+        // select "*" já traz — mesmo gap de sempre é só não descartar aqui.
+        description: t.description ?? null,
+        sales_start_at: t.sales_start_at ?? null,
+        sales_end_at: t.sales_end_at ?? null,
       }));
       return vm;
     },
@@ -594,6 +599,9 @@ const ExploreEventsPage = () => {
           reserved: t.reserved ?? 0,
           sort_order: t.sort_order ?? 0,
           lot_group: t.lot_group ?? null,
+          description: t.description ?? null,
+          sales_start_at: t.sales_start_at ?? null,
+          sales_end_at: t.sales_end_at ?? null,
         })),
       };
     } catch {

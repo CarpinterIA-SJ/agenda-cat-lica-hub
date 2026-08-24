@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEventOptionCounts } from "@/hooks/use-registrations";
 import { usePlatformSettings } from "@/hooks/use-platform-settings";
@@ -102,13 +102,38 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
     return [{ id: "default-free", name: "Inscrição gratuita", price: "0" }];
   }, [tickets]);
 
-  // Lote vigente por lot_group (lotes sequenciais): dentro de cada grupo,
-  // ordenado por sort_order, vigente é o primeiro com sold + reserved <
-  // quantity (quantity=0 = ilimitado, convenção do schema desde a 003 —
-  // nunca esgota). Ticket sem lot_group fica de fora do map (undefined) —
-  // comportamento anterior a esta feature, inalterado.
-  const ticketLotState = useMemo(() => {
-    const map = new Map<string, "current" | "sold_out" | "upcoming">();
+  // Organizador/admin do evento (via RPC is_event_org_admin — mesma que as
+  // policies de RLS já usam, sem reescrever a checagem de membership no
+  // cliente). Só dispara com modal aberto e usuário logado; anônimo é
+  // sempre false sem precisar de round-trip.
+  const { data: isOrgAdmin } = useQuery({
+    queryKey: ["is-event-org-admin", event?.id, user?.id],
+    queryFn: async () => {
+      if (!event?.id) return false;
+      const { data } = await supabase.rpc("is_event_org_admin", { p_event_id: event.id });
+      return !!data;
+    },
+    enabled: open && !!event?.id && !!user,
+  });
+
+  type TicketGateReason = "lot_sold_out" | "lot_upcoming" | "sales_not_started" | "sales_ended";
+
+  const GATE_LABELS: Record<TicketGateReason, string> = {
+    lot_sold_out: "esgotado",
+    lot_upcoming: "em breve",
+    sales_not_started: "vendas ainda não abertas",
+    sales_ended: "vendas encerradas",
+  };
+
+  // Portões que podem bloquear um ingresso: lote fora de sequência
+  // (lot_group, lotes sequenciais) ou fora da janela de vendas
+  // (sales_start_at/sales_end_at, migration 043). Os dois têm o MESMO
+  // bypass — organizador/admin do evento vê e compra mesmo bloqueado, com
+  // rótulo avisando que é visão de organizador (senão parece que a trava
+  // não funciona). Lote tem precedência quando os dois batem no mesmo
+  // ticket, só pra não empilhar dois rótulos no mesmo botão.
+  const ticketGate = useMemo(() => {
+    const map = new Map<string, TicketGateReason>();
     const groups = new Map<string, any[]>();
     for (const t of modalTickets) {
       if (!t.lot_group) continue;
@@ -121,17 +146,23 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
       for (const t of list) {
         const qty = Number(t.quantity ?? 0);
         const filled = qty > 0 && Number(t.sold ?? 0) + Number(t.reserved ?? 0) >= qty;
-        if (!currentFound && !filled) { map.set(t.id, "current"); currentFound = true; }
-        else if (!currentFound) map.set(t.id, "sold_out");
-        else map.set(t.id, "upcoming");
+        if (!currentFound && !filled) currentFound = true;
+        else if (!currentFound) map.set(t.id, "lot_sold_out");
+        else map.set(t.id, "lot_upcoming");
       }
+    }
+    const nowTs = new Date();
+    for (const t of modalTickets) {
+      if (map.has(t.id)) continue;
+      if (t.sales_start_at && nowTs < new Date(t.sales_start_at)) { map.set(t.id, "sales_not_started"); continue; }
+      if (t.sales_end_at && nowTs > new Date(t.sales_end_at)) { map.set(t.id, "sales_ended"); continue; }
     }
     return map;
   }, [modalTickets]);
 
   const isTicketBuyable = (t: any) => {
-    const state = ticketLotState.get(t.id);
-    return state === undefined || state === "current";
+    const reason = ticketGate.get(t.id);
+    return !reason || !!isOrgAdmin;
   };
 
   // Inicializa o formulário e reseta seleção/cupom ao abrir (ou trocar de evento).
@@ -351,6 +382,14 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
           toast.error("Vaga esgotada", {
             description: "Uma das opções escolhidas acabou de esgotar. Escolha outra e tente novamente.",
           });
+        } else if (m.includes("SALES_NOT_STARTED")) {
+          toast.error("Vendas ainda não começaram", {
+            description: "Este ingresso ainda não está disponível para inscrição.",
+          });
+        } else if (m.includes("SALES_ENDED")) {
+          toast.error("Vendas encerradas", {
+            description: "O período de inscrição deste ingresso já terminou.",
+          });
         } else if (m.includes("TICKET_FULL")) {
           // Vem de reserve_ticket_sold, chamada por create_free_registration
           // desde a migration 034. Distinto de OPTION_FULL: ali esgotou uma
@@ -428,8 +467,9 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
                 <div className="grid gap-2">
                   {modalTickets.map((t: any) => {
                     const isSelected = t.id === selectedTicketId;
-                    const lotState = ticketLotState.get(t.id);
-                    const disabled = lotState === "sold_out" || lotState === "upcoming";
+                    const gateReason = ticketGate.get(t.id) as TicketGateReason | undefined;
+                    const bypassed = !!gateReason && !!isOrgAdmin;
+                    const disabled = !!gateReason && !isOrgAdmin;
                     const priceLabel = Number(t.price) === 0 ? "Gratuito" : `R$ ${t.price}`;
                     return (
                       <button
@@ -444,9 +484,19 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
                         }`}
                       >
                         <span className="font-semibold text-sm text-foreground">
-                          {t.name}
-                          {lotState === "sold_out" && <span className="ml-2 text-xs font-normal text-muted-foreground">(esgotado)</span>}
-                          {lotState === "upcoming" && <span className="ml-2 text-xs font-normal text-muted-foreground">(em breve)</span>}
+                          <span className="block">
+                            {t.name}
+                            {gateReason && (
+                              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                {bypassed
+                                  ? `(${GATE_LABELS[gateReason]} — visível como organizador)`
+                                  : `(${GATE_LABELS[gateReason]})`}
+                              </span>
+                            )}
+                          </span>
+                          {t.description && (
+                            <span className="block text-xs font-normal text-muted-foreground mt-0.5">{t.description}</span>
+                          )}
                         </span>
                         <span className={`text-sm font-bold ${isSelected ? "text-primary" : "text-foreground/70"}`}>{priceLabel}</span>
                       </button>

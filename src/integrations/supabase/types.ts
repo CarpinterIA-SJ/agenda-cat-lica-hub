@@ -18,9 +18,10 @@
 //
 // SE REGENERAR: reaplique manualmente, adicionando ao Omit de
 // `events.Insert`      → 'format' | 'visibility' | 'status' | 'custom_fields' | 'show_fields' | 'payment_config' | 'rejection_reason'
-// `event_tickets.Insert` → 'type' | 'visibility' | 'price_cents' | 'quantity' | 'status' | 'pass_fees' | 'sort_order' | 'lot_group'
-// (lot_group: migration 042, nullable sem default — mesma categoria dos
-// outros, precisa do mesmo tratamento de Omit).
+// `event_tickets.Insert` → 'type' | 'visibility' | 'price_cents' | 'quantity' | 'status' | 'pass_fees' | 'sort_order' | 'lot_group' | 'description' | 'sales_start_at' | 'sales_end_at'
+// (lot_group: migration 042. description/sales_start_at/sales_end_at:
+// migration 043. Todas nullable sem default — mesma categoria dos outros,
+// precisam do mesmo tratamento de Omit).
 // (mantendo os mesmos campos como propriedades opcionais no objeto de
 // override, do jeito que o gerador já escreve — só falta o Omit).
 // ============================================================
@@ -132,6 +133,9 @@ export interface EventTicket {
   pass_fees:    boolean
   sort_order:   number
   lot_group:    string | null
+  description:  string | null
+  sales_start_at: string | null
+  sales_end_at: string | null
   created_at:   string
   updated_at:   string
 }
@@ -472,7 +476,7 @@ export type Database = {
         // Mesma correção do Insert de events acima — todos os campos abaixo
         // têm `not null default ...` no schema (003:126-133), então precisam
         // estar no Omit para o override `campo?: T` funcionar de verdade.
-        Insert: Omit<EventTicket, 'id' | 'created_at' | 'updated_at' | 'sold' | 'type' | 'visibility' | 'price_cents' | 'quantity' | 'status' | 'pass_fees' | 'sort_order' | 'lot_group'> & {
+        Insert: Omit<EventTicket, 'id' | 'created_at' | 'updated_at' | 'sold' | 'type' | 'visibility' | 'price_cents' | 'quantity' | 'status' | 'pass_fees' | 'sort_order' | 'lot_group' | 'description' | 'sales_start_at' | 'sales_end_at'> & {
           id?: string
           created_at?: string
           updated_at?: string
@@ -485,6 +489,9 @@ export type Database = {
           pass_fees?: boolean
           sort_order?: number
           lot_group?: string | null
+          description?: string | null
+          sales_start_at?: string | null
+          sales_end_at?: string | null
         }
         Update: Partial<Omit<EventTicket, 'id' | 'event_id' | 'created_at'>>
       }
