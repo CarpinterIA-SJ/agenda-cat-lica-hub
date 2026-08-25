@@ -24,9 +24,18 @@ alter table public.event_tickets
 -- início <= fim quando ambos setados. Null em qualquer um = sem limite
 -- naquele lado (mesma convenção de payment_deadline_minutes/010 e
 -- quantity=0="ilimitado" desde a 003).
-alter table public.event_tickets
-  add constraint event_tickets_sales_window_check
-  check (sales_start_at is null or sales_end_at is null or sales_start_at <= sales_end_at);
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+     where conname = 'event_tickets_sales_window_check'
+       and conrelid = 'public.event_tickets'::regclass
+  ) then
+    alter table public.event_tickets
+      add constraint event_tickets_sales_window_check
+      check (sales_start_at is null or sales_end_at is null or sales_start_at <= sales_end_at);
+  end if;
+end $$;
 
 comment on column public.event_tickets.description is
   'Texto livre opcional do organizador, exibido na tela de compra do ingresso.';
