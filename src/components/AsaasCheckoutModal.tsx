@@ -72,8 +72,8 @@ interface CheckoutResponse {
 
 interface AsaasCheckoutModalProps {
   eventId: string;
-  ticketId: string;
-  quantity: number;
+  /** Carrinho multi-tipo (migration 044/046) — [{ ticket_id, quantity }]. */
+  items: { ticket_id: string; quantity: number }[];
   ticketName?: string;
   couponCode?: string | null;
   customFields?: Record<string, any>;
@@ -86,8 +86,7 @@ const POLL_MAX_ATTEMPTS = 120;
 
 export const AsaasCheckoutModal = ({
   eventId,
-  ticketId,
-  quantity,
+  items,
   ticketName,
   couponCode,
   customFields,
@@ -113,8 +112,7 @@ export const AsaasCheckoutModal = ({
       const { data: res, error: fnErr } = await supabase.functions.invoke("asaas-checkout", {
         body: {
           event_id: eventId,
-          ticket_id: ticketId,
-          quantity,
+          items,
           user_id: user?.id ?? null,
           billing_type: billingType,
           cpf: cpf.replace(/\D/g, ""),

@@ -510,18 +510,7 @@ async function asaasMarkPaid(
   const gp = (pay.gateway_payload ?? {}) as Record<string, unknown>;
   const quantity = Math.max(1, Number(gp.quantity ?? 1));
   const eventId = (pay.event_id as string | null) ?? reg.event_id;
-
-  // Promove a inscrição (guard por status: seguro de repetir).
-  let regAnswers: unknown = reg.custom_fields ?? null;
-  const { data: updated, error: updErr } = await supabaseAdmin
-    .from("event_registrations")
-    .update({ status: "confirmed" })
-    .eq("id", reg.id)
-    .neq("status", "confirmed")
-    .select("id, custom_fields")
-    .maybeSingle();
-  if (updErr) throw updErr;
-  if (updated?.custom_fields != null) regAnswers = updated.custom_fields;
+  const regAnswers: unknown = reg.custom_fields ?? null;
 
   // Fase 5 (migration 039): reserved -> sold passa pela mesma RPC de
   // confirmação do handlePaid do asaas-webhook. Precisa espelhar: esta
@@ -530,12 +519,21 @@ async function asaasMarkPaid(
   // reserva ficaria 'held' presa e `reserved` nunca desceria, mesmo com a
   // venda já contabilizada em `sold` — dupla contagem permanente na mesma
   // vaga, sem nenhum caminho de correção automática depois.
+  //
+  // 045: confirm_ticket_reservation roda ANTES de marcar a inscrição como
+  // 'confirmed' — mesma inversão do handlePaid do asaas-webhook, mesmo
+  // motivo: antes, o update rodava incondicionalmente primeiro, e nada
+  // impedia a inscrição de aparecer 'confirmed' mesmo quando a RPC vinha a
+  // devolver RELEASED/PARTIAL logo em seguida.
   const ticketId = (gp.ticket_id as string) ?? reg.ticket_id ?? null;
   const { data: confirmResult, error: confirmErr } = await supabaseAdmin
     .rpc("confirm_ticket_reservation", { p_registration_id: reg.id });
   if (confirmErr) throw confirmErr;
 
   if (confirmResult === "RELEASED") {
+    // ALARME: caso esperado (documentado desde a 039) — dinheiro chegou
+    // depois de a reserva já ter sido liberada. NÃO confirma a inscrição,
+    // NÃO incrementa nada: fica 'pending' para reconciliação manual.
     console.error(
       "[reconcile-payments/asaas] ALARME: pagamento confirmado para reserva já RELEASED:",
       chargeId, reg.id,
@@ -548,7 +546,55 @@ async function asaasMarkPaid(
       details: { gateway: "asaas", charge_id: chargeId, registration_id: reg.id, event_id: eventId },
     });
     if (auditErr) console.error("[reconcile-payments/asaas] audit_logs RELEASED falhou", auditErr);
-  } else if (confirmResult === "NOT_FOUND") {
+    return "pending";
+  }
+
+  if (confirmResult === "PARTIAL") {
+    // 045: carrinho multi-tipo (migration 044) — nunca deveria acontecer,
+    // confirm_ticket_reservation confirma todas as linhas 'held' do pedido
+    // numa transação só. Diferente de RELEASED (caso esperado), isto é
+    // sinal de bug ou corrida não prevista — severidade alta, sem decisão
+    // automática. NÃO confirma a inscrição, NÃO incrementa nada.
+    console.error(
+      "[reconcile-payments/asaas] ALARME GRAVE: confirm_ticket_reservation devolveu PARTIAL — investigar:",
+      chargeId, reg.id,
+    );
+    const { error: auditErr } = await supabaseAdmin.from("audit_logs").insert({
+      actor_email: "system@reconcile-payments",
+      action: "reservation_partial_confirm",
+      entity_type: "payment",
+      // entity_id aqui é reg.id (registration_id), não pay.id (diferente do
+      // padrão do resto do arquivo, ex.: o RELEASED logo acima usa pay.id).
+      // De propósito: o problema é NO PEDIDO — algumas linhas de
+      // ticket_reservations do registration_id confirmaram, outras não —,
+      // não na cobrança em si (essa está correta, o dinheiro caiu certo).
+      // Quem precisa ser investigado é a reserva do pedido, não a
+      // transação financeira.
+      entity_id: reg.id,
+      details: {
+        gateway: "asaas",
+        charge_id: chargeId,
+        registration_id: reg.id,
+        event_id: eventId,
+        confirm_result: confirmResult,
+      },
+    });
+    if (auditErr) console.error("[reconcile-payments/asaas] audit_logs PARTIAL falhou", auditErr);
+    return "pending";
+  }
+
+  // 'CONFIRMED', 'ALREADY_CONFIRMED' ou 'NOT_FOUND' (legado): seguro marcar
+  // a inscrição como 'confirmed' — a RPC já moveu reserved -> sold (os dois
+  // primeiros) ou não há reserva pra mover (NOT_FOUND, increment_ticket_sold
+  // cobre abaixo).
+  const { error: updErr } = await supabaseAdmin
+    .from("event_registrations")
+    .update({ status: "confirmed" })
+    .eq("id", reg.id)
+    .neq("status", "confirmed");
+  if (updErr) throw updErr;
+
+  if (confirmResult === "NOT_FOUND") {
     // Caminho legado (pré-039): sem linha em ticket_reservations,
     // increment_ticket_sold direto, como sempre foi.
     if (ticketId) {
@@ -682,6 +728,21 @@ interface HeldReservation {
   ticket_id: string | null;
 }
 
+/**
+ * Resultado já resolvido de um `registration_id` nesta rodada do sweep —
+ * cacheado pra dedupe (045). Só guarda "paid" e "released": "error" nunca é
+ * cacheado, pra cada linha do MESMO pedido ter sua própria chance de
+ * resolver (uma falha de rede pontual na 1ª linha não deveria condenar as
+ * demais do mesmo pedido).
+ */
+interface CachedHoldResolution {
+  outcome: "paid" | "released";
+  chargeId: string | null;
+  eventId: string | null;
+  /** Status do Asaas (maiúsculo) — só preenchido quando outcome === "paid". */
+  status: string | null;
+}
+
 const HOLD_SWEEP_PAGE_SIZE = 50;
 
 /**
@@ -729,6 +790,17 @@ async function sweepExpiredHolds(): Promise<HoldSweepStats> {
 
   const nowIso = new Date().toISOString();
 
+  // 045: dedupe por registration_id. Carrinho multi-tipo (migration 044)
+  // pode ter N linhas 'held' vencidas pro MESMO pedido (uma por tipo de
+  // ingresso), mas só 1 cobrança no Asaas por trás. release_ticket_reservation
+  // (044) já libera TODAS as linhas held do pedido numa chamada só, então a
+  // 2ª linha em diante nunca precisa de getPayment/deletePayment de novo —
+  // só precisa aparecer no audit_log com o SEU PRÓPRIO hold.id (granularidade
+  // de auditoria por linha, mesmo com a rede deduplicada). Só cacheia "paid"
+  // e "released": erro de rede não é cacheado, pra não condenar as linhas
+  // seguintes do mesmo pedido por uma falha pontual na primeira.
+  const resolved = new Map<string, CachedHoldResolution>();
+
   while (stats.scanned < HOLD_SWEEP_LIMIT) {
     const pageLimit = Math.min(HOLD_SWEEP_PAGE_SIZE, HOLD_SWEEP_LIMIT - stats.scanned);
     const { data, error } = await supabaseAdmin
@@ -746,7 +818,10 @@ async function sweepExpiredHolds(): Promise<HoldSweepStats> {
     for (const hold of page) {
       stats.scanned++;
       try {
-        const outcome = await resolveExpiredHold(hold);
+        const cached = resolved.get(hold.registration_id);
+        const outcome = cached
+          ? await auditCachedHold(hold, cached)
+          : await resolveExpiredHold(hold, resolved);
         if (outcome === "released") stats.released++;
         else if (outcome === "paid") stats.left_paid++;
         else stats.left_error++;
@@ -772,7 +847,10 @@ async function sweepExpiredHolds(): Promise<HoldSweepStats> {
 
 type HoldOutcome = "released" | "paid" | "error";
 
-async function resolveExpiredHold(hold: HeldReservation): Promise<HoldOutcome> {
+async function resolveExpiredHold(
+  hold: HeldReservation,
+  resolved: Map<string, CachedHoldResolution>,
+): Promise<HoldOutcome> {
   const { data: reg } = await supabaseAdmin
     .from("event_registrations")
     .select("id, gateway_charge_id, event_id")
@@ -788,6 +866,10 @@ async function resolveExpiredHold(hold: HeldReservation): Promise<HoldOutcome> {
       console.error("[reconcile-payments/holds] release sem cobrança falhou", relErr);
       return "error";
     }
+    await auditHoldOutcome(hold, "released", null, reg?.event_id ?? null, null, false);
+    resolved.set(hold.registration_id, {
+      outcome: "released", chargeId: null, eventId: reg?.event_id ?? null, status: null,
+    });
     return "released";
   }
 
@@ -805,6 +887,10 @@ async function resolveExpiredHold(hold: HeldReservation): Promise<HoldOutcome> {
         console.error("[reconcile-payments/holds] release pós-404 falhou", relErr);
         return "error";
       }
+      await auditHoldOutcome(hold, "released", reg.gateway_charge_id, reg.event_id, null, false);
+      resolved.set(hold.registration_id, {
+        outcome: "released", chargeId: reg.gateway_charge_id, eventId: reg.event_id, status: null,
+      });
       return "released";
     }
     console.error("[reconcile-payments/holds] GET de status falhou", reg.gateway_charge_id, (e as Error).message);
@@ -821,19 +907,10 @@ async function resolveExpiredHold(hold: HeldReservation): Promise<HoldOutcome> {
       "[reconcile-payments/holds] reserva vencida mas cobrança PAGA no Asaas — não libera:",
       hold.registration_id, reg.gateway_charge_id, status,
     );
-    const { error: auditErr } = await supabaseAdmin.from("audit_logs").insert({
-      actor_email: "system@reconcile-payments",
-      action: "RESERVA_VENCIDA_COBRANCA_PAGA",
-      entity_type: "ticket_reservation",
-      entity_id: hold.id,
-      details: {
-        registration_id: hold.registration_id,
-        charge_id: reg.gateway_charge_id,
-        asaas_status: status,
-        event_id: reg.event_id,
-      },
+    await auditHoldOutcome(hold, "paid", reg.gateway_charge_id, reg.event_id, status, false);
+    resolved.set(hold.registration_id, {
+      outcome: "paid", chargeId: reg.gateway_charge_id, eventId: reg.event_id, status,
     });
-    if (auditErr) console.error("[reconcile-payments/holds] audit_logs (paga) falhou", auditErr);
     return "paid";
   }
 
@@ -854,7 +931,73 @@ async function resolveExpiredHold(hold: HeldReservation): Promise<HoldOutcome> {
     console.error("[reconcile-payments/holds] release_ticket_reservation falhou pós-delete:", relErr);
     return "error";
   }
+  await auditHoldOutcome(hold, "released", reg.gateway_charge_id, reg.event_id, status, false);
+  resolved.set(hold.registration_id, {
+    outcome: "released", chargeId: reg.gateway_charge_id, eventId: reg.event_id, status,
+  });
   return "released";
+}
+
+/**
+ * Grava o audit_log de uma reserva expirada resolvida — "paid" (cobrança
+ * paga, não libera) ou "released" (liberada de verdade). Chamada tanto pela
+ * resolução "real" (resolveExpiredHold, `deduped: false`) quanto pelo
+ * dedupe (auditCachedHold, `deduped: true`) — mesma forma de log nos dois
+ * casos, de propósito: antes desta função existir, só a linha deduplicada
+ * gravava "released" — a linha 1 do grupo, que fez o trabalho de rede de
+ * verdade (getPayment/deletePayment/release_ticket_reservation), não
+ * gravava nada. Buraco de auditoria justamente na linha que resolveu de
+ * fato; corrigido unificando as duas chamadas nesta função só.
+ */
+async function auditHoldOutcome(
+  hold: HeldReservation,
+  outcome: "paid" | "released",
+  chargeId: string | null,
+  eventId: string | null,
+  status: string | null,
+  deduped: boolean,
+): Promise<void> {
+  const { error: auditErr } = await supabaseAdmin.from("audit_logs").insert({
+    actor_email: "system@reconcile-payments",
+    action: outcome === "paid" ? "RESERVA_VENCIDA_COBRANCA_PAGA" : "RESERVA_EXPIRADA_LIBERADA",
+    entity_type: "ticket_reservation",
+    entity_id: hold.id,
+    details: {
+      registration_id: hold.registration_id,
+      charge_id: chargeId,
+      asaas_status: status,
+      event_id: eventId,
+      deduped,
+    },
+  });
+  if (auditErr) {
+    console.error(
+      `[reconcile-payments/holds] audit_logs (${outcome}${deduped ? ", dedupe" : ""}) falhou`,
+      auditErr,
+    );
+  }
+}
+
+/**
+ * Dedupe (045): já sabemos o desfecho deste registration_id — resolvido
+ * pela PRIMEIRA linha do pedido, sem repetir getPayment/deletePayment.
+ * Ainda assim grava UM audit_log com o `entity_id` desta linha específica
+ * (via auditHoldOutcome, `deduped: true`): "cada hold.id do pedido precisa
+ * aparecer no log", mesmo que a resolução de rede tenha sido feita uma vez
+ * só.
+ */
+async function auditCachedHold(
+  hold: HeldReservation,
+  cached: CachedHoldResolution,
+): Promise<HoldOutcome> {
+  if (cached.outcome === "paid") {
+    console.warn(
+      "[reconcile-payments/holds] reserva vencida mas cobrança PAGA no Asaas (dedupe) — não libera:",
+      hold.registration_id, cached.chargeId, cached.status,
+    );
+  }
+  await auditHoldOutcome(hold, cached.outcome, cached.chargeId, cached.eventId, cached.status, true);
+  return cached.outcome;
 }
 
 // ─── Stripe (inalterado) ────────────────────────────────────
@@ -1367,29 +1510,40 @@ async function revertRefundedSale(params: {
   // (3) Libera vaga e opções — só se a venda chegou a ser contabilizada.
   if (wasConfirmed) {
     // Fase 5: mesma fonte autoritativa do handleRefunded do asaas-webhook —
-    // quando existe linha 'confirmed' em ticket_reservations, ela vale mais
-    // que o ticketId derivado de gateway_payload/fallback.
-    let decrementTicketId = ticketId;
-    let decrementQuantity = quantity;
+    // quando existem linhas 'confirmed' em ticket_reservations, elas valem
+    // mais que o ticketId derivado de gateway_payload/fallback.
+    //
+    // 045: mesmo ajuste do handleRefunded — carrinho multi-tipo (migration
+    // 044) pode ter N linhas 'confirmed' pro mesmo registration_id.
+    // .maybeSingle() erra com >1 linha; lista + loop resolve.
+    let decrementedViaReservations = false;
     if (reg?.id) {
-      const { data: reservation } = await supabaseAdmin
+      const { data: reservations } = await supabaseAdmin
         .from("ticket_reservations")
         .select("ticket_id, quantity")
         .eq("registration_id", reg.id)
-        .eq("status", "confirmed")
-        .maybeSingle();
-      if (reservation) {
-        decrementTicketId = reservation.ticket_id ?? decrementTicketId;
-        decrementQuantity = reservation.quantity ?? decrementQuantity;
+        .eq("status", "confirmed");
+
+      if (reservations && reservations.length > 0) {
+        decrementedViaReservations = true;
+        for (const reservation of reservations) {
+          if (!reservation.ticket_id) continue;
+          // Mesma correção de assimetria do asaas-webhook: throw, não só
+          // log — senão uma falha de decremento deixa `sold` inflado em
+          // silêncio.
+          const { error: decErr } = await supabaseAdmin.rpc("decrement_ticket_sold", {
+            p_ticket_id: reservation.ticket_id,
+            p_quantity: reservation.quantity,
+          });
+          if (decErr) throw decErr;
+        }
       }
     }
 
-    if (decrementTicketId) {
-      // Mesma correção de assimetria do asaas-webhook: throw, não só log —
-      // senão uma falha de decremento deixa `sold` inflado em silêncio.
+    if (!decrementedViaReservations && ticketId) {
       const { error: decErr } = await supabaseAdmin.rpc("decrement_ticket_sold", {
-        p_ticket_id: decrementTicketId,
-        p_quantity: decrementQuantity,
+        p_ticket_id: ticketId,
+        p_quantity: quantity,
       });
       if (decErr) throw decErr;
     }

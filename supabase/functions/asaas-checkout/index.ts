@@ -35,9 +35,14 @@ import {
 } from "../_shared/asaas.ts";
 
 const checkoutSchema = z.object({
-  event_id:     z.string().uuid({ message: "event_id deve ser um uuid válido" }),
-  ticket_id:    z.string().uuid({ message: "ticket_id deve ser um uuid válido" }),
-  quantity:     z.number().int().min(1).max(10),
+  event_id: z.string().uuid({ message: "event_id deve ser um uuid válido" }),
+  // Carrinho multi-tipo (migration 044): 1-10 linhas, cada uma com seu
+  // próprio ticket_id/quantity. Duplicata de ticket_id dentro do array é
+  // validada à parte (não pelo zod) — ver checagem logo após o parse.
+  items: z.array(z.object({
+    ticket_id: z.string().uuid({ message: "ticket_id deve ser um uuid válido" }),
+    quantity: z.number().int().min(1).max(10),
+  })).min(1, { message: "o carrinho precisa ter ao menos 1 item" }).max(10, { message: "máximo de 10 tipos de ingresso por carrinho" }),
   user_id:      z.string().uuid({ message: "user_id deve ser um uuid válido" }),
   billing_type: z.enum(["PIX", "BOLETO", "CREDIT_CARD"]),
   // O Asaas EXIGE cpfCnpj para criar o cliente — não há como criar cobrança
@@ -125,7 +130,7 @@ Deno.serve(async (req) => {
   // Cupom consumido antes da cobrança: se a cobrança não nascer, o uso é
   // devolvido no catch. Declarado aqui, fora do try, para o catch enxergar.
   let consumedCouponId: string | null = null;
-  // Fase 5: reserva atômica feita (reserve_ticket_sold). Se a cobrança
+  // Fase 5: reserva atômica feita (reserve_ticket_items). Se a cobrança
   // falhar depois disso, o catch libera a vaga (release_ticket_reservation)
   // — senão ela fica presa até expirar. Mesma condição !chargeCreated do
   // cancelamento da inscrição: cobrança emitida = reserva legitimamente
@@ -186,12 +191,12 @@ Deno.serve(async (req) => {
       return json({ error: `Dados inválidos: ${field} — ${issue.message}` }, 400);
     }
     const {
-      event_id, ticket_id, quantity, user_id, billing_type,
+      event_id, items, user_id, billing_type,
       cpf, phone, coupon_code, custom_fields,
     } = parsed.data;
 
     console.log("[asaas-checkout] início:", JSON.stringify({
-      event_id, ticket_id, quantity, billing_type, has_coupon: !!coupon_code,
+      event_id, item_count: items.length, billing_type, has_coupon: !!coupon_code,
     }));
 
     if (user_id !== callerId) {
@@ -204,6 +209,23 @@ Deno.serve(async (req) => {
         error: "cpf_invalido",
         message: "CPF/CNPJ inválido. Confira os números e tente novamente.",
       }, 400);
+    }
+
+    // 3b) Duplicata de payload — mesmo ticket_id em 2 linhas do carrinho.
+    // Checado ANTES de qualquer soft-gate/reserva: DUPLICATE_HOLD vindo de
+    // reserve_ticket_items (mais abaixo) só existe pra pegar exatamente
+    // este caso (unique_violation em ticket_reservations por
+    // registration_id+ticket_id repetido na MESMA chamada) — barrar aqui dá
+    // uma mensagem clara em vez de deixar a RPC estourar um erro genérico
+    // no meio da transação.
+    {
+      const ids = items.map((i) => i.ticket_id);
+      if (new Set(ids).size !== ids.length) {
+        return json({
+          error: "ingresso_duplicado",
+          message: "O mesmo tipo de ingresso aparece mais de uma vez no carrinho. Ajuste as quantidades e tente de novo.",
+        }, 400);
+      }
     }
 
     // 4) Rate limit server-side (mesma RPC da migration 026).
@@ -221,21 +243,26 @@ Deno.serve(async (req) => {
       }, 429);
     }
 
-    // 5) Ingresso.
-    const { data: ticket, error: ticketErr } = await supabaseAdmin
+    // 5) Ingressos — busca em lote, 1 round-trip pro carrinho inteiro.
+    // payment_deadline_minutes incluído aqui (era uma query separada, mais
+    // abaixo, de quando só existia 1 ticket_id por checkout).
+    const ticketIds = items.map((i) => i.ticket_id);
+    const { data: ticketRows, error: ticketErr } = await supabaseAdmin
       .from("event_tickets")
-      .select("id, name, price_cents, event_id, quantity, sold, reserved, lot_group, sales_start_at, sales_end_at")
-      .eq("id", ticket_id)
-      .maybeSingle();
+      .select("id, name, price_cents, event_id, quantity, sold, reserved, lot_group, sales_start_at, sales_end_at, payment_deadline_minutes")
+      .in("id", ticketIds);
     if (ticketErr) {
-      console.error("[asaas-checkout] erro ao buscar ingresso:", ticketErr);
-      return json({ error: `Falha ao buscar o ingresso: ${ticketErr.message}` }, 500);
+      console.error("[asaas-checkout] erro ao buscar ingressos:", ticketErr);
+      return json({ error: `Falha ao buscar os ingressos: ${ticketErr.message}` }, 500);
     }
-    if (!ticket) {
-      return json({ error: "Ingresso não encontrado. Verifique se o ingresso ainda está disponível." }, 404);
-    }
-    if (ticket.event_id !== event_id) {
-      return json({ error: "Este ingresso não pertence ao evento informado." }, 400);
+    const ticketsById = new Map((ticketRows ?? []).map((t) => [t.id, t]));
+    for (const id of ticketIds) {
+      if (!ticketsById.has(id)) {
+        return json({ error: "Ingresso não encontrado. Verifique se o ingresso ainda está disponível." }, 400);
+      }
+      if (ticketsById.get(id)!.event_id !== event_id) {
+        return json({ error: "Este ingresso não pertence ao evento informado." }, 400);
+      }
     }
 
     // 6b) Evento aberto para inscrição — mesmo predicado de
@@ -277,20 +304,17 @@ Deno.serve(async (req) => {
       }, 403);
     }
 
-    // Prazo configurado pelo organizador (migration 010, coluna opcional).
-    let deadlineMin: number | null = null;
-    {
-      const { data: deadlineRow, error: deadlineErr } = await supabaseAdmin
-        .from("event_tickets")
-        .select("payment_deadline_minutes")
-        .eq("id", ticket_id)
-        .maybeSingle();
-      if (deadlineErr) {
-        console.warn("[asaas-checkout] payment_deadline_minutes indisponível:", deadlineErr.message);
-      } else {
-        deadlineMin = (deadlineRow as any)?.payment_deadline_minutes ?? null;
-      }
-    }
+    // Prazo configurado pelo organizador (migration 010, coluna opcional) —
+    // já veio junto no fetch em lote acima. Com carrinho multi-tipo, cada
+    // linha pode ter um prazo diferente configurado; usa o MENOR entre os
+    // que existem (mais conservador — a reserva expira no prazo mais curto
+    // do carrinho, nunca deixa um tipo com prazo curto esperar o de outro
+    // mais longo). Ausente em todos os itens: cai no default por método
+    // (DEFAULT_DUE_DAYS), como sempre foi.
+    const deadlineCandidates = items
+      .map((i) => ticketsById.get(i.ticket_id)!.payment_deadline_minutes)
+      .filter((v): v is number => typeof v === "number" && v > 0);
+    const deadlineMin = deadlineCandidates.length > 0 ? Math.min(...deadlineCandidates) : null;
 
     // 6) Taxa da plataforma — SEMPRE recalculada server-side.
     const { data: setting, error: settingErr } = await supabaseAdmin
@@ -304,7 +328,10 @@ Deno.serve(async (req) => {
     const parsedPercent = Number(setting?.value);
     const taxaPercent = Number.isFinite(parsedPercent) && parsedPercent >= 0 ? parsedPercent : 5;
 
-    let subtotal = ticket.price_cents * quantity;
+    let subtotal = items.reduce(
+      (sum, i) => sum + ticketsById.get(i.ticket_id)!.price_cents * i.quantity,
+      0,
+    );
 
     if (coupon_code) {
       // consume_coupon (migration 033) é check-and-increment ATÔMICO: o
@@ -385,23 +412,26 @@ Deno.serve(async (req) => {
 
     // Soft-gate de capacidade do INGRESSO — mesmo padrão do soft-gate de
     // opção logo acima: rejeita ANTES de criar a cobrança quando já não há
-    // vaga.
+    // vaga. Carrinho multi-tipo: roda 1x por item, contra o event_ticket
+    // correspondente.
     //
     // NÃO É ATÔMICO: é uma leitura isolada, sem lock. Dois compradores
     // simultâneos na última vaga podem os dois passar por aqui e os dois
     // criarem cobrança — isto fecha só o caso comum (ingresso já esgotado
     // quando o comprador chega ao checkout), não a corrida. Controle
-    // definitivo (check-and-increment atômico via reserve_ticket_sold,
-    // migration 031) fica para depois, junto com a reestruturação de ordem
-    // que ele exige e a migration 032 (expiração + cron).
+    // definitivo (check-and-increment atômico via reserve_ticket_items,
+    // migration 044) fica pra chamada mais abaixo.
     //
     // quantity = 0 é a convenção de "ilimitado" (schema desde 003): nesse
     // caso nunca barra.
-    if (ticket.quantity > 0 && ticket.sold + ticket.reserved >= ticket.quantity) {
-      return await rejectAndReleaseCoupon({
-        error: "ticket_esgotado",
-        message: "Este ingresso esgotou. A última vaga foi preenchida enquanto a cobrança era preparada.",
-      }, 409);
+    for (const item of items) {
+      const t = ticketsById.get(item.ticket_id)!;
+      if (t.quantity > 0 && t.sold + t.reserved >= t.quantity) {
+        return await rejectAndReleaseCoupon({
+          error: "ticket_esgotado",
+          message: `O ingresso "${t.name}" esgotou. A última vaga foi preenchida enquanto a cobrança era preparada.`,
+        }, 409);
+      }
     }
 
     // 7b) Defesa em profundidade — lote sequencial (migration 042). Mesmo
@@ -413,24 +443,29 @@ Deno.serve(async (req) => {
     // de lote. Bypass de organizador/admin do evento (migration 043, mesmo
     // padrão do 7c abaixo) — callerIsEventOrgAdmin já veio do gate 6b, sem
     // recalcular.
-    if (ticket.lot_group) {
+    // Carrinho multi-tipo: roda 1x por item — 2 itens do MESMO lot_group
+    // buscam os irmãos 2 vezes (sem cache entre iterações), custo aceito
+    // pela simplicidade num carrinho tipicamente pequeno.
+    for (const item of items) {
+      const t = ticketsById.get(item.ticket_id)!;
+      if (!t.lot_group) continue;
       const { data: siblingLots, error: siblingErr } = await supabaseAdmin
         .from("event_tickets")
         .select("id, quantity, sold, reserved")
         .eq("event_id", event_id)
-        .eq("lot_group", ticket.lot_group)
+        .eq("lot_group", t.lot_group)
         .order("sort_order", { ascending: true });
       if (siblingErr) {
         console.error("[asaas-checkout] falha ao verificar lote vigente:", siblingErr);
         return await rejectAndReleaseCoupon({ error: "Falha ao verificar disponibilidade do lote." }, 500);
       }
       const currentLot = (siblingLots ?? []).find(
-        (t) => !(t.quantity > 0 && t.sold + t.reserved >= t.quantity),
+        (s) => !(s.quantity > 0 && s.sold + s.reserved >= s.quantity),
       );
-      if ((!currentLot || currentLot.id !== ticket.id) && !callerIsEventOrgAdmin) {
+      if ((!currentLot || currentLot.id !== t.id) && !callerIsEventOrgAdmin) {
         return await rejectAndReleaseCoupon({
           error: "lote_indisponivel",
-          message: "Este lote não está mais disponível. Atualize a página para ver o lote vigente.",
+          message: `O lote do ingresso "${t.name}" não está mais disponível. Atualize a página para ver o lote vigente.`,
         }, 409);
       }
     }
@@ -438,16 +473,19 @@ Deno.serve(async (req) => {
     // 7c) Defesa em profundidade — janela de vendas (migration 043). Mesmo
     // padrão do 7b. NÃO É ATÔMICO, mesma ressalva. Bypass de organizador/
     // admin do evento — mesmo callerIsEventOrgAdmin do gate 6b.
-    if (ticket.sales_start_at || ticket.sales_end_at) {
+    // Carrinho multi-tipo: roda 1x por item.
+    for (const item of items) {
+      const t = ticketsById.get(item.ticket_id)!;
+      if (!t.sales_start_at && !t.sales_end_at) continue;
       const nowTs = new Date();
-      const notStarted = !!ticket.sales_start_at && nowTs < new Date(ticket.sales_start_at);
-      const ended = !!ticket.sales_end_at && nowTs > new Date(ticket.sales_end_at);
+      const notStarted = !!t.sales_start_at && nowTs < new Date(t.sales_start_at);
+      const ended = !!t.sales_end_at && nowTs > new Date(t.sales_end_at);
       if ((notStarted || ended) && !callerIsEventOrgAdmin) {
         return await rejectAndReleaseCoupon({
           error: notStarted ? "vendas_nao_iniciadas" : "vendas_encerradas",
           message: notStarted
-            ? "As vendas deste ingresso ainda não começaram."
-            : "As vendas deste ingresso já encerraram.",
+            ? `As vendas do ingresso "${t.name}" ainda não começaram.`
+            : `As vendas do ingresso "${t.name}" já encerraram.`,
         }, 409);
       }
     }
@@ -469,97 +507,57 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (profile?.name) fullName = profile.name;
 
-    // 10) Inscrição PENDING criada ANTES da cobrança.
-    // Ordem deliberada: o Asaas só aceita `externalReference` (uma string,
-    // sem mapa de metadata como o Stripe), então precisamos do id da
-    // inscrição já existindo para amarrá-lo à cobrança. Se o Asaas falhar
-    // depois disso, o catch cancela esta inscrição.
-    const { data: registration, error: regErr } = await supabaseAdmin
-      .from("event_registrations")
-      .insert({
-        event_id,
-        ticket_id,
-        user_id,
-        full_name: fullName,
-        email: email || "sem-email@guardiaoeventos.com",
-        cpf: onlyDigits(cpf),
-        phone: phone ? onlyDigits(phone) : null,
-        status: "pending",
-        custom_fields: custom_fields ?? {},
-      })
-      .select("id")
-      .single();
-    if (regErr || !registration) {
-      console.error("[asaas-checkout] falha ao criar inscrição pendente", regErr);
-      return json({ error: "Não foi possível iniciar sua inscrição. Tente novamente." }, 500);
-    }
-    createdRegistrationId = registration.id;
+    // "Ticket principal" pra coluna legada event_registrations.ticket_id —
+    // mesma convenção da 044 em create_free_registration: a linha de maior
+    // valor total (quantity × price) do carrinho, só pra exibição/relatório
+    // enquanto o front não lê registration_ticket_items. Não afeta reserva
+    // nem cobrança — essas usam o array `items` completo.
+    const mainTicketId = items.reduce((best, i) => {
+      const bestVal = ticketsById.get(best.ticket_id)!.price_cents * best.quantity;
+      const curVal = ticketsById.get(i.ticket_id)!.price_cents * i.quantity;
+      return curVal > bestVal ? i : best;
+    }, items[0]).ticket_id;
 
-    // 10b) RESERVA atômica da vaga — ANTES do POST /payments no Asaas.
-    // Ordem é o núcleo da Fase 5 (migration 031/039): reservar primeiro,
-    // cobrar depois. O soft-gate do passo 7 acima segue existindo como
-    // filtro barato de UX (evita gastar uma chamada ao Asaas com um
-    // ingresso obviamente esgotado); quem decide de verdade agora é
-    // reserve_ticket_sold, check-and-increment atômico no WHERE do UPDATE.
-    //
-    // dueDays/dueDateStr calculados AQUI, não lá embaixo no createPayment:
-    // a expiração da reserva precisa usar a MESMA data do vencimento da
-    // cobrança. Calcular duas vezes arriscaria 1 dia de drift bem na
-    // virada da meia-noite.
-    const dueDays = deadlineMin && deadlineMin > 0
-      ? Math.min(Math.max(Math.ceil(deadlineMin / 1440), 1), 60)
-      : DEFAULT_DUE_DAYS[billing_type];
-    const dueDateStr = asaasDueDate(dueDays);
-    const reservationExpiresAtIso = reservationExpiresAt(dueDateStr);
+    const registrationFields = {
+      event_id,
+      ticket_id: mainTicketId,
+      user_id,
+      full_name: fullName,
+      email: email || "sem-email@guardiaoeventos.com",
+      cpf: onlyDigits(cpf),
+      phone: phone ? onlyDigits(phone) : null,
+      status: "pending",
+      custom_fields: custom_fields ?? {},
+    };
 
-    // Fluxo DUPLICATE_HOLD (índice único parcial: no máximo uma reserva
-    // 'held' por user_id+event_id — migration 039). Reconsulta a cobrança
-    // antiga no Asaas IMEDIATAMENTE antes de decidir — nunca confia em
-    // status lido antes.
-    const resolveDuplicateHold = async (): Promise<
+    // Resolve um pedido 'pending' antigo do MESMO usuário+evento (índice
+    // registrations_one_pending_per_user_event, migration 044) — sucessora
+    // do antigo fluxo DUPLICATE_HOLD de reserve_ticket_sold, que vivia lá
+    // embaixo perto da reserva. Agora o gate é no INSERT, mais cedo, porque
+    // é isto que a 044 amarrou por (user_id, event_id).
+    const resolveDuplicatePending = async (): Promise<
       { ok: true } | { ok: false; response: Response }
     > => {
-      // a) Localiza a reserva 'held' existente e a inscrição dela.
-      const { data: heldReservation, error: heldErr } = await supabaseAdmin
-        .from("ticket_reservations")
-        .select("id, registration_id")
-        .eq("user_id", callerId)
-        .eq("event_id", event_id)
-        .eq("status", "held")
-        .maybeSingle();
-      if (heldErr || !heldReservation) {
-        console.error("[asaas-checkout] DUPLICATE_HOLD sem reserva held localizável", heldErr);
-        return {
-          ok: false,
-          response: json({ error: "Não foi possível verificar sua reserva anterior. Tente novamente." }, 500),
-        };
-      }
-
+      // a) Localiza o pending existente. .maybeSingle() de propósito — não
+      // confia cegamente na garantia do índice: se a query não achar nada
+      // (drift entre índice e leitura, ou corrida rara), trata como erro
+      // duro, não tenta reconciliar às cegas.
       const { data: oldReg, error: oldRegErr } = await supabaseAdmin
         .from("event_registrations")
         .select("id, gateway_charge_id")
-        .eq("id", heldReservation.registration_id)
+        .eq("user_id", callerId)
+        .eq("event_id", event_id)
+        .eq("status", "pending")
         .maybeSingle();
       if (oldRegErr || !oldReg) {
-        console.error("[asaas-checkout] reserva duplicada sem inscrição localizável", oldRegErr, heldReservation);
+        console.error("[asaas-checkout] unique_violation sem pending localizável", oldRegErr);
         return {
           ok: false,
-          response: json({ error: "Não foi possível resolver sua reserva anterior. Tente novamente." }, 500),
+          response: json({ error: "Não foi possível verificar sua inscrição anterior. Tente novamente." }, 500),
         };
       }
 
       // b) Status ATUAL da cobrança antiga — nunca o que foi lido antes.
-      // chargeStatus null cobre dois casos, ambos "nada a apagar":
-      //   - sem gateway_charge_id: reserva held sem cobrança nunca chegou a
-      //     existir. Caminho legítimo, não erro — create_free_registration
-      //     reserva e confirma na MESMA transação; falhando entre os dois
-      //     passos sobra held órfã. Vale também para qualquer reserva
-      //     criada antes de a cobrança ser gravada.
-      //   - GET 404: a cobrança já não existe (ex.: o sweep de reservas
-      //     vencidas apagou e morreu antes do release).
-      // Travar em qualquer um dos dois deixaria a vaga presa para sempre —
-      // o participante nunca mais conseguiria comprar (índice único
-      // bloquearia toda nova tentativa em DUPLICATE_HOLD).
       let chargeStatus: string | null = null;
       if (oldReg.gateway_charge_id) {
         try {
@@ -583,22 +581,20 @@ Deno.serve(async (req) => {
           ok: false,
           response: json({
             error: "inscricao_ja_paga",
-            message: "Você já tem uma inscrição paga neste evento.",
+            message: "Você já tem uma inscrição confirmada para este evento.",
           }, 409),
         };
       }
 
       // d) Não paga: apaga a cobrança ANTES de liberar a vaga — só quando
-      // ela ainda existe (chargeStatus !== null). Ordem inegociável quando
-      // existe: o QR do PIX segue pagável por até 12 meses; vaga liberada
-      // com QR ainda vivo reabre o overselling que a Fase 5 existe para
-      // fechar. Se já é 404 (chargeStatus null), não há o que apagar —
-      // pula direto para o release.
+      // ela ainda existe (chargeStatus !== null). Se o DELETE falhar (fora
+      // 404), NÃO libera e NÃO segue: o pedido antigo fica intacto até uma
+      // nova tentativa — mesma regra do reconcile-payments (falha no DELETE
+      // nunca libera a vaga, o QR do PIX segue pagável por até 12 meses).
       if (chargeStatus !== null) {
         try {
           await deletePayment(oldReg.gateway_charge_id);
         } catch (e) {
-          // e) Falha que NÃO é 404: não libera, não segue, devolve erro.
           if (!(e instanceof AsaasError && e.status === 404)) {
             console.error("[asaas-checkout] falha ao apagar cobrança anterior", e);
             return {
@@ -621,69 +617,138 @@ Deno.serve(async (req) => {
         };
       }
 
+      // Tira a linha antiga do 'pending' — é o que libera o índice pro
+      // INSERT novo conseguir entrar.
+      const { error: cancelErr } = await supabaseAdmin
+        .from("event_registrations")
+        .update({ status: "cancelled" })
+        .eq("id", oldReg.id)
+        .eq("status", "pending");
+      if (cancelErr) {
+        console.error("[asaas-checkout] falha ao cancelar inscrição pendente antiga", cancelErr);
+        return {
+          ok: false,
+          response: json({ error: "Não foi possível liberar sua inscrição anterior. Tente novamente." }, 500),
+        };
+      }
+
       return { ok: true };
     };
 
-    const attemptReserve = async (
-      allowDuplicateResolution: boolean,
-    ): Promise<{ ok: true } | { ok: false; response: Response }> => {
-      const { error: reserveErr } = await supabaseAdmin.rpc("reserve_ticket_sold", {
-        p_registration_id: registration.id,
-        p_event_id: event_id,
-        p_ticket_id: ticket.id,
-        p_quantity: quantity,
-        p_expires_at: reservationExpiresAtIso,
-      });
-      if (!reserveErr) return { ok: true };
+    // 10) Inscrição PENDING criada ANTES da cobrança.
+    // Ordem deliberada: o Asaas só aceita `externalReference` (uma string,
+    // sem mapa de metadata como o Stripe), então precisamos do id da
+    // inscrição já existindo para amarrá-lo à cobrança. Se o Asaas falhar
+    // depois disso, o catch cancela esta inscrição.
+    let registration: { id: string } | null = null;
+    {
+      const { data: firstAttempt, error: regErr } = await supabaseAdmin
+        .from("event_registrations")
+        .insert(registrationFields)
+        .select("id")
+        .single();
 
+      if (!regErr) {
+        registration = firstAttempt;
+      } else if (regErr.code === "23505" && regErr.message?.includes("registrations_one_pending_per_user_event")) {
+        // unique_violation da migration 044 — resolve o pedido antigo e
+        // tenta o INSERT UMA vez a mais (nunca em loop: se colidir de novo
+        // depois de resolvido, é bug ou corrida entre 2 requisições
+        // concorrentes idênticas — erro sobe, não insiste).
+        const resolved = await resolveDuplicatePending();
+        if (!resolved.ok) return resolved.response;
+
+        const { data: retryAttempt, error: retryErr } = await supabaseAdmin
+          .from("event_registrations")
+          .insert(registrationFields)
+          .select("id")
+          .single();
+        if (retryErr || !retryAttempt) {
+          console.error("[asaas-checkout] falha ao criar inscrição pendente (retry pós-reconciliação)", retryErr);
+          return json({ error: "Não foi possível iniciar sua inscrição. Tente novamente." }, 500);
+        }
+        registration = retryAttempt;
+      } else {
+        console.error("[asaas-checkout] falha ao criar inscrição pendente", regErr);
+        return json({ error: "Não foi possível iniciar sua inscrição. Tente novamente." }, 500);
+      }
+    }
+    createdRegistrationId = registration.id;
+
+    // 10b) Prazo de vencimento — ANTES do POST /payments no Asaas.
+    // Ordem é o núcleo da Fase 5 (migration 031/039/044): reservar primeiro,
+    // cobrar depois.
+    //
+    // dueDays/dueDateStr calculados AQUI, não lá embaixo no createPayment:
+    // a expiração da reserva precisa usar a MESMA data do vencimento da
+    // cobrança. Calcular duas vezes arriscaria 1 dia de drift bem na
+    // virada da meia-noite.
+    const dueDays = deadlineMin && deadlineMin > 0
+      ? Math.min(Math.max(Math.ceil(deadlineMin / 1440), 1), 60)
+      : DEFAULT_DUE_DAYS[billing_type];
+    const dueDateStr = asaasDueDate(dueDays);
+    const reservationExpiresAtIso = reservationExpiresAt(dueDateStr);
+
+    // 10c) RESERVA atômica de TODAS as linhas do carrinho — uma chamada só,
+    // mesma transação (migration 044). O soft-gate do passo 7 acima segue
+    // como filtro barato de UX; quem decide de verdade é reserve_ticket_items,
+    // check-and-increment atômico por linha, dentro da mesma transação
+    // Postgres.
+    //
+    // DUPLICATE_HOLD vindo desta RPC não tem mais o significado de "outro
+    // pedido seu está em aberto" — isso já foi resolvido lá em cima, no
+    // INSERT de event_registrations (índice
+    // registrations_one_pending_per_user_event). Aqui só pode significar
+    // ticket_id repetido no payload dentro da MESMA chamada — já barrado no
+    // passo 3b, antes de qualquer soft-gate. Sem retry/resolução: se
+    // acontecer mesmo assim (corrida entre 2 requisições idênticas
+    // concorrentes), é 409 direto.
+    //
+    // ATENÇÃO: reserve_ticket_items (044) ainda não aceita p_expires_at —
+    // hardcoda 15 minutos internamente. Esta chamada PRESUME que uma
+    // migration adicional acrescentou o parâmetro antes de ir pra produção
+    // (ver nota no resumo da implementação).
+    const { error: reserveErr } = await supabaseAdmin.rpc("reserve_ticket_items", {
+      p_registration_id: registration.id,
+      p_event_id: event_id,
+      p_items: items.map((i) => ({ ticket_id: i.ticket_id, quantity: i.quantity })),
+      p_expires_at: reservationExpiresAtIso,
+    });
+
+    if (reserveErr) {
       if (reserveErr.code === "P0001") {
         if (reserveErr.message === "TICKET_FULL") {
-          return {
-            ok: false,
-            response: await rejectAndReleaseCoupon({
-              error: "ticket_esgotado",
-              message: "Este ingresso esgotou. A última vaga foi preenchida enquanto a cobrança era preparada.",
-            }, 409),
-          };
+          return await rejectAndReleaseCoupon({
+            error: "ticket_esgotado",
+            message: "Um dos ingressos do carrinho esgotou. A última vaga foi preenchida enquanto a cobrança era preparada.",
+          }, 409);
         }
         if (reserveErr.message === "TICKET_NOT_FOUND") {
-          return {
-            ok: false,
-            response: json({ error: "Ingresso não encontrado para reserva. Tente novamente." }, 400),
-          };
+          return json({ error: "Ingresso não encontrado para reserva. Tente novamente." }, 400);
         }
         if (reserveErr.message === "INVALID_QUANTITY") {
-          return {
-            ok: false,
-            response: json({ error: "Quantidade inválida para reserva." }, 400),
-          };
+          return json({ error: "Quantidade inválida para reserva." }, 400);
+        }
+        if (reserveErr.message === "EMPTY_CART") {
+          return json({ error: "Carrinho vazio." }, 400);
         }
         if (reserveErr.message === "DUPLICATE_HOLD") {
-          if (!allowDuplicateResolution) {
-            // Já resolvemos uma vez nesta requisição e bateu de novo — não
-            // insiste (evita loop). Corrida rara entre duas requisições
-            // concorrentes do mesmo participante (ex.: duplo clique).
-            return {
-              ok: false,
-              response: json({
-                error: "reserva_duplicada",
-                message: "Você já tem uma reserva em andamento para este evento. Tente novamente em instantes.",
-              }, 409),
-            };
-          }
-          const resolved = await resolveDuplicateHold();
-          if (!resolved.ok) return resolved;
-          return await attemptReserve(false);
+          return json({
+            error: "reserva_duplicada",
+            message: "Você já tem uma reserva em andamento para este evento. Tente novamente em instantes.",
+          }, 409);
         }
       }
-
-      // Erro inesperado da RPC — nenhum dos 4 códigos conhecidos.
+      // Erro inesperado da RPC — nenhum dos códigos conhecidos.
       throw new Error(reserveErr.message ?? "Falha ao reservar a vaga.");
-    };
-
-    const reserveOutcome = await attemptReserve(true);
-    if (!reserveOutcome.ok) return reserveOutcome.response;
+    }
     reservationHeld = true;
+
+    // Nome composto do carrinho pra description da cobrança e pra tela —
+    // "2x Inscrição + 1x Kids". Usado nos dois lugares abaixo.
+    const cartLabel = items
+      .map((i) => `${i.quantity}x ${ticketsById.get(i.ticket_id)!.name}`)
+      .join(" + ");
 
     // 11) Cliente no Asaas (reaproveitado por CPF/CNPJ).
     const customer = await findOrCreateCustomer({
@@ -695,13 +760,15 @@ Deno.serve(async (req) => {
     });
 
     // 12) Cobrança. dueDays/dueDateStr já calculados no passo 10b — mesma
-    // data usada para a expiração da reserva, sem recálculo.
+    // data usada para a expiração da reserva, sem recálculo. valueCents
+    // continua sendo o total já somado — createPayment não muda, só quem
+    // monta `total` antes dele (agora soma todos os itens do carrinho).
     const charge = await createPayment({
       customer: customer.id,
       billingType: billing_type,
       valueCents: total,
       dueDate: dueDateStr,
-      description: `${ticket.name} — ${event.name}`.slice(0, 500),
+      description: `${cartLabel} — ${event.name}`.slice(0, 500),
       externalReference: registration.id,
     });
     chargeCreated = true;
@@ -721,9 +788,14 @@ Deno.serve(async (req) => {
 
     // 14) Pagamento PENDING.
     // O Asaas não carrega metadata arbitrária, então o que o webhook vai
-    // precisar (quantidade, taxa, ingresso) fica aqui — gateway_payload é
-    // jsonb e existe exatamente para dados específicos do gateway.
-    // UNIQUE(gateway_transaction_id) torna este insert idempotente.
+    // precisar fica aqui — gateway_payload é jsonb e existe exatamente para
+    // dados específicos do gateway. UNIQUE(gateway_transaction_id) torna
+    // este insert idempotente.
+    //
+    // `items` substitui os antigos `quantity`/`ticket_id` singulares —
+    // webhook/reconcile-payments (045) só leem esses dois campos no
+    // fallback legado (registro sem linha em ticket_reservations, que um
+    // pedido multi-tipo nunca tem — sempre passa por reserve_ticket_items).
     const { error: payErr } = await supabaseAdmin.from("payments").insert({
       organization_id: event.organization_id,
       event_id,
@@ -740,8 +812,11 @@ Deno.serve(async (req) => {
       // devolução do uso no estorno não sabe qual cupom devolver.
       coupon_id: consumedCouponId,
       gateway_payload: {
-        quantity,
-        ticket_id,
+        items: items.map((i) => ({
+          ticket_id: i.ticket_id,
+          quantity: i.quantity,
+          price_cents: ticketsById.get(i.ticket_id)!.price_cents,
+        })),
         billing_type,
         subtotal_cents: subtotal,
         fee_cents: taxa,
@@ -752,7 +827,7 @@ Deno.serve(async (req) => {
     });
     if (payErr) {
       // Não derruba a compra: o webhook tem fallback de insert. Mas registra
-      // alto, porque sem esta linha o webhook perde quantity/fee.
+      // alto, porque sem esta linha o webhook perde os itens/taxa.
       console.error("[asaas-checkout] falha ao criar payment pendente", payErr);
     }
 
@@ -764,7 +839,7 @@ Deno.serve(async (req) => {
       subtotal,
       taxa,
       total,
-      ticket_name: ticket.name,
+      ticket_name: cartLabel,
       due_date: charge.dueDate,
       invoice_url: charge.invoiceUrl ?? null,
     };

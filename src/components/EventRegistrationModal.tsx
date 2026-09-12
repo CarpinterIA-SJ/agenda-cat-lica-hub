@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Calendar, MapPin, Building2, Ticket, ClipboardList, AlertTriangle, Percent,
-  User, Mail, Fingerprint, Phone,
+  User, Mail, Fingerprint, Phone, Plus, Minus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -86,12 +86,20 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
   const { data: platformSettings } = usePlatformSettings();
   const taxaPercent = Number(platformSettings?.map?.taxa_plataforma_percent ?? 5);
 
-  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  // Carrinho multi-tipo: quantidade por ticket_id, começando em 0. Substitui
+  // a seleção única (radio) — usuário pode combinar vários tipos no mesmo
+  // pedido (ex.: 2 Inscrição + 1 Kids).
+  const [cart, setCart] = useState<Record<string, number>>({});
   const [formValues, setFormValues] = useState<Record<string, any>>({});
   const [couponCode, setCouponCode] = useState("");
   const [couponDiscount, setCouponDiscount] = useState<{ modo: "percentual" | "fixo"; valor: string; codigo: string } | null>(null);
   const [couponError, setCouponError] = useState("");
-  const [checkout, setCheckout] = useState<{ ticketId: string; name: string; quantity: number; coupon: string | null; customFields: Record<string, any> } | null>(null);
+  const [checkout, setCheckout] = useState<{
+    items: { ticket_id: string; quantity: number }[];
+    label: string;
+    coupon: string | null;
+    customFields: Record<string, any>;
+  } | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Quando o organizador ainda não cadastrou ingressos, oferece uma entrada
@@ -165,10 +173,10 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
     return !reason || !!isOrgAdmin;
   };
 
-  // Inicializa o formulário e reseta seleção/cupom ao abrir (ou trocar de evento).
+  // Inicializa o formulário e reseta carrinho/cupom ao abrir (ou trocar de evento).
   useEffect(() => {
     if (!open || !event) return;
-    setSelectedTicketId(null);
+    setCart({});
     setCouponCode("");
     setCouponDiscount(null);
     setCouponError("");
@@ -187,12 +195,15 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, event?.id]);
 
+  // Evento sem ingresso cadastrado: modalTickets vira o "default-free"
+  // sintético (linha 99-103). Não faz sentido pedir pra usuário mexer em
+  // stepper de algo que não existe de verdade — auto-marca quantidade 1 e
+  // pula a seção de cards inteira (ver render mais abaixo).
   useEffect(() => {
-    if (open && modalTickets.length > 0 && !selectedTicketId) {
-      const firstBuyable = modalTickets.find((t: any) => isTicketBuyable(t)) ?? modalTickets[0];
-      setSelectedTicketId(firstBuyable.id);
+    if (open && modalTickets.length === 1 && modalTickets[0].id === "default-free") {
+      setCart({ "default-free": 1 });
     }
-  }, [open, modalTickets, selectedTicketId]);
+  }, [open, modalTickets]);
 
   const validateCoupon = async () => {
     if (!couponCode.trim() || !event) return;
@@ -238,14 +249,6 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
     }
   };
 
-  const calcDiscountedPrice = (price: number) => {
-    if (!couponDiscount || price === 0) return price;
-    if (couponDiscount.modo === "percentual") {
-      return Math.max(0, price - price * (parseFloat(couponDiscount.valor) / 100));
-    }
-    return Math.max(0, price - parseFloat(couponDiscount.valor));
-  };
-
   const handleFieldChange = (fieldId: string, value: any) => {
     setFormValues((prev) => ({ ...prev, [fieldId]: value }));
   };
@@ -260,11 +263,31 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
 
   const unifiedFields = useMemo(() => buildUnifiedFields(event), [event]);
 
-  const selectedTicket = modalTickets.find((t: any) => t.id === selectedTicketId);
-  const selectedPriceCents = selectedTicket
-    ? Math.round(calcDiscountedPrice(Number(selectedTicket.price || 0)) * 100)
-    : 0;
-  const selectedCharge = computeCharge(selectedPriceCents, 1, taxaPercent);
+  // Carrinho: linhas com quantidade > 0, e os totais agregados. Desconto do
+  // cupom aplicado sobre a SOMA do carrinho (não por linha) — mesma ordem
+  // do backend (asaas-checkout soma os itens primeiro, só depois desconta);
+  // aplicar por linha daria resultado diferente pra cupom de valor fixo com
+  // mais de 1 tipo no carrinho.
+  const cartLines = useMemo(
+    () =>
+      modalTickets
+        .map((t: any) => ({ ticket: t, quantity: cart[t.id] ?? 0 }))
+        .filter((l: any) => l.quantity > 0),
+    [modalTickets, cart],
+  );
+  const cartTotalQuantity = cartLines.reduce((sum: number, l: any) => sum + l.quantity, 0);
+  const cartRawSubtotalCents = cartLines.reduce(
+    (sum: number, l: any) => sum + Math.round(Number(l.ticket.price || 0) * 100) * l.quantity,
+    0,
+  );
+  const cartSubtotalCents = (() => {
+    if (!couponDiscount || cartRawSubtotalCents === 0) return cartRawSubtotalCents;
+    if (couponDiscount.modo === "percentual") {
+      return Math.max(0, Math.round(cartRawSubtotalCents - cartRawSubtotalCents * (parseFloat(couponDiscount.valor) / 100)));
+    }
+    return Math.max(0, cartRawSubtotalCents - Math.round(parseFloat(couponDiscount.valor) * 100));
+  })();
+  const cartCharge = computeCharge(cartSubtotalCents, 1, taxaPercent);
 
   // Vaga esgotada para uma opção COM limite (Fase C).
   const isOptionFull = (fieldId: string, opt: string, limits?: Record<string, number>) => {
@@ -274,8 +297,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
   };
 
   const isFormValid = useMemo(() => {
-    const ticketOk = !!selectedTicketId && modalTickets.some((t: any) => t.id === selectedTicketId && isTicketBuyable(t));
-    if (!ticketOk || isDuplicate || !termsAccepted) return false;
+    if (cartTotalQuantity === 0 || isDuplicate || !termsAccepted) return false;
     return unifiedFields.every((f) => {
       // Bloqueia envio se uma opção esgotada estiver selecionada (defesa
       // client-side; a trava real é server-side via RPC).
@@ -290,7 +312,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
       return typeof raw === "string" ? raw.trim().length > 0 : !!raw;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTicketId, formValues, unifiedFields, isDuplicate, optionCounts, termsAccepted]);
+  }, [cartTotalQuantity, formValues, unifiedFields, isDuplicate, optionCounts, termsAccepted]);
 
   const handleRegister = async () => {
     if (!event) return;
@@ -317,22 +339,23 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
     // Ingresso pago → checkout obrigatório (Asaas: PIX/boleto/cartão). A inscrição é criada
     // (pending) pelo backend e confirmada via webhook após o pagamento.
     // As respostas seguem no body do checkout → gravadas no pending (Fase B).
-    if (selectedPriceCents > 0) {
+    if (cartSubtotalCents > 0) {
       if (!user) {
         toast.info("Entre na sua conta para concluir o pagamento.");
         navigate("/login");
         return;
       }
-      const ticketId = selectedTicketId && selectedTicketId !== "default-free" ? selectedTicketId : null;
-      if (!ticketId) {
-        toast.error("Selecione um ingresso válido para pagamento.");
+      const items = cartLines
+        .filter((l: any) => l.ticket.id !== "default-free")
+        .map((l: any) => ({ ticket_id: l.ticket.id, quantity: l.quantity }));
+      if (items.length === 0) {
+        toast.error("Selecione ao menos um ingresso válido para pagamento.");
         return;
       }
       onClose();
       setCheckout({
-        ticketId,
-        name: selectedTicket?.name ?? "Ingresso",
-        quantity: 1,
+        items,
+        label: cartLines.map((l: any) => `${l.quantity}x ${l.ticket.name}`).join(" + "),
         coupon: couponDiscount?.codigo ?? null,
         customFields: customValues,
       });
@@ -357,9 +380,17 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
       // porque consume_coupon NÃO é exposta ao cliente: fosse exposta, um
       // laço de chamadas esgotaria a campanha inteira do organizador sem
       // ninguém se inscrever.
+      // Carrinho multi-tipo (migration 044/046): p_items carrega todas as
+      // linhas de uma vez, numa transação só — mesma garantia "tudo ou nada"
+      // de antes, agora cobrindo N tipos em vez de 1. p_ticket_id fica null
+      // quando há itens (a RPC ignora o legado nesse caso); único caso onde
+      // ainda importava era o "default-free" sintético, que não entra em items.
+      const items = cartLines
+        .filter((l: any) => l.ticket.id !== "default-free")
+        .map((l: any) => ({ ticket_id: l.ticket.id, quantity: l.quantity }));
       const { error } = await supabase.rpc("create_free_registration", {
         p_event_id: event.id,
-        p_ticket_id: selectedTicketId && selectedTicketId !== "default-free" ? selectedTicketId : null,
+        p_ticket_id: null,
         p_full_name: formValues["fixed_nome"] || "",
         p_email: formValues["fixed_email"] || "",
         p_cpf: formValues["fixed_cpf"] || null,
@@ -368,6 +399,7 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
         p_custom_fields: customValues as any,
         p_selections: limitedSelections as any,
         p_coupon_code: couponDiscount?.codigo ?? null,
+        p_items: items.length > 0 ? (items as any) : null,
       });
 
       if (error) {
@@ -391,8 +423,9 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
             description: "O período de inscrição deste ingresso já terminou.",
           });
         } else if (m.includes("TICKET_FULL")) {
-          // Vem de reserve_ticket_sold, chamada por create_free_registration
-          // desde a migration 034. Distinto de OPTION_FULL: ali esgotou uma
+          // Vem de reserve_ticket_items, chamada por create_free_registration
+          // desde a migration 044 (034 originalmente, antes do carrinho
+          // multi-tipo). Distinto de OPTION_FULL: ali esgotou uma
           // opção do formulário, aqui esgotou o ingresso inteiro. A inscrição
           // NÃO foi criada e o cupom NÃO foi consumido — a RPC é uma
           // transação só, e o RAISE desfez tudo.
@@ -458,33 +491,41 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
               </div>
             )}
 
-            {/* Seleção de ingresso (exibida quando há mais de um) */}
-            {modalTickets.length > 1 && (
+            {/* Carrinho de ingressos: card por tipo, stepper de quantidade independente. */}
+            {!(modalTickets.length === 1 && modalTickets[0].id === "default-free") && (
               <div className="space-y-3">
                 <h4 className="font-bold flex items-center gap-2 text-foreground text-sm uppercase tracking-wider">
                   <Ticket className="w-4 h-4 text-primary" /> Ingressos
                 </h4>
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   {modalTickets.map((t: any) => {
-                    const isSelected = t.id === selectedTicketId;
                     const gateReason = ticketGate.get(t.id) as TicketGateReason | undefined;
                     const bypassed = !!gateReason && !!isOrgAdmin;
                     const disabled = !!gateReason && !isOrgAdmin;
                     const priceLabel = Number(t.price) === 0 ? "Gratuito" : `R$ ${t.price}`;
+                    const qty = cart[t.id] ?? 0;
+                    // Mesmo soft-gate de capacidade que o backend aplica
+                    // (reserve_ticket_items/asaas-checkout): quantity=0 é a
+                    // convenção de "ilimitado" no schema, mas o zod do
+                    // asaas-checkout ainda capa cada linha em 10 — usa esse
+                    // teto aqui pra não deixar o carrinho ficar maior do que
+                    // o backend aceita.
+                    const cap = Number(t.quantity ?? 0) > 0
+                      ? Math.max(0, Math.min(10, Number(t.quantity) - Number(t.sold ?? 0) - Number(t.reserved ?? 0)))
+                      : 10;
+                    const soldOut = !gateReason && cap <= 0;
+                    const stepperDisabled = disabled || soldOut;
                     return (
-                      <button
+                      <div
                         key={t.id}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => !disabled && setSelectedTicketId(t.id)}
-                        className={`flex items-center justify-between rounded-xl border p-4 text-left transition ${
-                          disabled
-                            ? "border-slate-100 bg-slate-50 opacity-60 cursor-not-allowed"
-                            : isSelected ? "border-primary bg-primary/5" : "border-slate-200 hover:border-primary/40"
+                        className={`flex items-center justify-between gap-3 rounded-xl border p-4 ${
+                          stepperDisabled
+                            ? "border-slate-100 bg-slate-50 opacity-60"
+                            : qty > 0 ? "border-primary bg-primary/5" : "border-slate-200"
                         }`}
                       >
-                        <span className="font-semibold text-sm text-foreground">
-                          <span className="block">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm text-foreground">
                             {t.name}
                             {gateReason && (
                               <span className="ml-2 text-xs font-normal text-muted-foreground">
@@ -493,13 +534,39 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
                                   : `(${GATE_LABELS[gateReason]})`}
                               </span>
                             )}
-                          </span>
+                            {soldOut && <span className="ml-2 text-xs font-normal text-muted-foreground">(esgotado)</span>}
+                          </p>
                           {t.description && (
-                            <span className="block text-xs font-normal text-muted-foreground mt-0.5">{t.description}</span>
+                            <p className="text-xs font-normal text-muted-foreground mt-0.5">{t.description}</p>
                           )}
-                        </span>
-                        <span className={`text-sm font-bold ${isSelected ? "text-primary" : "text-foreground/70"}`}>{priceLabel}</span>
-                      </button>
+                          <p className={`text-sm font-bold mt-1 ${qty > 0 ? "text-primary" : "text-foreground/70"}`}>
+                            {priceLabel}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            disabled={stepperDisabled || qty === 0}
+                            onClick={() => setCart((c) => ({ ...c, [t.id]: Math.max(0, (c[t.id] ?? 0) - 1) }))}
+                          >
+                            <Minus className="w-4 h-4" />
+                          </Button>
+                          <span className="w-6 text-center text-sm font-semibold tabular-nums">{qty}</span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            disabled={stepperDisabled || qty >= cap}
+                            onClick={() => setCart((c) => ({ ...c, [t.id]: Math.min(cap, (c[t.id] ?? 0) + 1) }))}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -666,13 +733,13 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
             )}
           </div>
 
-          {selectedTicket && (
+          {cartTotalQuantity > 0 && (
             <div className="px-6 pb-4">
               <ChargeSummary
-                subtotalCents={selectedCharge.subtotal}
-                taxaCents={selectedCharge.taxa}
-                totalCents={selectedCharge.total}
-                taxaPercent={selectedPriceCents > 0 ? taxaPercent : undefined}
+                subtotalCents={cartCharge.subtotal}
+                taxaCents={cartCharge.taxa}
+                totalCents={cartCharge.total}
+                taxaPercent={cartSubtotalCents > 0 ? taxaPercent : undefined}
               />
             </div>
           )}
@@ -708,9 +775,8 @@ export const EventRegistrationModal = ({ open, onClose, event, tickets }: EventR
       {checkout && event?.id && (
         <AsaasCheckoutModal
           eventId={event.id}
-          ticketId={checkout.ticketId}
-          ticketName={checkout.name}
-          quantity={checkout.quantity}
+          items={checkout.items}
+          ticketName={checkout.label}
           couponCode={checkout.coupon}
           customFields={checkout.customFields}
           onClose={() => setCheckout(null)}

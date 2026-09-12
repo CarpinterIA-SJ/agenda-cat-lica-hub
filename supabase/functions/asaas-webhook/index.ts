@@ -269,43 +269,51 @@ async function handlePaid(payment: AsaasWebhookPayment, eventType: string) {
     ?? payment.externalReference
     ?? null;
 
-  let regAnswers: unknown = reg?.custom_fields ?? null;
+  const regAnswers: unknown = reg?.custom_fields ?? null;
 
   // Fase 5 (migration 039): reserved -> sold passa por confirm_ticket_reservation
   // quando existe reserva. NÃO chamar increment_ticket_sold no mesmo caso —
   // duplicaria a contagem (a RPC já move reserved -> sold internamente).
   // Só cai no fallback de increment_ticket_sold quando não há como chamar a
   // RPC (sem registrationId) ou ela devolve NOT_FOUND (cauda legada).
+  //
+  // 045: confirm_ticket_reservation roda ANTES de marcar a inscrição como
+  // 'confirmed'. Antes desta mudança o update de status rodava
+  // incondicionalmente primeiro — o PaymentWatcher do front (polling em
+  // event_registrations.status) já mostrava "pagamento confirmado" pro
+  // participante mesmo quando a RPC vinha a devolver RELEASED/PARTIAL logo
+  // em seguida. Agora o status só vira 'confirmed' se a RPC de fato
+  // confirmou (ou não havia reserva pra confirmar, cauda legada NOT_FOUND).
   let useReservationPath = false;
 
   if (registrationId) {
-    const { data: updated, error: updErr } = await supabaseAdmin
-      .from("event_registrations")
-      .update({ status: "confirmed" })
-      .eq("id", registrationId)
-      .neq("status", "confirmed")
-      .select("id, custom_fields")
-      .maybeSingle();
-    if (updErr) throw updErr;
-    if (updated?.custom_fields != null) regAnswers = updated.custom_fields;
-
     const { data: confirmResult, error: confirmErr } = await supabaseAdmin
       .rpc("confirm_ticket_reservation", { p_registration_id: registrationId });
     if (confirmErr) throw confirmErr;
 
-    if (confirmResult === "CONFIRMED") {
-      useReservationPath = true;
-    } else if (confirmResult === "ALREADY_CONFIRMED") {
-      // Idempotente: outra chamada (reenvio, ou reconcile-payments) já
-      // confirmou e já moveu reserved -> sold. Nada a fazer aqui.
-      console.log("[asaas-webhook] reserva já confirmada, ignorando:", payment.id);
+    if (confirmResult === "CONFIRMED" || confirmResult === "ALREADY_CONFIRMED") {
+      if (confirmResult === "ALREADY_CONFIRMED") {
+        // Idempotente: outra chamada (reenvio, ou reconcile-payments) já
+        // confirmou e já moveu reserved -> sold. Nada a fazer aqui além de
+        // garantir que o status também reflita isso (guard por status no
+        // update abaixo torna repetir seguro).
+        console.log("[asaas-webhook] reserva já confirmada, ignorando:", payment.id);
+      }
+      const { error: updErr } = await supabaseAdmin
+        .from("event_registrations")
+        .update({ status: "confirmed" })
+        .eq("id", registrationId)
+        .neq("status", "confirmed");
+      if (updErr) throw updErr;
       useReservationPath = true;
     } else if (confirmResult === "RELEASED") {
       // ALARME: o dinheiro chegou depois de a reserva já ter sido liberada
       // (expirou, ou foi liberada por DUPLICATE_HOLD/troca de método). O
       // ingresso pode já estar esgotado para outra pessoa — incrementar
-      // sold cego aqui poderia vender uma vaga que não existe. Fica para
-      // reconciliação manual, nunca estouro silencioso.
+      // sold cego aqui poderia vender uma vaga que não existe. NÃO confirma
+      // a inscrição (fica 'pending'), NÃO incrementa nada — fica para
+      // reconciliação manual, nunca estouro silencioso. Caso ESPERADO,
+      // documentado desde a 039.
       console.error(
         "[asaas-webhook] ALARME: pagamento confirmado para reserva já RELEASED:",
         payment.id, registrationId,
@@ -325,6 +333,39 @@ async function handlePaid(payment: AsaasWebhookPayment, eventType: string) {
       });
       if (auditErr) console.error("[asaas-webhook] audit_logs RELEASED falhou", auditErr);
       useReservationPath = true; // NÃO cai no fallback de increment_ticket_sold.
+    } else if (confirmResult === "PARTIAL") {
+      // 045: carrinho multi-tipo (migration 044) — nunca deveria acontecer,
+      // confirm_ticket_reservation confirma todas as linhas 'held' do
+      // pedido numa transação só. Diferente de RELEASED (caso esperado),
+      // isto é sinal de bug ou corrida não prevista — severidade alta, sem
+      // decisão automática. NÃO confirma a inscrição, NÃO incrementa nada.
+      console.error(
+        "[asaas-webhook] ALARME GRAVE: confirm_ticket_reservation devolveu PARTIAL — investigar:",
+        payment.id, registrationId,
+      );
+      const { error: auditErr } = await supabaseAdmin.from("audit_logs").insert({
+        actor_email: "system@asaas-webhook",
+        action: "reservation_partial_confirm",
+        entity_type: "payment",
+        // entity_id aqui é registration_id, não pay.id (diferente do padrão
+        // do resto do arquivo, ex.: o RELEASED logo acima usa pay.id). De
+        // propósito: o problema é NO PEDIDO — algumas linhas de
+        // ticket_reservations do registration_id confirmaram, outras não —,
+        // não na cobrança em si (essa está correta, o dinheiro caiu certo).
+        // Quem precisa ser investigado é a reserva do pedido, não a
+        // transação financeira.
+        entity_id: registrationId,
+        details: {
+          gateway: "asaas",
+          asaas_event: eventType,
+          charge_id: payment.id,
+          registration_id: registrationId,
+          event_id: eventId,
+          confirm_result: confirmResult,
+        },
+      });
+      if (auditErr) console.error("[asaas-webhook] audit_logs PARTIAL falhou", auditErr);
+      useReservationPath = true; // NÃO cai no fallback de increment_ticket_sold.
     }
     // 'NOT_FOUND' cai para o fallback abaixo (useReservationPath continua false).
   } else {
@@ -335,6 +376,17 @@ async function handlePaid(payment: AsaasWebhookPayment, eventType: string) {
     // Caminho legado (pré-039): inscrição sem linha em ticket_reservations
     // (ex.: pay_jcizgtevltkyagsr), ou sem registrationId identificável.
     // increment_ticket_sold direto, como sempre foi.
+    //
+    // 045: este é o único ramo que ainda marca a inscrição como
+    // 'confirmed' — cauda legada sem reserva nenhuma pra confirmar antes.
+    if (registrationId) {
+      const { error: updErr } = await supabaseAdmin
+        .from("event_registrations")
+        .update({ status: "confirmed" })
+        .eq("id", registrationId)
+        .neq("status", "confirmed");
+      if (updErr) throw updErr;
+    }
     const effectiveTicketId = ticketId ?? reg?.ticket_id ?? null;
     if (effectiveTicketId) {
       const { error: soldErr } = await supabaseAdmin.rpc("increment_ticket_sold", {
@@ -545,33 +597,48 @@ async function handleRefunded(payment: AsaasWebhookPayment, eventType: string) {
   }
 
   if (wasConfirmed) {
-    // Fase 5: fonte de ticket_id/quantity para o decremento. Quando existe
-    // linha 'confirmed' em ticket_reservations (039) ela é o livro-razão
-    // autoritativo — mais confiável que gateway_payload, que é só o que o
-    // checkout gravou no momento da cobrança.
-    let decrementTicketId = ticketId;
-    let decrementQuantity = quantity;
+    // Fase 5: fonte de ticket_id/quantity para o decremento. Quando existem
+    // linhas 'confirmed' em ticket_reservations (039/044) elas são o
+    // livro-razão autoritativo — mais confiável que gateway_payload, que é
+    // só o que o checkout gravou no momento da cobrança.
+    //
+    // 045: carrinho multi-tipo (migration 044) pode ter N linhas
+    // 'confirmed' pro mesmo registration_id, uma por tipo de ingresso.
+    // .maybeSingle() erra com >1 linha (data vira null, error descartado
+    // pelo destructuring) e o código caía no fallback singular,
+    // decrementando só 1 dos N tipos — `sold` dos outros ficava inflado
+    // pra sempre, em silêncio. Lista + loop resolve.
+    let decrementedViaReservations = false;
     if (reg?.id) {
-      const { data: reservation } = await supabaseAdmin
+      const { data: reservations } = await supabaseAdmin
         .from("ticket_reservations")
         .select("ticket_id, quantity")
         .eq("registration_id", reg.id)
-        .eq("status", "confirmed")
-        .maybeSingle();
-      if (reservation) {
-        decrementTicketId = reservation.ticket_id ?? decrementTicketId;
-        decrementQuantity = reservation.quantity ?? decrementQuantity;
+        .eq("status", "confirmed");
+
+      if (reservations && reservations.length > 0) {
+        decrementedViaReservations = true;
+        for (const reservation of reservations) {
+          if (!reservation.ticket_id) continue;
+          // Assimetria corrigida: antes só logava em erro enquanto o
+          // incremento (handlePaid) faz throw — falha silenciosa aqui
+          // deixava `sold` inflado para sempre, sem nenhum sinal. Agora
+          // throw, espelhando o incremento.
+          const { error: decErr } = await supabaseAdmin.rpc("decrement_ticket_sold", {
+            p_ticket_id: reservation.ticket_id,
+            p_quantity: reservation.quantity,
+          });
+          if (decErr) throw decErr;
+        }
       }
     }
 
-    if (decrementTicketId) {
-      // Assimetria corrigida: antes só logava em erro enquanto o
-      // incremento (handlePaid) faz throw — falha silenciosa aqui deixava
-      // `sold` inflado para sempre, sem nenhum sinal. Agora throw,
-      // espelhando o incremento.
+    if (!decrementedViaReservations && ticketId) {
+      // Sem linha em ticket_reservations 'confirmed': caminho legado
+      // (pré-039), decrementa direto pelo ticket_id/quantity singular.
       const { error: decErr } = await supabaseAdmin.rpc("decrement_ticket_sold", {
-        p_ticket_id: decrementTicketId,
-        p_quantity: decrementQuantity,
+        p_ticket_id: ticketId,
+        p_quantity: quantity,
       });
       if (decErr) throw decErr;
     }
