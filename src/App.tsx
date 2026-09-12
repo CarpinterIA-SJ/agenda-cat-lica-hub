@@ -257,10 +257,12 @@ const OrganizerEventNewPage = () => {
   const [ingressoVendasInicio, setIngressoVendasInicio] = useState("");
   const [ingressoVendasFim, setIngressoVendasFim] = useState("");
   const [ingressoVisivel, setIngressoVisivel] = useState(true);
+  const [editandoIngressoId, setEditandoIngressoId] = useState<string | null>(null);
 
   const resetIngressoDialogFields = () => {
     setIngressoNome(""); setIngressoQtd(""); setIngressoPreco("");
     setIngressoDescricao(""); setIngressoVendasInicio(""); setIngressoVendasFim(""); setIngressoVisivel(true);
+    setEditandoIngressoId(null);
   };
 
   const handleSalvarIngresso = () => {
@@ -270,22 +272,37 @@ const OrganizerEventNewPage = () => {
       toast({ title: "Preço abaixo do mínimo", description: MIN_PAID_TICKET_MESSAGE, variant: "destructive" });
       return;
     }
-    const novo: Ingresso = {
-      id: Date.now().toString(),
+    const campos = {
       nome: ingressoNome,
       quantidade: parseInt(ingressoQtd, 10),
       preco: dialogTipoIngresso === "pago" ? parseFloat(ingressoPreco.replace(",", ".")) : null,
       tipo: dialogTipoIngresso!,
-      status: "Ativo",
       visibilidade: ingressoVisivel ? "Público" : "Privado",
-      repassarTaxas: false,
       descricao: ingressoDescricao.trim(),
       vendasInicio: ingressoVendasInicio,
       vendasFim: ingressoVendasFim,
     };
-    setIngressos((prev) => [...prev, novo]);
+    if (editandoIngressoId) {
+      // status e repassarTaxas não têm campo no modal — preserva o que a linha já tinha.
+      setIngressos((prev) => prev.map((i) => (i.id === editandoIngressoId ? { ...i, ...campos } : i)));
+    } else {
+      const novo: Ingresso = { id: Date.now().toString(), status: "Ativo", repassarTaxas: false, ...campos };
+      setIngressos((prev) => [...prev, novo]);
+    }
     setDialogTipoIngresso(null);
     resetIngressoDialogFields();
+  };
+
+  const handleEditarIngresso = (i: Ingresso) => {
+    setIngressoNome(i.nome);
+    setIngressoQtd(String(i.quantidade));
+    setIngressoPreco(i.preco != null ? String(i.preco).replace(".", ",") : "");
+    setIngressoDescricao(i.descricao);
+    setIngressoVendasInicio(i.vendasInicio);
+    setIngressoVendasFim(i.vendasFim);
+    setIngressoVisivel(i.visibilidade === "Público");
+    setEditandoIngressoId(i.id);
+    setDialogTipoIngresso(i.tipo);
   };
 
   // Pagamento state
@@ -1320,12 +1337,20 @@ const OrganizerEventNewPage = () => {
                               <td className="px-4 py-3 text-slate-600">{i.visibilidade}</td>
                               <td className="px-4 py-3 text-slate-600">{i.repassarTaxas ? "Sim" : "Não"}</td>
                               <td className="px-4 py-3">
-                                <button
-                                  className="text-destructive hover:text-destructive/80 text-xs"
-                                  onClick={() => setIngressos((prev) => prev.filter((x) => x.id !== i.id))}
-                                >
-                                  Remover
-                                </button>
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    className="text-emerald-700 hover:text-emerald-800 text-xs"
+                                    onClick={() => handleEditarIngresso(i)}
+                                  >
+                                    Editar
+                                  </button>
+                                  <button
+                                    className="text-destructive hover:text-destructive/80 text-xs"
+                                    onClick={() => setIngressos((prev) => prev.filter((x) => x.id !== i.id))}
+                                  >
+                                    Remover
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))
@@ -1602,13 +1627,15 @@ const OrganizerEventNewPage = () => {
           </TabsContent>
 
           {/* Dialog: adicionar ingresso */}
-          <Dialog open={!!dialogTipoIngresso} onOpenChange={(open) => !open && setDialogTipoIngresso(null)}>
+          <Dialog open={!!dialogTipoIngresso} onOpenChange={(open) => { if (!open) { setDialogTipoIngresso(null); setEditandoIngressoId(null); } }}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>
-                  Adicionar ingresso {dialogTipoIngresso === "pago" ? "pago" : "gratuito"}
+                  {editandoIngressoId ? "Editar" : "Adicionar"} ingresso {dialogTipoIngresso === "pago" ? "pago" : "gratuito"}
                 </DialogTitle>
-                <DialogDescription>Preencha os dados do novo ingresso.</DialogDescription>
+                <DialogDescription>
+                  {editandoIngressoId ? "Atualize os dados do ingresso." : "Preencha os dados do novo ingresso."}
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-3">
                 <div className="space-y-1">
@@ -1654,13 +1681,13 @@ const OrganizerEventNewPage = () => {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setDialogTipoIngresso(null)}>Cancelar</Button>
+                <Button variant="outline" onClick={() => { setDialogTipoIngresso(null); setEditandoIngressoId(null); }}>Cancelar</Button>
                 <Button
                   className="bg-emerald-700 text-white hover:bg-emerald-800"
                   disabled={!ingressoNome.trim() || !ingressoQtd}
                   onClick={handleSalvarIngresso}
                 >
-                  Salvar ingresso
+                  {editandoIngressoId ? "Salvar alterações" : "Salvar ingresso"}
                 </Button>
               </DialogFooter>
             </DialogContent>
