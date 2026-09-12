@@ -231,7 +231,7 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
               <h1 className="text-3xl md:text-4xl font-bold text-[#0b3d2e]">
                 {eventData?.name || "Nome do Evento"}
               </h1>
-              <p className="text-sm text-[#4b6355]">
+              <p className="text-sm text-[#4b6355] line-clamp-3">
                 {eventData?.descriptionText || "Experiência organizada pela Guardião Eventos para sua comunidade."}
               </p>
             </div>
