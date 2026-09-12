@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import DOMPurify from "dompurify";
+import { PaymentMethodBadges } from "@/components/PaymentMethodBadges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -447,13 +448,7 @@ export const PublicEventPage = ({ event: eventProp }: { event?: any }) => {
         <div className="bg-white rounded-2xl shadow-sm p-6 grid gap-6 md:grid-cols-3">
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-[#0b3d2e]">Formas de pagamento</h4>
-            <div className="grid grid-cols-3 gap-2 text-xs text-[#7a8c81]">
-              {["Visa", "Mastercard", "Elo", "Diners", "Amex", "Boleto", "Pix"].map((item) => (
-                <div key={item} className="rounded-md border border-[#dfe8df] bg-[#f6f8f6] px-2 py-2 text-center font-medium">
-                  {item}
-                </div>
-              ))}
-            </div>
+            <PaymentMethodBadges />
           </div>
 
           <div className="space-y-3">

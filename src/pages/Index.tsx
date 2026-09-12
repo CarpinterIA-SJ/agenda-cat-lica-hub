@@ -2,6 +2,7 @@ import { Calendar, Monitor, MessageCircle, PhoneCall } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
+import { PaymentMethodBadges } from "@/components/PaymentMethodBadges";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -109,14 +110,7 @@ const Index = () => {
         <div className="container mx-auto py-10 grid md:grid-cols-3 gap-8 text-sm">
           <div>
             <h4 className="font-semibold mb-3">Formas de pagamento</h4>
-            <div className="flex flex-wrap gap-4 text-slate-500">
-              <span>Visa</span>
-              <span>Mastercard</span>
-              <span>Elo</span>
-              <span>Dinheiro</span>
-              <span>Boleto</span>
-              <span>Pix</span>
-            </div>
+            <PaymentMethodBadges />
           </div>
           <div>
             <h4 className="font-semibold mb-3">Certificados</h4>

@@ -11,6 +11,7 @@ import DashboardPage from "./pages/DashboardPage";
 import MyTicketsPage from "./pages/MyTicketsPage";
 import MyTicketDetailPage from "./pages/MyTicketDetailPage";
 import ExploreEventsPage, { PublicEventPage } from "./pages/ExploreEventsPage";
+import { PaymentMethodBadges } from "@/components/PaymentMethodBadges";
 import SupportPage from "./pages/SupportPage";
 import TermosPage from "./pages/TermosPage";
 import PrivacidadePage from "./pages/PrivacidadePage";
@@ -1791,11 +1792,7 @@ const OrganizerEventPreviewPage = () => {
         <div className="grid gap-6 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-3">
             <h4 className="text-sm font-semibold text-slate-900">Formas de pagamento</h4>
-            <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-              {['Visa', 'Mastercard', 'Elo', 'American Express', 'Boleto', 'Pix'].map((item) => (
-                <span key={item} className="rounded-full bg-slate-100 px-3 py-1">{item}</span>
-              ))}
-            </div>
+            <PaymentMethodBadges />
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-3">
             <h4 className="text-sm font-semibold text-slate-900">Certificados</h4>
