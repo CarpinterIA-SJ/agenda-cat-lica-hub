@@ -175,7 +175,6 @@ const LandingPage = () => {
   const [search, setSearch] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [registrations, setRegistrations] = useState(0);
   const { session, signOut } = useAuth();
   const isLoggedIn = !!session;
 
@@ -188,7 +187,6 @@ const LandingPage = () => {
   useEffect(() => {
     try {
       setEvents(syncCustomEvents());
-      setRegistrations(JSON.parse(localStorage.getItem("event_registrations") || "[]").length);
     } catch {
       setEvents([]);
     }
@@ -215,9 +213,6 @@ const LandingPage = () => {
   const CATEGORY_SECTIONS = [
     "retiros", "congressos", "acampamentos", "shows", "cursos", "encontros", "espiritualidade",
   ].filter((cat) => byCategory(cat).length > 0);
-
-  const statsEvents = events.length;
-  const statsRegistrations = registrations;
 
   return (
     <div className="min-h-screen bg-white font-sans">
@@ -466,25 +461,6 @@ const LandingPage = () => {
           </section>
         );
       })}
-
-      {/* ── STATS ── */}
-      <section className="bg-[#0b3d2e] py-16 mt-8">
-        <div className="max-w-5xl mx-auto px-4 md:px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {[
-              { value: `${statsEvents}+`, label: "Eventos Realizados" },
-              { value: `${Math.max(statsRegistrations, 0)} mil+`, label: "Inscrições Realizadas" },
-              { value: "0 mil+", label: "Checkins Realizados" },
-              { value: "0+", label: "Cursos" },
-            ].map((s) => (
-              <div key={s.label} className="space-y-2">
-                <p className="text-3xl md:text-4xl font-black text-emerald-200">{s.value}</p>
-                <p className="text-sm text-emerald-100/70 font-medium">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* ── FAQ ── */}
       <section className="max-w-3xl mx-auto px-4 md:px-6 py-16 space-y-8">
