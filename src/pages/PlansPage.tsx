@@ -28,7 +28,7 @@ const FEATURES_LARGE = [
   "Gerente de conta dedicado",
   "Integrações personalizadas",
   "Preço negociado por volume",
-  "Suporte por WhatsApp, e-mail e telefone",
+  "Suporte por WhatsApp e e-mail",
 ];
 
 const TOOLS = [
