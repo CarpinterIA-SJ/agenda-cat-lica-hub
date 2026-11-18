@@ -63,7 +63,7 @@ const PlansPage = () => {
         {/* Hero */}
         <section className="text-center space-y-6 max-w-3xl mx-auto">
           <span className="text-xs font-bold uppercase tracking-widest text-[#2f5a47] bg-[#2f5a47]/10 px-3 py-1 rounded-full">
-            Plataforma para eventos católicos
+            Plataforma de eventos
           </span>
           <h1 className="text-4xl md:text-5xl font-bold text-[#0b3d2e] leading-tight">
             Gerencie seus eventos com simplicidade e profissionalismo

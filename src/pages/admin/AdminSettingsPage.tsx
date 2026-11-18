@@ -20,7 +20,7 @@ const AdminSettingsPage = () => {
   const [emailSuporte, setEmailSuporte] = useState("suporte@guardiao.app");
   const [taxaPlataforma, setTaxaPlataforma] = useState("5");
   const [mensagemBoasVindas, setMensagemBoasVindas] = useState(
-    "Bem-vindo ao Guardião Eventos, a plataforma para gestão de eventos católicos.",
+    "Bem-vindo ao Guardião Eventos, a plataforma para gestão de eventos.",
   );
   const [manutencao, setManutencao] = useState(false);
   const [novosCadastros, setNovosCadastros] = useState(true);
