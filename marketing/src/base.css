@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600&display=swap');
+
+:root {
+  --verde: #0b3d2e;
+  --verde-2: #004d00;
+  --verde-claro: #a7f3d0;
+  --creme: #f7f3ea;
+  --papel: #fffdf8;
+  --ouro: #f59e0b;
+  --ouro-escuro: #b45309;
+  --tinta: #10231b;
+  --cinza: #4b6355;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #222; font-family: 'Inter', sans-serif; color: var(--tinta); -webkit-font-smoothing: antialiased; }
+
+.slide {
+  width: 1080px; height: 1350px; position: relative; overflow: hidden;
+  padding: 96px 92px; display: flex; flex-direction: column; margin-bottom: 40px;
+}
+.slide.story { height: 1920px; padding: 160px 92px; }
+.slide.claro { background: var(--creme); }
+.slide.escuro { background: var(--verde); color: #fff; }
+.slide.escuro .corpo { color: rgba(236, 253, 245, .86); }
+
+/* arco de vitral ao fundo */
+.slide::before {
+  content: ""; position: absolute; right: -180px; top: -120px; width: 620px; height: 2200px; border-bottom: 0;
+  border-radius: 310px 310px 0 0; border: 3px solid currentColor; opacity: .07; pointer-events: none;
+}
+.slide::after {
+  content: ""; position: absolute; right: -120px; top: -60px; width: 500px; height: 2200px; border-bottom: 0;
+  border-radius: 250px 250px 0 0; border: 3px solid currentColor; opacity: .05; pointer-events: none;
+}
+
+.topo { display: flex; align-items: center; justify-content: space-between; font-size: 26px; font-weight: 600; z-index: 1; }
+.marca { display: flex; align-items: center; gap: 16px; font-weight: 800; letter-spacing: -.01em; }
+.selo { width: 56px; height: 56px; border-radius: 14px; background: var(--verde); display: grid; place-items: center; }
+.escuro .selo { background: #fff; }
+.escuro .selo svg { stroke: var(--verde); }
+.selo svg { width: 30px; height: 30px; stroke: #fff; }
+.contador { opacity: .55; font-variant-numeric: tabular-nums; }
+
+.miolo { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 40px; z-index: 1; }
+.eyebrow { font-size: 26px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--ouro-escuro); }
+.escuro .eyebrow { color: var(--ouro); }
+.titulo { font-size: 84px; line-height: 1.04; font-weight: 900; letter-spacing: -.035em; }
+.titulo.medio { font-size: 66px; }
+.titulo em { font-family: 'Fraunces', serif; font-style: italic; font-weight: 600; color: var(--verde-2); letter-spacing: -.01em; }
+.escuro .titulo em { color: var(--verde-claro); }
+.corpo { font-size: 37px; line-height: 1.42; color: var(--cinza); font-weight: 500; }
+.corpo b { color: var(--tinta); font-weight: 700; }
+.escuro .corpo b { color: #fff; }
+.num {
+  display: inline-grid; place-items: center; width: 96px; height: 96px; border-radius: 24px;
+  background: var(--verde); color: #fff; font-size: 48px; font-weight: 900;
+}
+.escuro .num { background: var(--ouro); color: var(--verde); }
+
+.citacao { font-family: 'Fraunces', serif; font-weight: 600; font-size: 76px; line-height: 1.12; letter-spacing: -.01em; }
+.citacao::before { content: "“"; display: block; font-size: 180px; line-height: .6; color: var(--ouro); }
+
+.rodape { display: flex; align-items: center; justify-content: space-between; font-size: 26px; font-weight: 600; z-index: 1; }
+.rodape .seta { display: flex; align-items: center; gap: 12px; color: var(--ouro-escuro); font-weight: 800; }
+.escuro .rodape .seta { color: var(--ouro); }
+.rodape .seta svg { width: 34px; height: 34px; stroke: currentColor; }
+
+.cta-botao {
+  align-self: flex-start; background: var(--ouro); color: #fff; font-weight: 800; font-size: 38px;
+  padding: 28px 48px; border-radius: 22px; box-shadow: 0 14px 40px rgba(180, 83, 9, .35);
+}
+.lista-chips { display: flex; flex-wrap: wrap; gap: 16px; }
+.chip { font-size: 28px; font-weight: 700; padding: 14px 26px; border-radius: 999px; background: rgba(11, 61, 46, .08); color: var(--verde); }
+.escuro .chip { background: rgba(255, 255, 255, .1); color: #fff; }

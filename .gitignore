@@ -44,3 +44,6 @@ skills-lock.json
 *.njsproj
 *.sln
 *.sw?
+
+# Peças renderizadas de marketing (PNG/MP4), regeneráveis com node marketing/render.mjs
+marketing/out/
