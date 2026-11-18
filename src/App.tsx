@@ -829,7 +829,7 @@ const OrganizerEventNewPage = () => {
                   )}
 
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-                  Notificações sobre vendas e suporte serão enviadas por WhatsApp e E-mail.
+                  Informe os contatos de suporte do evento.
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1599,7 +1599,7 @@ const OrganizerEventNewPage = () => {
             <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
               <InfoIcon className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
               <span>
-                A API do WhatsApp pode apresentar instabilidades. Em caso de falha no envio pelo WhatsApp, as mensagens padrão serão enviadas automaticamente por e-mail para garantir a entrega.
+                O envio automático destas mensagens por WhatsApp e e-mail ainda não está disponível.
               </span>
             </div>
 
@@ -3350,7 +3350,7 @@ const OrganizerEventConfiguracoesPage = () => {
           </div>
 
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-            Informações de contato serão usadas para notificações de WhatsApp e E-mail sobre vendas e suporte.
+            Informe os contatos de suporte do evento.
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
