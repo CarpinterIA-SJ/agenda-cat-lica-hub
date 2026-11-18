@@ -320,12 +320,12 @@ const LandingPage = () => {
             Plataforma de Eventos
           </span>
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white leading-tight max-w-4xl mx-auto">
-            Inscrições de{" "}
-            <span className="text-emerald-200">eventos católicos</span>{" "}
-            sem planilha e sem print de Pix
+            Inscrições e pagamentos{" "}
+            <span className="text-emerald-200">do seu evento</span>{" "}
+            de um jeito simples
           </h1>
           <p className="text-base md:text-lg text-emerald-100/80 max-w-2xl mx-auto">
-            Crie, divulgue e gerencie seus eventos católicos com facilidade. Retiros, shows, congressos, acampamentos e muito mais em um só lugar.
+            Crie, divulgue e gerencie seus eventos com facilidade. Retiros, congressos, shows, cursos, acampamentos e muito mais em um só lugar.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <Button
