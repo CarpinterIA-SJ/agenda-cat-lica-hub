@@ -28,12 +28,12 @@ const CATEGORIES = [
 ];
 
 const FAQS = [
-  { q: "Como faço para me inscrever em um evento?", a: "Navegue até a página do evento desejado, clique em 'Inscrever-se', preencha o formulário com seus dados e conclua o processo de inscrição. Você receberá uma confirmação por e-mail e WhatsApp." },
+  { q: "Como faço para me inscrever em um evento?", a: "Navegue até a página do evento desejado, clique em 'Inscrever-se', preencha o formulário com seus dados e conclua o processo de inscrição. Após a confirmação, seu ingresso com QR code fica disponível em 'Meus Ingressos'." },
   { q: "Posso transferir meu ingresso para outra pessoa?", a: "Sim, em eventos que permitem transferência você pode editar os dados do participante diretamente na plataforma até 24h antes do início do evento." },
   { q: "Meu pagamento foi confirmado, mas não recebi o ingresso. O que fazer?", a: "Verifique sua caixa de spam. Caso não encontre, acesse 'Meus Ingressos' na plataforma — seu comprovante estará disponível lá. Em caso de dúvidas, entre em contato com nosso suporte." },
   { q: "Como faço para cancelar minha inscrição e solicitar reembolso?", a: "Acesse 'Meus Ingressos', selecione o evento e clique em 'Solicitar cancelamento'. O reembolso é garantido em até 7 dias após a compra, conforme o Código de Defesa do Consumidor." },
   { q: "Sou organizador. Como faço para cadastrar meu evento?", a: "Crie uma conta, acesse o painel do organizador, clique em 'Criar evento' e siga os passos: informações gerais, página do evento, ingressos, pagamento e formulário de inscrição." },
-  { q: "A maior plataforma também processa eventos pagos?", a: "Sim. Para eventos gratuitos, não cobramos nada. Para eventos pagos, aplicamos uma taxa de 7,3% por inscrição, sem mensalidades ou taxas de cadastro." },
+  { q: "A plataforma também processa eventos pagos?", a: "Sim. Para eventos gratuitos, não cobramos nada. Para eventos pagos, há uma taxa de serviço de 5% por inscrição, somada ao valor do ingresso e paga por quem se inscreve. O organizador recebe o valor integral do ingresso, sem mensalidades ou taxas de cadastro." },
 ];
 
 // Capas de placeholder sóbrias (cores sólidas institucionais, sem arco-íris).
@@ -320,9 +320,9 @@ const LandingPage = () => {
             Plataforma de Eventos
           </span>
           <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white leading-tight max-w-4xl mx-auto">
-            A Maior Plataforma de{" "}
-            <span className="text-emerald-200">Eventos</span>{" "}
-            do Brasil
+            Inscrições de{" "}
+            <span className="text-emerald-200">eventos católicos</span>{" "}
+            sem planilha e sem print de Pix
           </h1>
           <p className="text-base md:text-lg text-emerald-100/80 max-w-2xl mx-auto">
             Crie, divulgue e gerencie seus eventos católicos com facilidade. Retiros, shows, congressos, acampamentos e muito mais em um só lugar.
@@ -502,8 +502,8 @@ const LandingPage = () => {
       <section className="bg-[#0b3d2e] py-16">
         <div className="max-w-4xl mx-auto px-4 md:px-6 text-center space-y-6">
           <h2 className="text-2xl md:text-4xl font-black text-white leading-tight">
-            Organize seu evento na maior plataforma de{" "}
-            <span className="text-emerald-200">Eventos</span> do Brasil
+            Organize as inscrições do seu próximo{" "}
+            <span className="text-emerald-200">evento</span> com o Guardião
           </h2>
           <p className="text-emerald-100/80 text-base max-w-xl mx-auto">
             Crie sua conta gratuitamente e comece a organizar seus eventos em minutos. Sem mensalidade, sem cartão.

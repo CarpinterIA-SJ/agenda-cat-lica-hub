@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Check, Zap, Users, Star, ArrowLeft, Calendar, QrCode, FileText, MessageCircle, BarChart3, Tag } from "lucide-react";
+import { Check, Zap, Users, Star, ArrowLeft, Calendar, QrCode, FileText, CreditCard, BarChart3, Tag } from "lucide-react";
 import { Footer } from "@/components/Footer";
 
 const FEATURES_FREE = [
@@ -9,7 +9,7 @@ const FEATURES_FREE = [
   "Formulário de inscrição personalizado",
   "Página do evento dedicada",
   "Relatórios completos (inscrições, check-ins)",
-  "Entrega por e-mail e WhatsApp",
+  "Ingresso com QR code para cada inscrito",
   "Check-in por QR code",
   "Todas as categorias católicas",
 ];
@@ -19,7 +19,7 @@ const FEATURES_PAID = [
   "Venda de ingressos pagos",
   "Cupons de desconto",
   "Relatórios financeiros avançados",
-  "Repasse automático",
+  "Repasse para a conta da organização",
   "Suporte prioritário",
 ];
 
@@ -35,7 +35,7 @@ const TOOLS = [
   { icon: FileText, title: "Formulários personalizados", desc: "Capture exatamente o que precisa de cada inscrito: diocese, paróquia, restrições, etc." },
   { icon: BarChart3, title: "Relatórios em tempo real", desc: "Vendas, inscrições e check-ins em dashboards atualizados ao vivo." },
   { icon: Tag, title: "Cupons de desconto", desc: "Crie códigos promocionais com valor fixo ou percentual para impulsionar inscrições." },
-  { icon: MessageCircle, title: "WhatsApp e E-mail", desc: "Envie confirmações e ingressos diretamente pelo WhatsApp ou e-mail do participante." },
+  { icon: CreditCard, title: "Pix, cartão e boleto", desc: "O pagamento é confirmado pelo sistema, sem conferir comprovante, e a inscrição muda para paga sozinha." },
   { icon: QrCode, title: "Check-in por QR code", desc: "App mobile para credenciamento rápido com QR code e verificação manual." },
   { icon: Calendar, title: "Página pública do evento", desc: "URL única e otimizada para conversão, compartilhável em redes sociais." },
 ];
@@ -85,7 +85,7 @@ const PlansPage = () => {
         <section className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
             { value: "100%", label: "Gratuito para eventos sem cobrança" },
-            { value: "7,3%", label: "Taxa por ingresso pago (tudo incluso)" },
+            { value: "5%", label: "Taxa por ingresso pago, paga pelo comprador" },
             { value: "0", label: "Taxa de setup ou mensalidade" },
             { value: "∞", label: "Eventos e inscrições ilimitados" },
           ].map((s) => (
@@ -133,8 +133,8 @@ const PlansPage = () => {
                   <Zap className="w-5 h-5 text-white" />
                 </div>
                 <CardTitle className="text-white">Pago</CardTitle>
-                <p className="text-3xl font-bold text-white">7,3%</p>
-                <p className="text-sm text-white/70">por inscrição paga (sem mensalidade)</p>
+                <p className="text-3xl font-bold text-white">5%</p>
+                <p className="text-sm text-white/70">por inscrição paga, somada ao ingresso e paga pelo comprador (sem mensalidade)</p>
               </CardHeader>
               <CardContent className="space-y-3">
                 {FEATURES_PAID.map((f) => (
@@ -167,7 +167,7 @@ const PlansPage = () => {
                   </div>
                 ))}
                 <Button variant="outline" className="w-full mt-4 border-[#0b3d2e] text-[#0b3d2e] hover:bg-[#0b3d2e]/10"
-                  onClick={() => window.open("https://wa.me/", "_blank")}>
+                  onClick={() => window.open("https://wa.me/5577999840019", "_blank")}>
                   Falar com nossa equipe
                 </Button>
               </CardContent>

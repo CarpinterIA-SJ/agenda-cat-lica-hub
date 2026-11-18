@@ -10,8 +10,8 @@ const SupportPage = () => (
     </div>
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {[
-        { title: "Central de Ajuda", desc: "Artigos e tutoriais", icon: FileText, action: () => window.open("https://wa.me/", "_blank") },
-        { title: "Chat ao Vivo", desc: "Fale com nossa equipe", icon: MessageCircle, action: () => window.open("https://wa.me/", "_blank") },
+        { title: "Central de Ajuda", desc: "Artigos e tutoriais", icon: FileText, action: () => window.open("https://wa.me/5577999840019", "_blank") },
+        { title: "Chat ao Vivo", desc: "Fale com nossa equipe", icon: MessageCircle, action: () => window.open("https://wa.me/5577999840019", "_blank") },
         { title: "E-mail", desc: "suporte@guardiaoeventos.com", icon: Mail, action: () => { window.location.href = "mailto:suporte@guardiaoeventos.com"; } },
       ].map((item) => (
         <Card key={item.title} onClick={item.action} className="shadow-card hover:shadow-card-hover transition-shadow cursor-pointer">
