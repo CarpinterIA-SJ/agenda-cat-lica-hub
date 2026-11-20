@@ -298,20 +298,18 @@ const OrganizerEventDashboardPage = () => {
 
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle className="text-lg">App de Check-in</CardTitle>
+              <CardTitle className="text-lg">Check-in pelo celular</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Utilize o app de validação Guardião Eventos para garantir entradas rápidas e seguras.
+                Abra a tela de check-in no navegador do celular e leia o QR code do ingresso na entrada. Não precisa instalar aplicativo.
               </p>
-              <div className="flex gap-3">
-                <div className="flex-1 rounded-md bg-black px-3 py-2 text-center text-xs font-semibold text-white cursor-pointer hover:bg-black/90 transition">
-                  Google Play
-                </div>
-                <div className="flex-1 rounded-md bg-black px-3 py-2 text-center text-xs font-semibold text-white cursor-pointer hover:bg-black/90 transition">
-                  App Store
-                </div>
-              </div>
+              <Button
+                className="w-full bg-[#004d00] text-white hover:bg-[#003300]"
+                onClick={() => navigate(`/organizador/evento/${id}/checkins`)}
+              >
+                Abrir check-in
+              </Button>
             </CardContent>
           </Card>
         </div>
