@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Calendar, ChevronLeft, FileText, Loader2, QrCode } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { EventName, EventPeriod } from "@/components/EventHeaderText";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -61,12 +62,12 @@ const CheckinsRealizadosPage = () => {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <h1 className="text-2xl font-bold uppercase text-slate-900">
-              FABRICIO CHRISTIAN DA SILVA CAVALCANTE
+              <EventName />
             </h1>
           </div>
           <div className="flex items-center gap-2 text-slate-500 font-medium">
             <Calendar className="w-4 h-4" />
-            <span>21/10/2026 às 12:00 até 22/10/2026 às 18:00</span>
+            <span><EventPeriod /></span>
           </div>
         </div>
         

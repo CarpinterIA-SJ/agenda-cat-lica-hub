@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate, Outlet, useNavigate, useParams, Link } from "react-router-dom";
+import { EventName, EventPeriod } from "@/components/EventHeaderText";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -2219,12 +2220,12 @@ const OrganizerEventParticipantesPage = () => {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-foreground">FABRICIO CHRISTIAN DA SILVA CAVALCANTE</h1>
+            <h1 className="text-2xl font-bold text-foreground"><EventName /></h1>
             <ExternalLink className="h-4 w-4 text-[#004d00]" />
           </div>
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="h-4 w-4 text-[#004d00]" />
-            21/10/2026 às 12:00 até 22/10/2026 às 18:00
+            <EventPeriod />
           </p>
         </div>
         <Button
@@ -2441,12 +2442,12 @@ const OrganizerEventFilaDeEsperaPage = () => {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-foreground">FABRICIO CHRISTIAN DA SILVA CAVALCANTE</h1>
+            <h1 className="text-2xl font-bold text-foreground"><EventName /></h1>
             <LinkIcon className="h-4 w-4 text-[#004d00]" />
           </div>
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="h-4 w-4 text-[#004d00]" />
-            21/10/2026 às 12:00 até 22/10/2026 às 18:00
+            <EventPeriod />
           </p>
         </div>
         <Button
@@ -2639,12 +2640,12 @@ const OrganizerEventCuponsPage = () => {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold uppercase text-foreground">FABRICIO CHRISTIAN DA SILVA CAVALCANTE</h1>
+            <h1 className="text-2xl font-bold uppercase text-foreground"><EventName /></h1>
             <ExternalLink className="h-4 w-4 text-[#004d00]" />
           </div>
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="h-4 w-4 text-[#004d00]" />
-            21/10/2026 às 12:00 até 22/10/2026 às 18:00
+            <EventPeriod />
           </p>
         </div>
         <Button
@@ -2883,12 +2884,12 @@ const OrganizerEventFinanceiroPage = () => {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold uppercase text-foreground">FABRICIO CHRISTIAN DA SILVA CAVALCANTE</h1>
+            <h1 className="text-2xl font-bold uppercase text-foreground"><EventName /></h1>
             <ExternalLink className="h-4 w-4 text-[#004d00]" />
           </div>
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="h-4 w-4 text-[#004d00]" />
-            21/10/2026 às 12:00 até 22/10/2026 às 18:00
+            <EventPeriod />
           </p>
         </div>
         <Button
@@ -3004,12 +3005,12 @@ const OrganizerEventRepassePage = () => {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold uppercase text-foreground">FABRICIO CHRISTIAN DA SILVA CAVALCANTE</h1>
+            <h1 className="text-2xl font-bold uppercase text-foreground"><EventName /></h1>
             <ExternalLink className="h-4 w-4 text-[#004d00]" />
           </div>
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="h-4 w-4 text-[#004d00]" />
-            21/10/2026 às 12:00 até 22/10/2026 às 18:00
+            <EventPeriod />
           </p>
         </div>
         <Button
@@ -3168,13 +3169,13 @@ const OrganizerEventConfiguracoesPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { toast } = useToast();
-  const [eventName, setEventName] = useState("FABRICIO CHRISTIAN DA SILVA CAVALCANTE");
+  const [eventName, setEventName] = useState("");
   const [eventType, setEventType] = useState("online");
   const [organizer, setOrganizer] = useState("guardiao");
   const [ddi, setDdi] = useState("+55");
   const [whatsapp, setWhatsapp] = useState("");
   const [supportEmail, setSupportEmail] = useState("");
-  const [slug, setSlug] = useState("fabricio-christian");
+  const [slug, setSlug] = useState("");
   const [category, setCategory] = useState("religioso");
   const [visibility, setVisibility] = useState("publico");
   const [startDate, setStartDate] = useState("");

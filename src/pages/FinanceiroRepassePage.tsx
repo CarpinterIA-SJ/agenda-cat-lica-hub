@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ExternalLink, Calendar, Wallet, HandCoins, Clock, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { EventName, EventPeriod } from "@/components/EventHeaderText";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -91,12 +92,12 @@ export default function FinanceiroRepassePage() {
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold uppercase flex items-center gap-2 text-slate-900">
-            FABRICIO CHRISTIAN DA SILVA CAVALCANTE
+            <EventName />
             <ExternalLink className="w-5 h-5 text-gray-500" />
           </h1>
           <div className="flex items-center gap-2 text-gray-600 mt-2">
             <Calendar className="w-5 h-5" />
-            <span>21/10/2026 às 12:00 até 22/10/2026 às 18:00</span>
+            <span><EventPeriod /></span>
           </div>
         </div>
         <Button

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Calendar, ChevronLeft, PlayCircle, CheckCircle2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { EventName, EventPeriod } from "@/components/EventHeaderText";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -182,7 +183,7 @@ const CheckinsPage = () => {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <h1 className="text-2xl font-bold uppercase text-slate-900">
-              FABRICIO CHRISTIAN DA SILVA CAVALCANTE
+              <EventName />
             </h1>
           </div>
           <div className="flex items-center gap-2 text-slate-500 font-medium">
